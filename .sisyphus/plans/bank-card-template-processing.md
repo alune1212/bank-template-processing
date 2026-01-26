@@ -38,7 +38,7 @@
 **关键差距（需要用户输入）**:
 1. **配置格式**: JSON or YAML? (默认: JSON)
 2. **模板结构**: 仅表头，或表头+示例数据，或表头+公式? (默认: 仅表头)
-3. **数据放置**: 在模板的哪里写入数据（起始行）? (需要根据具体主体单位对应的模板进行选择，每个模板的起始行都不一样)
+3. **数据放置**: 在模板的哪里写入数据（起始行）? (需要根据具体主体单位对应的模板进行选择，每个模板的起始行可能不同)
 4. **日期输入格式**: 输入Excel中的日期是什么格式? (默认: 按顺序尝试多种格式: YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY, 中文格式 YYYY年MM月DD日, YYYY-M-D)
 5. **输出文件名**: 如何命名输出文件? (需要让输出的文件名具有唯一值)
 
@@ -54,14 +54,14 @@
 - **空行**: 跳过它们
 - **输出文件已存在**: 覆盖
 - **金额舍入**: 舍入（标准）
-- **卡号验证**: 无Luhn校验（保持简单）
+- **卡号验证**: 需要Luhn校验，确保银行卡号符合要求（大多都是中国国内的银行卡号）
 
 ---
 
 ## 工作目标
 
 ### 核心目标
-构建一个Python命令行工具，根据配置文件中的。映射关系，将输入Excel文件的数据填充到对应的银行进卡模板中，并按照规则转换数据格式，生成格式化的输出Excel文件。
+构建一个Python命令行工具，根据配置文件中的映射关系，将输入Excel文件的数据填充到对应的银行进卡模板中，并按照规则转换数据格式，生成格式化的。
 
 ### 具体交付物
 - `main.py` - 命令行入口，参数解析和程序主流程
@@ -157,10 +157,10 @@
 
 ## 任务流程
 
-```
+\`\`\`
 任务1 (测试基础设施) → 任务2 (配置) → 任务3 (Excel读取) → 任务4 (转换器) → 任务5 (验证器) → 任务6 (Excel写入) → 任务7 (主程序) → 任务8 (集成测试)
                                    ↘ 任务9 (文档)
-```
+\`\`\`
 
 ## 并行化
 
@@ -172,7 +172,7 @@
 | 任务 | 依赖 | 原因 |
 |------|------------|--------|
 | 7 | 2, 3, 4, 5, 6 | 主程序集成所有模块 |
-| 8 | 7 | 集成测试需要主流程 |
+| 8 | | 集成测试需要主流程 |
 | 9 | 7 | 实现后的文档 |
 
 ---
@@ -251,7 +251,7 @@
   - 实现 `load_config(config_path: str) -> dict`
   - 实现 `validate_config(config: dict) -> None`
   - 实现对必填字段的验证: `version`, `organization_units`
-  - 实现对每个单位的验证: `template_path`, `field_mappings`, `transformations`
+  - 实现对每个单位的验证: `template_path`, `start_row`, `field_mappings`, `transformations`
   - 配置无效时抛出 `ConfigError`
   - 为配置加载和验证添加日志
 
@@ -272,7 +272,7 @@
   **测试参考**:
   - `tests/test_example.py` - 基本测试结构模式
 
-  **文档参考****:
+  **文档参考**:
   - Python json模块: `https://docs.python.org/3/library/json.html`
 
   **外部参考**:
@@ -292,22 +292,23 @@
     - 无效JSON语法 (json.JSONDecodeError)
     - 缺失必填字段 (ConfigError)
     - 无效field_mappings结构 (ConfigError)
+    - 无效start_row (ConfigError)
   - [ ] `pytest tests/test_config_loader.py` → 通过 (所有测试)
 
   **手动执行验证**:
   - [ ] 创建测试配置文件 `tests/fixtures/test_config.json`
   - [ ] **运行** Python REPL:
-    ```
+    \`\`\`
     >>> from config_loader import load_config, validate_config
     >>> config = load_config('tests/fixtures/test_config.json')
     >>> validate_config(config)
     预期: 无异常抛出
-    ```
+    \`\`\`
   - [ ] 测试无效配置:
-    ```
+    \`\`\`
     >>> load_config('nonexistent.json')
     预期: FileNotFoundError
-    ```
+    \`\`\`
 
   **需要的证据**:
   - [ ] REPL输出显示成功的配置加载和验证
@@ -373,15 +374,15 @@
 
   **手动执行验证**:
   - [ ] **运行** Python REPL:
-    ```
+    \`\`\`
     >>> from excel_reader import ExcelReader
-    >>> reader = ExcelReaderReader()
+    >>> reader = ExcelReader()
     >>> data = reader.read_excel('tests/fixtures/test_input.xlsx')
     >>> len(data)
     预期: 非空行的数量
     >>> data[0]
     预期: 带有表头键的字典
-    ```
+    \`\`\`
 
   **需要的证据**:
   - [ ] REPL输出显示成功的Excel读取
@@ -400,17 +401,18 @@
     - `transform_amount(value, decimal_places=2) -> float`
     - `transform_card_number(value) -> str`
   - 日期转换: 解析输入日期（按顺序尝试多种格式），格式化为YYYY-MM-DD
-    - 支持的输入格式: `YYYY-MM-DD`, `DD/MM/YYYY`, `MM/DD/YYYY`, `YYYY年MM月DD日`
+    - 支持的输入格式: `YYYY-MM-DD`, `DD/MM/YYYY`, `MM/DD/YYYY`, `中文格式 YYYY年MM月DD日`, `YYYY-M-D`
     - 按顺序尝试每种格式，使用首次成功的解析
     - 如果所有格式都失败，抛出 `TransformError`
-`  - 金额转换: 使用标准舍入舍入到2位小数
+  - 金额转换: 使用标准舍入舍入到2位小数
   - 卡号转换: 移除非数字字符，仅保留数字
+  - 对卡号进行Luhn验证：验证符合中国银行卡号要求
   - 无效数据时抛出 `TransformError`
   - 为转换添加日志
 
   **必须不做**:
   - 添加自定义转换函数（保持3个内置函数）
-  - 为卡号添加Luhn验证（保持简单）
+  - 不对其他字段进行Luhn验证（仅卡号）
 
   **可并行化**: 是（与2, 3, 5, 6一起）
 
@@ -442,9 +444,10 @@
   **如果使用TDD**:
   - [ ] 测试文件已创建: `tests/test_transformer.py`
   - [ ] 测试覆盖:
-    - 日期转换: 多种输入格式 (YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY, YYYY年MM月DD日) → YYYY-MM-DD
+    - 日期转换: 多种输入格式 (YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY, YYYY年MM月DD日, YYYY-M-D) → YYYY-MM-DD
     - 金额转换: 舍入到2位小数
     - 卡号转换: 移除空格/横杠
+    - Luhn校验: 中国银行卡号通过Luhn算法验证
     - 无效日期（所有格式失败 → TransformError）
     - 无效金额 (TransformError)
     - 无效卡号 (TransformError)
@@ -452,16 +455,16 @@
 
   **手动执行验证**:
   - [ ] **运行** Python REPL:
-    ```
+    \`\`\`
     >>> from transformer import Transformer
     >>> t = Transformer()
-    >>> t.transform_date('2025年1月25日日')
+    >>> t.transform_date('2025年1月25日')
     预期: '2025-01-25'
     >>> t.transform_amount(12345.6789)
     预期: 12345.68
     >>> t.transform_card_number('6222 1234 5678 9012')
     预期: '6222123456789012'
-    ```
+    \`\`\`
 
   **需要的证据**:
   - [ ] REPL输出显示正确的转换
@@ -526,17 +529,17 @@
 
   **手动执行验证**:
   - [ ] **运行** Python REPL:
-    ```
+    \`\`\`
     >>> from validator import Validator
     >>> v = Validator()
     >>> v.validate_required({'name': 'John', 'amount': 100}, ['name', 'amount'])
     预期: 无异常
     >>> v.validate_required({'name': 'John'}, ['name', 'amount'])
     预期: ValidationError
-    ```
+    \`\`\`
 
   **需要的证据**:
-  - [ ] REPL输出显示验证行为
+  - [ ] ] REPL输出显示验证行为
 
   **提交**: 是
   - **消息**: `feat: implement data validator module`
@@ -546,20 +549,20 @@
 
   **要做什么**:
   - 创建 `excel_writer.py`
-  - 实现带有 `write_excel(template_path: str, data: List[dict], field_mappings: dict, output_path: str) -> None` 的 `ExcelWriter` 类
+  - 实现带有 `write_excel(template_path: str, data: List[dict], field_mappings: dict, output_path: str, start_row: int, mapping_mode: str) -> None` 的 `ExcelWriter` 类
   - 加载模板Excel文件（先只读模式，然后复制）
-  - 从配置获取字段映射
-  - 从第2行开始清除所有行（移除现有数据）
-  - 从第2行开始将转换后的数据写入模板
-  - 应用字段映射（输入列 → 模板列）
-  - 保留第1行的模板格式、公式和合并单元格（表头）
+  - 从配置获取字段映射和起始行（start_row）
+  - 从配置的起始行开始清除所有行（移除现有数据）
+  - 从配置的起始行开始将转换后的数据写入模板
+  - 应用字段映射（支持列名优先，列索引备选）
+  - 保留配置的起始行-1的模板格式、公式和合并单元格（表头）
   - 保存到输出路径（从不覆盖原始模板）
   - 写入失败时抛出 `ExcelError`
   - 为文件写入和行计数添加日志
 
   **必须不做**:
   - 覆盖原始模板文件（始终写入到新输出文件）
-  - 追加数据到现有模板行（先清除第2+行）
+  - 追从配置的起始行+行开始追加数据（先清除配置的起始行+行）
 
   **可并行化**: 是（与2, 3, 4, 5一起）
 
@@ -590,7 +593,8 @@
   - [ ] 测试文件已创建: `tests/test_excel_writer.py`
   - [ ] 测试覆盖:
     - 成功的Excel写入
-    - 字段映射应用
+    - 字段映射应用（列名优先）
+    - 字段映射应用（列索引备选）
     - 模板格式保留
     - 如需要创建输出目录
     - 权限错误 (ExcelError)
@@ -599,21 +603,21 @@
 
   **手动执行验证**:
   - [ ] **运行** Python REPL:
-    ```
+    \`\`\`
     >>> from excel_writer import ExcelWriter
     >>> writer = ExcelWriter()
     >>> data = [{'姓名': '张三', '卡号': '6222123456789012', '金额': 100.00}]
-    >>> mappings = {'姓名': '姓名', '卡号': '卡号', '金额': '金额'}
-    >>> writer.write_excel('tests/fixtures/test_template.xlsx', data, mappings, 'output/test.xlsx')
-    预期: 文件创建于 output `test.xlsx`
-    ```
+    >>> mappings = {'客户姓名': '姓名', '卡号': '卡号', '金额': '金额'}
+    >>> writer.write_excel('tests/fixtures/test_template.xlsx', data, mappings, 'output/test.xlsx', 2, 'name_first')
+    预期: 文件创建于 output/test.xlsx
+    \`\`\`
 
   **需要的证据**:
   - [ ] 输出文件已创建
   - [ ] 输出文件包含正确数据
 
   **提交**: 是
-  - **消息**: `feat: implement Excel writer module`
+  - - **消息**: `feat: implement Excel writer module`
   - **文件**: `excel_writer.py`, `tests/test_excel_writer.py`, `tests/fixtures/test_template.xlsx`
 
 - [ ] 7. 实现主CLI模块
@@ -626,6 +630,7 @@
     - 位置参数3: `month` (月份整数)
     - 可选参数: `--output-dir` (输出目录, 默认: `output/`)
     - 可选参数: `--config` (配置文件路径, 默认: `config.json`)
+  - - 可选参数: `--output-filename-template` (输出文件名模板, 默认: `{unit_name}_{month}.xlsx`)
   - 实现主工作流程:
     1. 加载并验证配置
     2. 基于unit_name从配置获取单位配置
@@ -633,7 +638,7 @@
     4. 验证输入数据
     5. 按照配置转换数据
     6. 写入到模板Excel文件
-    7. 生成输出文件名: `{unit_name}_{month}.xlsx`
+    7. 生成输出文件名: 使用模板和唯一值确保唯一性
     8. 保存到输出目录
   - 实现错误处理: 捕获并记录所有异常
   - 实现日志: 配置带时间戳的日志
@@ -682,13 +687,14 @@
     - 无效单位名称 (ConfigError)
     - 无效月份 (ValueError)
     - 成功的端到端处理
+    - 输出文件名生成策略（时间戳或序列号）
   - [ ] `pytest tests/test_main.py` → 通过 (所有测试)
 
   **手动执行验证**:
   - [ ] **运行**: `python main.py --help`
   - [ ] **验证**: 帮助文本显示所有参数
   - [ ] **运行**: `python main.py tests/fixtures/test_input.xlsx unit_test 01 --output-dir output/`
-  - [ ] **验证**: 输出文件创建于 `output/unit_test_01.xlsx`
+  - [ ] **验证**: 输出文件创建于 `output/unit_test_01_202501261234.xlsx`（或类似唯一文件名）
   - [ ] **运行**: `python main.py nonexistent.xlsx unit_test 01`
   - [ ] **预期**: FileNotFoundError 并附带清晰消息
 
@@ -709,6 +715,8 @@
     - 完整工作流: 读取配置，读取输入，转换，写入输出
     - 错误处理: 缺失文件，无效数据
     - 数据转换验证
+    - 唯一文件名生成验证
+    - Luhn校验功能验证
   - 创建完整的测试fixtures:
     - `tests/fixtures/integration_input.xlsx` (示例输入)
     - `tests/fixtures/integration_template.xlsx` (示例模板)
@@ -752,6 +760,8 @@
     - 数据转换正确性
     - 缺失文件的错误处理
     - 无效数据的错误处理
+    -    唯一文件名生成验证
+    - Luhn校验功能验证
     - 日志输出验证
   - [ ] `pytest tests/test_integration.py` → 通过 (所有测试)
 
@@ -776,7 +786,7 @@
     - 项目描述（银行进卡模板处理系统）
     - 安装说明（使用uv）
     - 使用示例
-    - 配置文件结构说明
+    - 配置文件结构说明（包括start_row, mapping_mode, luhn_validation, output_filename_template等新增配置项）
     - 错误处理文档
     - 测试说明
   - 创建附带清晰注释的示例 `config.json`
@@ -846,14 +856,14 @@
 | 6 | `feat: implement Excel writer module` | `excel_writer.py`, `tests/` | `uv run pytest tests/test_excel_writer.py` |
 | 7 | `feat: implement main CLI module with argument parsing` | `main.py`, `tests/` | `uv run pytest tests/test_main.py` |
 | 8 | `test: add integration tests for complete workflow` | `tests/test_integration.py`, `tests/fixtures/` | `uv run pytest tests/test_integration.py` |
-| 9 | `docs: add comprehensive README and example config` | `README.md`, `config.json`, `templates/` | `uv run pytest --cov` |
+| 9 | `docs: add comprehensive README and example configuration` | `README.md`, `config.json`, `templates/` | `uv run pytest --cov` |
 
 ---
 
 ## 成功标准
 
 ### 验证命令
-```bash
+\`\`\`bash
 # 使用uv同步依赖项
 uv sync
 # 预期: 依赖项已安装
@@ -872,12 +882,12 @@ uv run python main.py --help
 
 # 测试端到端
 uv run python main.py tests/fixtures/test_input.xlsx unit_test 01 --output-dir output/
-# 预期: output/unit_test_01.xlsx 已创建（单个.xlsx扩展名）
+# 预期: output/unit_test_01_202501261234.xlsx 已创建（（使用时间戳或序列号确保唯一性）
 
 # 验证覆盖率报告
 open htmlcov/index.html
 # 预期: 覆盖率报告显示
-```
+\`\`\`
 
 ### 最终检查清单
 - [ ] 所有"必须具备"存在
@@ -899,30 +909,33 @@ open htmlcov/index.html
 
 建议的结构（JSON）:
 
-```json
+\`\`\`json
 {
   "version": "1.0",
   "organization_units": {
     "unit_name": {
       "template_path": "templates/unit_template.xlsx",
+      "start_row": 2,
       "field_mappings": {
         "template_column_name": {
           "source_column": "input_column_name",
+          "source_column_name": "姓名",  // 保留列名用于日志
+          "mapping_mode": "name_first",  // 数据放置方式："name_first"(列名优先), "index_first"(列索引优先), "name_first_fallback"(列名优先，回退到索引)
           "transform": "date_format|amount_decimal|card_number|none",
           "required": true
         }
       },
       "transformations": {
         "date_format": {
-          "output_format": "YYYY-MM-DD",
-          "input_format": "auto"
+          "output_format": "YYYY-MM-DD"
         },
         "amount": {
           "decimal_places": 2,
           "rounding": "round"
         },
         "card_number": {
-          "remove_formatting": true
+          "remove_formatting": true,
+          "luhn_validation": true
         }
       },
       "validation_rules": {
@@ -935,7 +948,7 @@ open htmlcov/index.html
     }
   }
 }
-```
+\`\`\`
 
 **[需要决策: 日期输入格式]**
 - 输入Excel中的日期是什么格式?
@@ -949,11 +962,12 @@ open htmlcov/index.html
 - 每个主体的模板的起始行可能不同（需要在配置中为每个单位指定）
 
 **[需要决策: 数据放置]**
-- 数据应该写入到哪一行？第2行？需要在配置中为每个单位指定？
+- 数据应该写入到哪一行？第2行？需要在配置中为每个单位指定起始行？
 
 **[需要决策: 输出文件名]**
 - 如何生成唯一的输出文件名以避免冲突?
 - 是否使用时间戳或序列号?
+- 是否在配置中指定文件名生成策略?
 
 ---
 
@@ -975,17 +989,18 @@ open htmlcov/index.html
 ## 已应用的默认决策（如需要可覆盖）
 
 - **配置格式**: JSON（合理的默认值，可覆盖为YAML）
-- **日期输入格式**: 按顺序尝试多种格式: `YYYY-MM-DD`, `DD/MM/YYYY`, `MM/DD/YYYY`, `YYYY年MM月DD日`（灵活解析，首次匹配胜出）
+- **数据放置方案**: 混合方案（列名优先，回退到列索引）- 这是最终决策
+- **日期输入格式**: 按顺序尝试多种格式: `YYYY-MM-DD`, `DD/MM/YYYY`, `MM/DD/YYYY`, `中文格式 YYYY年MM月DD日`, `YYYY-M-D`（灵活解析，首次匹配胜出）
 - **日期输出格式**: YYYY-MM-DD（用户已确认）
 - **金额小数位数**: 2（用户已确认）
 - **金额舍入**: 舍入（标准）
 - **卡号格式**: 纯数字（用户已确认）
-- **卡号验证**: 需要Luhn校验，确保银行卡号符合要求（大多都是中国国内的银行卡号）
+- **卡号验证**: Luhn校验（中国银行卡号要求）
 - **工作表处理**: 使用第一个工作表
 - **模板表头行**: 第1行
-- **数据起始行**: 基于模板配置（每个主体的模板可能起始行不同）
+- **模板起始行**: 基于配置（每个主体的模板可能起始行不同）
 - **模板数据处理**: 从配置的起始行开始清除所有行后写入数据（替换模式，不是追加）
-- **输出文件名**: 唯一文件名生成（避免冲突）
+- **输出文件名**: 唯一文件名生成（使用时间戳避免冲突）
 - **输出文件已存在**: 覆盖
 - **空行**: 跳过
 - **多余列**: 忽略
@@ -1004,32 +1019,42 @@ open htmlcov/index.html
 | 张三 | 6222 1234 5678 9012 | 12345.678 | 2025-01-25 |
 | 李四 | 6222-9876-5432-1098 | 67890.123 | 25/01/2025 |
 | 王五 | 6222987654321098 | 12.5 | 2025年1月25日 |
+| 嵌六 | 6222020061234567 | 99999.99 | 2025-01-25 |
 
 ### 示例配置 (config.json)
-```json
+\`\`\`json
 {
   "version": "1.0",
   "organization_units": {
     "工商银行": {
       "template_path": "templates/icbc_template.xlsx",
+      "start_row": 2,
       "field_mappings": {
         "客户姓名": {
           "source_column": "姓名",
-`          "transform": "none",
+          "source_column_name": "姓名",
+          "mapping_mode": "name_first",
+          "transform": "none",
           "required": true
         },
         "银行卡号": {
           "source_column": "卡号",
+          "source_column_name": "卡号",
+          "mapping_mode": "name_first",
           "transform": "card_number",
           "required": true
         },
         "转账金额": {
           "source_column": "金额",
+          "source_column_name": "金额",
+          "mapping_mode": "name_first",
           "transform": "amount_decimal",
           "required": true
         },
         "交易日期": {
           "source_column": "日期",
+          "source_column_name": "日期",
+          "mapping_mode": "name_first",
           "transform": "date_format",
           "required": true
         }
@@ -1043,7 +1068,8 @@ open htmlcov/index.html
           "rounding": "round"
         },
         "card_number": {
-          "remove_formatting": true
+          "remove_formatting": true,
+          "luhn_validation": true
         }
       },
       "validation_rules": {
@@ -1056,24 +1082,33 @@ open htmlcov/index.html
     },
     "建设银行": {
       "template_path": "templates/ccb_template.xlsx",
+      "start_row": 3,
       "field_mappings": {
         "户名": {
           "source_column": "姓名",
+          "source_column_name": "姓名",
+          "mapping_mode": "name_first",
           "transform": "none",
           "required": true
         },
         "卡号": {
           "source_column": "卡号",
+          "source_column_name": "卡号",
+          "mapping_mode": "name_first",
           "transform": "card_number",
           "required": true
         },
         "入账金额": {
           "source_column": "金额",
+          "source_column_name": "金额",
+          "mapping_mode": "name_first",
           "transform": "amount_decimal",
           "required": true
         },
         "日期": {
           "source_column": "日期",
+          "source_column_name": "日期",
+          "mapping_mode": "name_first",
           "transform": "date_format",
           "required": true
         }
@@ -1087,7 +1122,8 @@ open htmlcov/index.html
           "rounding": "round"
         },
         "card_number": {
-          "remove_formatting": true
+          "remove_formatting": true,
+          "luhn_validation": true
         }
       },
       "validation_rules": {
@@ -1100,16 +1136,17 @@ open htmlcov/index.html
     }
   }
 }
-```
+\`\`\`
 
 ### 示例模板Excel (icbc_template.xlsx)
 | 客户姓名 | 银行卡号 | 转账金额 | 交易日期 |
 |----------|----------|----------|----------|
 | (第2+行将被清除并填充转换后的数据)
 
-### 示例输出Excel (output/工商银行_01.xlsx)
+### 示例输出Excel (output/工商银行_01_202501261234.xlsx)
 | 客户姓名 | 银行卡号 | 转账金额 | 交易日期 |
 |----------|----------|----------|----------|
 | 张三 | 6222123456789012 | 12345.68 | 2025-01-25 |
 | 李四 | 6222987654321098 | 67890.12 | 2025-01-25 |
 | 王五 | 6222987654321098 | 12.50 | 2025-01-25 |
+| 嵌六 | 6222020061234567 | 99999.99 | 2025-01-25 |
