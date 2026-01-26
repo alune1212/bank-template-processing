@@ -27,6 +27,19 @@
 - 模板文件和输入文件都支持这三种格式
 - 输出文件格式与模板文件格式保持一致
 
+### 新增需求（第11次细化）
+**表头行配置**：
+- 当前问题：只配置了数据写入的起始行（`start_row`），但没有配置表头所在的行
+- 新增配置：`header_row` 指定模板中表头所在的行数（默认第1行）
+- 配置说明：
+  - `header_row`：表头所在的行（从1开始计数）
+  - `start_row`：数据写入的起始行（从1开始计数）
+  - 表头行到数据起始行之间的内容会被保留（例如说明文字、空行等）
+- 使用场景：
+  - 模板第1-3行是说明信息，第4行是表头，第5行开始是数据
+  - 配置：`header_row: 4`, `start_row: 5`
+  - 系统会保留第1-3行的说明信息和第4行的表头，从第5行开始写入数据
+
 ### 面试摘要
 
 **关键讨论**:
@@ -170,10 +183,11 @@
 - [ ] **验证**: 输出文件包含正确数据
 
 **针对Excel变更**:
-- [ ] 在Excel中打开输出文件
-- [ ] **验证**: 表头与模板匹配
-- [ ] **验证**: 数据正确填充
-- [ ] **验证**: 转换已应用
+   - [ ] 在Excel中打开输出文件
+   - [ ] **验证**: header_row 之前的所有内容完全保留（标题、说明等）
+   - [ ] **验证**: header_row 行的表头与模板匹配
+   - [ ] **验证**: 从 start_row 行开始正确填充数据
+   - [ ] **验证**: 转换已应用
 
 ---
 
@@ -270,14 +284,18 @@
 
 - [ ] 2. 实现配置加载器模块
 
-  **要做什么**:
-  - 创建 \`config_loader.py\`
-  - 实现 \`load_config(config_path: str) -> dict\`
-  - 实现 \`validate_config(config: dict) -> None\`
-  - 实现对必填字段的验证: \`version\`, \`organization_units\`
-  - 实现对每个单位的验证: \`template_path\`, \`start_row\`, \`field_mappings\`, \`transformations\`
-  - 配置无效时抛出 \`ConfigError\`
-  - 为配置加载和验证添加日志
+   **要做什么**:
+   - 创建 \`config_loader.py\`
+   - 实现 \`load_config(config_path: str) -> dict\`
+   - 实现 \`validate_config(config: dict) -> None\`
+   - 实现对必填字段的验证: \`version\`, \`organization_units\`
+   - 实现对每个单位的验证: \`template_path\`, \`header_row\`, \`start_row\`, \`field_mappings\`, \`transformations\`
+   - 实现行配置验证：
+     - \`header_row\` 必须 ≥ 1
+     - \`start_row\` 必须 > \`header_row\`
+     - 如果 \`start_row\` 未指定，默认为 \`header_row + 1\`
+   - 配置无效时抛出 \`ConfigError\`
+   - 为配置加载和验证添加日志
 
   **必须不做**:
   - 添加热重载或自动配置发现
@@ -308,16 +326,18 @@
 
   **验收标准**:
 
-  **如果使用TDD**:
-  - [ ] 测试文件已创建: \`tests/test_config_loader.py\`
-  - [ ] 测试覆盖:
-    - 有效配置加载
-    - 无效配置路径 (FileNotFoundError)
-    - 无效JSON语法 (json.JSONDecodeError)
-    - 缺失必填字段 (ConfigError)
-    - 无效field_mappings结构 (ConfigError)
-    - 无效start_row (ConfigError)
-  - [ ] \`pytest tests/test_config_loader.py\` → 通过 (所有测试)
+   **如果使用TDD**:
+   - [ ] 测试文件已创建: \`tests/test_config_loader.py\`
+   - [ ] 测试覆盖:
+     - 有效配置加载
+     - 无效配置路径 (FileNotFoundError)
+     - 无效JSON语法 (json.JSONDecodeError)
+     - 缺失必填字段 (ConfigError)
+     - 无效field_mappings结构 (ConfigError)
+     - 无效header_row (ConfigError: 必须 ≥ 1)
+     - 无效start_row (ConfigError: 必须 > header_row)
+     - start_row 默认值测试 (未指定时为 header_row + 1)
+   - [ ] \`pytest tests/test_config_loader.py\` → 通过 (所有测试)
 
   **手动执行验证**:
   - [ ] 创建测试配置文件 \`tests/fixtures/test_config.json\`
@@ -584,31 +604,34 @@
 - [ ] 6. 实现Excel写入器模块
 
    **要做什么**:
-   - 创建 \`excel_writer.py\`
-   - 实现带有 \`write_excel_excel(template_path: str, data: List[dict], field_mappings: dict, output_path: str, start_row: int, mapping_mode: str, fixed_values: dict, auto_number: dict, bank_branch_mapping: dict, month_type_mapping: dict, month_param: str) -> None\` 的 \`ExcelWriter\` 类
-   - 根据模板文件扩展名自动选择写入方式：
-     - `.xlsx` 文件：使用 openpyxl（保留格式、公式、合并单元格）
-     - `.csv` 文件：使用 csv 模块（UTF-8 编码，无格式保留）
-     - `.xls` 文件：使用 xlwt（基本格式，无公式保留）
-   - 加载模板文件（如果需要，先读取模板的表头）
-   - 从配置获取字段映射和起始行（start_row）
-   - 从配置的起始行开始清除所有行（移除现有数据，对 .xlsx/.xls 有效）
-   - 从配置的起始行开始将转换后的数据写入模板
-   - 应用字段映射（支持列名优先，列索引备选）
-   - 处理固定值：为每一行写入配置的固定值到指定列
-   - 处理自动编号：如果enabled=true，从start_from开始为每一行递增编号
-   - 处理银行支行映射：如果enabled=true.get("source_column")获取支行信息，写入到get("target_column")
-   - 处理month类型映射（month_type_mapping）：
-     - 如果enabled=false，不处理
-     - 如果month_param是数字（1-12或01-09），格式化为"{month}月收入"（例如"01月收入"）
-     - 如果month_param="年终奖"，写入配置的"bonus_value"（默认"年终奖"）
-     - 如果month_param="补偿金"，写入配置的"compensation_value"（默认"补偿金"）
-     - 将结果写入到配置的"target_column"
-   - 保留配置的起始行-1的模板格式、公式和合并单元格（表头，仅对 .xlsx/.xls 有效）
-   - 保存到输出路径（从不覆盖原始模板）
-   - 写入失败时抛出 \`ExcelError\`
-   - 不支持的格式时抛出 \`ExcelError\`
-   - 为文件写入和行计数添加日志
+    - 创建 \`excel_writer.py\`
+    - 实现带有 \`write_excel(template_path: str, data: List[dict], field_mappings: dict, output_path: str, header_row: int, start_row: int, mapping_mode: str, fixed_values: dict, auto_number: dict, bank_branch_mapping: dict, month_type_mapping: dict, month_param: str) -> None\` 的 \`ExcelWriter\` 类
+    - 根据模板文件扩展名自动选择写入方式：
+      - `.xlsx` 文件：使用 openpyxl（保留格式、公式、合并单元格）
+      - `.csv` 文件：使用 csv 模块（UTF-8 编码，无格式保留）
+      - `.xls` 文件：使用 xlwt（基本格式，无公式保留）
+    - 加载模板文件（从配置的 header_row 读取表头）
+    - 从配置获取字段映射、表头行（header_row）和数据起始行（start_row）
+    - 验证配置：start_row 必须 > header_row，否则抛出 ConfigError
+    - 从配置的起始行开始清除所有行（移除现有数据，对 .xlsx/.xls 有效）
+    - 从配置的起始行开始将转换后的数据写入模板
+    - 保留第1行到header_row-1的所有内容（说明文字、空行等）
+    - 保留header_row行的表头
+    - 应用字段映射（支持列名优先，列索引备选）
+    - 处理固定值：为每一行写入配置的固定值到指定列
+    - 处理自动编号：如果enabled=true，从start_from开始为每一行递增编号
+    - 处理银行支行映射：如果enabled=true.get("source_column")获取支行信息，写入到get("target_column")
+    - 处理month类型映射（month_type_mapping）：
+      - 如果enabled=false，不处理
+      - 如果month_param是数字（1-12或01-09），格式化为"{month}月收入"（例如"01月收入"）
+      - 如果month_param="年终奖"，写入配置的"bonus_value"（默认"年终奖"）
+      - 如果month_param="补偿金"，写入配置的"compensation_value"（默认"补偿金"）
+      - 将结果写入到配置的"target_column"
+    - 保留配置的header_row行的模板格式、公式和合并单元格（仅对 .xlsx/.xls 有效）
+    - 保存到输出路径（从不覆盖原始模板）
+    - 写入失败时抛出 \`ExcelError\`
+    - 不支持的格式时抛出 \`ExcelError\`
+    - 为文件写入和行计数添加日志
 
   **必须不做**:
   - 覆盖原始模板文件（始终写入到新输出文件）
@@ -869,16 +892,18 @@
 
 - [ ] 9. 创建文档和示例配置
 
-  **要做什么**:
-  - 创建 \`README.md\` 并包含:
-    - 项目描述（银行进卡模板处理系统）
-    - 安装说明（使用uv）
-    - 使用示例
-    - 配置文件结构说明（包括start_row, mapping_mode, luhn_validation, output_filename_template等新增配置项）
-    - 错误处理文档
-    - 测试说明
-   - 创建附带清晰注释的示例 \`config.json\`（包括所有新增配置项：fixed_values, auto_number, bank_branch_mapping）
-   - 创建示例 \`templates/example_template.xlsx\`（包含序号、开户支行等列）
+   **要做什么**:
+   - 创建 \`README.md\` 并包含:
+     - 项目描述（银行进卡模板处理系统）
+     - 安装说明（使用uv）
+     - 使用示例
+     - 配置文件结构说明（包括header_row, start_row, mapping_mode, luhn_validation, output_filename_template等新增配置项）
+     - 多格式支持说明（.xlsx, .csv, .xls）
+     - 错误处理文档
+     - 测试说明
+   - 创建附带清晰注释的`示例 \`config.json\`（包括所有新增配置项：fixed_values, auto_number, bank_branch_mapping, month_type_mapping）
+   - 创建示例 \`templates/example_template.xlsx\`（包含序号、开户支行、收入类型等列）
+   - 创建复杂模板示例 \`templates/complex_template.xlsx\`（包含多行说明、标题等，演示 header_row 和 start_row 的使用）
 
   **必须不做**:
   - 添加自动生成的文档工具（未经请求）
@@ -1003,7 +1028,8 @@ open htmlcov/index.html
   "organization_units": {
     "unit_name": {
       "template_path": "templates/unit_template.xlsx",
-      "start_row": 2,
+      "header_row": 1,  // 表头所在的行（从1开始计数，默认第1行）
+      "start_row": 2,   // 数据写入的起始行（从1开始计数，默认从header_row+1开始）
       "field_mappings": {
         "template_column_name": {
           "source_column": "input_column_name",
@@ -1138,7 +1164,8 @@ open htmlcov/index.html
   "organization_units": {
     "工商银行": {
       "template_path": "templates/icbc_template.xlsx",
-      "start_row": 2,
+      "header_row": 1,  // 表头在第1行
+      "start_row": 2,   // 数据从第2行开始写入
       "field_mappings": {
         "客户姓名": {
           "source_column": "姓名",
@@ -1214,7 +1241,8 @@ open htmlcov/index.html
     },
     "建设银行": {
       "template_path": "templates/ccb_template.xlsx",
-      "start_row": 3,
+      "header_row": 2,  // 表头在第2行
+      "start_row": 3,   // 数据从第3行开始写入
       "field_mappings": {
         "户名": {
           "source_column": "姓名",
@@ -1278,40 +1306,6 @@ open htmlcov/index.html
           "日期": "date"
         }
       }
-    }
-  }
-}
-      },
-      "transformations": {
-        "date_format": {
-          "output_format": "YYYY-MM-DD"
-        },
-        "amount": {
-          "decimal_places": 2,
-          "rounding": "round"
-        },
-        "card_number": {
-          "remove_formatting": true,
-          "luhn_validation": true
-        }
-      },
-      "validation_rules": {
-        "required_fields": ["姓名", "卡号", "金额", "日期"],
-        "data_types": {
-          "金额": "numeric",
-          "date": "date"
-        }
-      }
-    }
-  }
-}
-\`\`\`
-
-### 支持的文件格式
-
-系统支持三种文件格式，根据文件扩展名自动选择处理方式：
-
-| 格式 | 读取库 | 写入库 | 特性 |
 |------|--------|--------|------|
 | `.xlsx` | openpyxl | openpyxl | 保留格式、公式、合并单元格 |
 | `.xls` | xlrd | xlwt | 基本格式，无公式保留 |
@@ -1491,3 +1485,161 @@ pytest-cov = ">=4.0.0"
 ```
 
 注意：CSV 模块是 Python 标准库，无需额外安装。
+
+---
+
+## 第11次细化：表头行配置
+
+**新增配置项：`header_row``**
+
+### 配置说明
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `header_row` | int | 1 | 模板中表头所在的行（从1开始计数） |
+| `start_row` | int | header_row+1 | 数据写入的起始行（从1开始计数） |
+
+### 行保留规则
+
+系统会保留以下内容：
+
+1. **第1行到 `header_row-1` 行**：保留所有内容（说明文字、标题、空行等）
+2. **`header_row` 行**：保留表头（格式、公式、合并单元格）
+3. **`start_row` 及之后行**：清除原有数据，写入新数据
+
+### 配置示例
+
+#### 示例1：标准模板
+```
+第1行：表头
+第2行：数据起始
+```
+```json
+{
+  "header_row": 1,
+  "start_row": 2
+}
+```
+
+#### 示例2：带说明的模板
+```
+第1行：标题 "工资发放表"
+第2行：（空行）
+第3行：说明 "填写日期：2025年1月"
+第4行：表头
+第5行：数据起始
+```
+```json
+{
+  "header_row": 4,
+  "start_row": 5
+}
+```
+**保留内容**：
+- ✅ 第1-3行（标题、空行、说明）完全保留
+- ✅ 第4行（表头）保留，包括格式和合并单元格
+- ✅ 第5行开始写入新数据
+
+#### 示例3：复杂模板
+```
+第1行：银行LOGO
+第2行：标题 "中国工商银行"
+第3行：项目名称 "2025年1月工资发放"
+第4行：（空行）
+第5行：表头
+第6行：数据起始
+```
+```json
+{
+  "header_row": 5,
+  "start_row": 6
+}
+```
+
+### 验证规则
+
+配置加载时会验证以下规则：
+
+1. `header_row` 必须 ≥ 1
+2. `start_row` 必须 > `header_row`
+3. 如果 `start_row` 未指定，默认为 `header_row + 1`
+
+**验证失败示例**：
+```json
+{
+  "header_row": 5,
+  "start_row": 3  // ❌ 错误：start_row 必须 > header_row
+}
+```
+
+### 与其他功能的关系
+
+`header_row` 配置不会影响以下功能：
+
+- ✅ **固定值填写**：固定值仍然根据列名映射写入
+- ✅ **自动编号**：序号列根据 `column_name` 映射
+- ✅ **银行支行映射**：支行信息根据 `source_column` 和 `target_column` 映射
+- ✅ **month类型映射**：收入类型根据 `target_column` 映射
+
+### 不同格式的行为
+
+| 格式 | `header_row` 行保留 | `header_row` 到 `start_row` 保留 |
+|------|-------------------|--------------------------------|
+| `.xlsx` | ✅ 完全保留格式、公式、合并单元格 | ✅ 完全保留 |
+| `.xls` | ⚠️ 保留基本格式 | ✅ 保留 |
+| `.csv` | ❌ 无格式（纯文本） | ✅ 保留 |
+
+### 配置示例（完整）
+
+```json
+{
+  "version": "1.0",
+  "organization_units": {
+    "工商银行": {
+      "template_path": "templates/icbc_template.xlsx",
+      "header_row": 4,  // 表头在第4行
+      "start_row": 5,   // 数据从第5行开始写入
+      "field_mappings": {
+        "客户姓名": {
+          "source_column": "姓名",
+          "source_column_name": "姓名",
+          "mapping_mode": "name_first",
+          "transform": "none",
+          "required": true
+        }
+        // ... 其他字段映射
+      },
+      "fixed_values": {
+        "省份": "浙江省",
+        "业务类型": "工资代发"
+      },
+      "auto_number": {
+        "enabled": true,
+        "column_name": "序号",
+        "start_from": 1
+      },
+      "bank_branch_mapping": {
+        "enabled": true,
+        "source_column": "开户银行",
+        "target_column": "开户支行"
+      },
+      "month_type_mapping": {
+        "enabled": true,
+        "target_column": "收入类型",
+        "month_format": "{month}月收入",
+        "bonus_value": "年终奖",
+        "compensation_value": "补偿金"
+      }
+    }
+  }
+}
+```
+
+### 使用场景总结
+
+| 场景 | header_row | start_row | 说明 |
+|------|-----------|-----------|------|
+| 简单的标准模板 | 1 | 2 | 表头在第1行，数据从第2行开始 |
+| 带标题的模板 | 2 | 3 | 第1行是标题，第2行是表头 |
+| 带多行说明的模板 | 5 | 6 | 第1-4行是说明，第5行是表头 |
+| 银行标准模板 | 3 | 4 | 银行LOGO和标题占前2行 |
