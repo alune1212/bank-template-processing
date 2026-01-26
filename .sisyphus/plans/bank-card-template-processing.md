@@ -5,6 +5,11 @@
 ### 原始需求
 构建一个命令行工具，用于处理银行卡进卡模板数据填充。工具接收三个参数：Excel文件路径、主体单位名称、备注（整数月份）。根据主体单位名称查找对应的银行卡进卡模板，从输入Excel文件中提取相应字段，按照模板要求填充数据，生成最终结果表。
 
+### 新增需求（第8次细化）
+- **自动编号**：配置中可选择是否对每一行进行自动编号（从1开始递增），并指定编号字段的列名
+- **固定值填写**：配置中可以指定某些表头字段使用固定值，直接写入模板而不从输入数据读取
+- **银行支行获取**：配置中可选择是否从输入Excel的"开户银行"表头获取支行信息，并映射到模板的对应字段
+
 ### 面试摘要
 
 **关键讨论**:
@@ -547,18 +552,21 @@
 
 - [ ] 6. 实现Excel写入器模块
 
-  **要做什么**:
-  - 创建 \`excel_writer.py\`
-  - 实现带有 \`write_excel(template_path: str, data: List[dict], field_mappings: dict, output_path: str, start_row: int, mapping_mode: str) -> None\` 的 \`ExcelWriter\` 类
-  - 加载模板Excel文件（先只读模式，然后复制）
-  - 从配置获取字段映射和起始行（start_row）
-  - 从配置的起始行开始清除所有行（移除现有数据）
-  - 从配置的起始行开始将转换后的数据写入模板
-  - 应用字段映射（支持列名优先，列索引备选）
-  - 保留配置的起始行-1的模板格式、公式和合并单元格（表头）
-  - 保存到输出路径（从不覆盖原始模板）
-  - 写入失败时抛出 \`ExcelError\`
-  - 为文件写入和行计数添加日志
+   **要做什么**:
+   - 创建 \`excel_writer.py\`
+   - 实现带有 \`write_excel(template_path: str, data: List[dict], field_mappings: dict, output_path: str, start_row: int, mapping_mode: str, fixed_values: dict, auto_number: dict, bank_branch_mapping: dict) -> None\` 的 \`ExcelWriter\` 类
+   - 加载模板Excel文件（先只读模式，然后复制）
+   - 从配置获取字段映射和起始行（start_row）
+   - 从配置的起始行开始清除所有行（移除现有数据）
+   - 从配置的起始行开始将转换后的数据写入模板
+   - 应用字段映射（支持列名优先，列索引备选）
+   - 处理固定值：为每一行写入配置的固定值到指定列
+   - 处理自动编号：如果enabled=true，从start_from开始为每一行递增编号
+   - 处理银行支行映射：如果enabled=true.get("source_column")获取支行信息，写入到get("target_column")
+   - 保留配置的起始行-1的模板格式、公式和合并单元格（表头）
+   - 保存到输出路径（从不覆盖原始模板）
+   - 写入失败时抛出 \`ExcelError\`
+   - 为文件写入和行计数添加日志
 
   **必须不做**:
   - 覆盖原始模板文件（始终写入到新输出文件）
@@ -589,28 +597,34 @@
 
   **验收标准**:
 
-  **如果使用TDD**:
-  - [ ] 测试文件已创建: \`tests/test_excel_writer.py\`
-  - [ ] 测试覆盖:
-    - 成功的Excel写入
-    - 字段映射应用（列名优先）
-    - 字段映射应用（列索引备选）
-    - 模板格式保留
-    - 如需要创建输出目录
-    - 权限错误 (ExcelError)
-  - [ ] 创建测试fixture \`tests/fixtures/test_template.xlsx\`
-  - [ ] \`pytest tests/test_excel_writer.py\` → 通过 (所有测试)
+   **如果使用TDD**:
+   - [ ] 测试文件已创建: \`tests/test_excel_writer.py\`
+   - [ ] 测试覆盖:
+     - 成功的Excel写入
+     - 字段映射应用（列名优先）
+     - 字段映射应用（列索引备选）
+     - 固定值填写（fixed_values）
+     - 自动编号（auto_number）
+     - 银行支行映射（bank_branch_mapping）
+     - 模板格式保留
+     - 如需要创建输出目录
+     - 权限错误 (ExcelError)
+   - [ ] 创建测试fixture \`tests/fixtures/test_template.xlsx\`
+   - [ ] \`pytest tests/test_excel_writer.py\` → 通过 (所有测试)
 
-  **手动执行验证**:
-  - [ ] **运行** Python REPL:
-    \`\`\`
-    >>> from excel_writer import ExcelWriter
-    >>> writer = ExcelWriter()
-    >>> data = [{'姓名'\`'张三', '卡号'\`:'6222123456789012', '金额'\`: 100.00}]
-    >>> mappings = {'客户姓名'\`:'姓名', '卡号'\`:'卡号', '金额'\`:'金额'\`}
-    >>> writer.write_excel('tests/fixtures/test_template.xlsx', data, mappings, 'output/test.xlsx', 2, 'name_first'\`)
-    预期: 文件创建于 output/test.xlsx
-    \`\`\`
+   **手动执行验证**:
+   - [ ] **运行** Python REPL:
+     \`\`\`
+     >>> from excel_writer import ExcelWriter
+     >>> writer = ExcelWriter()
+     >>> data = [{'姓名'\`'张三', '卡号'\`:'6222123456789012', '金额'\`: 100.00}]
+     >>> mappings = {'客户姓名'\`:'姓名', '卡号'\`:'卡号', '金额'\`:'金额'\`}
+     >>> fixed_values = {'省份': '浙江省', '业务类型': '工资代发'}
+     >>> auto_number = {'enabled': True, 'column_name': '序号', 'start_from': 1}
+     >>> bank_branch = {'enabled': True, 'source_column': '开户银行', 'target_column': '开户支行'}
+     >>> writer.write_excel('tests/fixtures/test_template.xlsx', data, mappings, 'output/test.xlsx', 2, 'name_first', fixed_values, auto_number, bank_branch)
+     预期: 文件创建于 output/test.xlsx
+     \`\`\`
 
   **需要的证据**:
   - [ ] 输出文件已创建
@@ -790,8 +804,8 @@
     - 配置文件结构说明（包括start_row, mapping_mode, luhn_validation, output_filename_template等新增配置项）
     - 错误处理文档
     - 测试说明
-  - 创建附带清晰注释的示例 \`config.json\`
-  - 创建示例 \`templates/example_template.xlsx\`
+   - 创建附带清晰注释的示例 \`config.json\`（包括所有新增配置项：fixed_values, auto_number, bank_branch_mapping）
+   - 创建示例 \`templates/example_template.xlsx\`（包含序号、开户支行等列）
 
   **必须不做**:
   - 添加自动生成的文档工具（未经请求）
@@ -910,7 +924,7 @@ open htmlcov/index.html
 
 建议的结构（JSON）:
 
-\`\`\`json
+```json
 {
   "version": "1.0",
   "organization_units": {
@@ -925,6 +939,21 @@ open htmlcov/index.html
           "transform": "date_format|amount_decimal|card_number|none",
           "required": true
         }
+      },
+      "fixed_values": {
+        "template_column_name": "固定值内容",
+        "省份": "浙江省",
+        "业务类型": "工资代发"
+      },
+      "auto_number": {
+        "enabled": true,
+        "column_name": "序号",
+        "start_from": 1
+      },
+      "bank_branch_mapping": {
+        "enabled": true,
+        "source_column": "开户银行",
+        "target_column": "开户支行"
       },
       "transformations": {
         "date_format": {
@@ -949,7 +978,7 @@ open htmlcov/index.html
     }
   }
 }
-\`\`\`
+```
 
 **[需要决策: 日期输入格式]**
 - 输入Excel中的日期是什么格式?
@@ -1015,12 +1044,12 @@ open htmlcov/index.html
 ## 示例数据结构
 
 ### 示例输入Excel (test_input.xlsx)
-| 姓名 | 卡号 | 金额 | 日期 |
-|------|------|------|------|
-| 张三 | 6222 1234 5678 9012 | 12345.678 | 2025-01-25 |
-| 李四 | 6222-9876-5432-1098 | 67890.123 | 25/01/2025 |
-| 王五 | 6222987654321098 | 12.5 | 2025年1月25日 |
-| 赵六 | 6222020061234567 | 99999.99 | 2025-01-25 |
+| 姓名 | 卡号 | 金额 | 日期 | 开户银行 |
+|------|------|------|------|----------|
+| 张三 | 6222 1234 5678 9012 | 12345.678 | 2025-01-25 | 工商银行杭州分行 |
+| 李四 | 6222-9876-5432-1098 | 67890.123 | 25/01/2025 | 工商银行宁波分行 |
+| 王五 | 6222987654321098 | 12.5 | 2025年1月25日 | 工商银行温州分行 |
+| 赵六 | 6222020061234567 | 99999.99 | 2025-01-25 | 工商银行嘉兴分行 |
 
 ### 示例配置 (config.json)
 \`\`\`json
@@ -1059,6 +1088,21 @@ open htmlcov/index.html
           "transform": "date_format",
           "required": true
         }
+      },
+      "fixed_values": {
+        "省份": "浙江省",
+        "业务类型": "工资代发",
+        "账户类型": "个人结算账户"
+      },
+      "auto_number": {
+        "enabled": true,
+        "column_name": "序号",
+        "start_from": 1
+      },
+      "bank_branch_mapping": {
+        "enabled": true,
+        "source_column": "开户银行",
+        "target_column": "开户支行"
       },
       "transformations": {
         "date_format": {
@@ -1114,6 +1158,40 @@ open htmlcov/index.html
           "required": true
         }
       },
+      "fixed_values": {
+        "交易类型": "代发",
+        "货币种类": "人民币"
+      },
+      "auto_number": {
+        "enabled": false
+      },
+      "bank_branch_mapping": {
+        "enabled": false
+      },
+      "transformations": {
+        "date_format": {
+          "output_format": "YYYY-MM-DD"
+        },
+        "amount": {
+          "decimal_places": 2,
+          "rounding": "round"
+        },
+        "card_number": {
+          "remove_formatting": true,
+          "luhn_validation": true
+        }
+      },
+      "validation_rules": {
+        "required_fields": ["姓名", "卡号", "金额", "日期"],
+        "data_types": {
+          "金额": "numeric",
+          "日期": "date"
+        }
+      }
+    }
+  }
+}
+      },
       "transformations": {
         "date_format": {
           "output_format": "YYYY-MM-DD"
@@ -1140,14 +1218,14 @@ open htmlcov/index.html
 \`\`\`
 
 ### 示例模板Excel (icbc_template.xlsx)
-| 客户姓名 | 银行卡号 | 转账金额 | 交易日期 |
-|----------|----------|----------|----------|
+| 序号 | 客户姓名 | 银行卡号 | 转账金额 | 交易日期 | 省份 | 业务类型 | 账户类型 | 开户支行 |
+|------|----------|----------|----------|----------|------|----------|----------|----------|
 | (第2+行将被清除并填充转换后的数据)
 
-### 示例输出Excel (output/工商银行_01_20250126001234.xlsx)
-| 客户姓名 | 银行卡号 | 转账金额 | 交易日期 |
-|----------|----------|----------|----------|
-| 张三 | 6222123456789012 | 12345.68 | 2025-01-25 |
-| 李四 | 6222987654321098 | 67890.12 | 2025-01-25 |
-| 王五 | 6222987654321098 | 12.50 | 2025-01-25 |
-| 赵六 | 6222020061234567 | 99999.99 | 2025-01-25 |
+### 示例输出Excel (output/工商银行_01_20250126001212.xlsx)
+| 序号 | 客户姓名 | 银行卡号 | 转账金额 | 交易日期 | 省份 | 业务类型 | 账户类型 | 开户支行 |
+|------|----------|----------|----------|----------|------|----------|----------|----------|
+| 1 | 张三 | 6222123456789012 | 12345.68 | 2025-01-25 | 浙江省 | 工资代发 | 个人结算账户 | 工商银行杭州分行 |
+| 2 | 李四 | 6222987654321098 | 67890.12 | 2025-01-25 | 浙江省 | 工资代发 | 个人结算账户 | 工商银行宁波分行 |
+| 3 | 王五 | 6222987654321098 | 12.50 | 2025-01-25 | 浙江省 | 工资代发 | 个人结算账户 | 工商银行温州分行 |
+| 4 | 赵六 | 6222020061234567 | 99999.99 | 2025-01-25 | 浙江省 | 工资代发 | 个人结算账户 | 工商银行嘉兴分行 |
