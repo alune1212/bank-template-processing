@@ -61,7 +61,7 @@
 ## 工作目标
 
 ### 核心目标
-构建一个Python命令行工具，根据配置文件中的映射关系，将输入Excel文件的数据填充到对应的银行进卡模板中，并按照规则转换数据格式，生成格式化的。
+构建一个Python命令行工具，根据配置文件中的映射关系，将输入Excel文件的数据填充到对应的银行进卡模板中，并按照规则转换数据格式，生成格式化的输出Excel文件。
 
 ### 具体交付物
 - `main.py` - 命令行入口，参数解析和程序主流程
@@ -157,10 +157,10 @@
 
 ## 任务流程
 
-\`\`\`
+\`\`
 任务1 (测试基础设施) → 任务2 (配置) → 任务3 (Excel读取) → 任务4 (转换器) → 任务5 (验证器) → 任务6 (Excel写入) → 任务7 (主程序) → 任务8 (集成测试)
                                    ↘ 任务9 (文档)
-\`\`\`
+\`\`
 
 ## 并行化
 
@@ -172,7 +172,7 @@
 | 任务 | 依赖 | 原因 |
 |------|------------|--------|
 | 7 | 2, 3, 4, 5, 6 | 主程序集成所有模块 |
-| 8 | | 集成测试需要主流程 |
+| 8 | 7 | 集成测试需要主流程 |
 | 9 | 7 | 实现后的文档 |
 
 ---
@@ -182,16 +182,16 @@
 - [ ] 1. 使用uv和测试基础设施设置项目
 
   **要做什么**:
-  - 使用 `uv init` 初始化项目
-  - 创建包含依赖项的 `pyproject.toml`:
-    - `openpyxl>=3.0.0`
-    - `pytest>=7.0.0`
-    - `pytest-cov>=4.0.0`
-  - 创建 `pytest.ini` 配置文件
-  - 创建 `tests/` 目录
-  - 创建 `tests/__init__.py`
-  - 创建示例测试 `tests/test_example.py`
-  - 使用 `uv sync` 安装依赖项
+  - 使用 `uv init`' 初始化项目
+  - 创建包含依赖项的 `pyproject.toml'`:
+    - \`openpyxl>=3.0.0\`
+    - \`pytest>=7.0.0\`
+    - \`pytest-cov>=4.0.0\`
+  - 创建 \`pytest.ini\` 配置文件
+  - 创建 \`tests/\` 目录
+  - 创建 \`tests/__init__.py\`
+  - 创建示例测试 \`tests/test_example.py\`
+  - 使用 \`uv sync\` 安装依赖项
   - 验证pytest安装
 
   **必须不做**:
@@ -206,18 +206,18 @@
   - Python测试最佳实践的标准pytest项目结构
 
   **API/类型参考**:
-  - pytest API: `pytest fixtures, pytest.raises, pytest.mark`
+  - pytest API: \`pytest fixtures, pytest.raises, pytest.mark\`
 
   **测试参考**:
   - 无（第一个任务）
 
   **文档参考**:
-  - pytest文档: `https://docs.pytest.org/en/stable/`
-  - uv文档: `https://github.com/astral-sh/uv`
+  - pytest文档: \`https://docs.pytest.org/en/stable/\`
+  - uv文档: \`https://github.com/astral-sh/uv\`
 
   **外部参考**:
-  - pytest官方文档: `https://docs.pytest.org/`
-  - uv官方文档: `https://docs.astral.sh/uv/`
+  - pytest官方文档: \`https://docs.pytest.org/\`
+  - uv官方文档: \`https://docs.astral.sh/uv/\`
 
   **每个参考为何重要**:
   - uv是快速的Python包和项目管理器
@@ -227,32 +227,32 @@
   **验收标准**:
 
   **如果使用TDD**:
-  - [ ] 测试文件已创建: `tests/test_example.py`
+  - [ ] 测试文件已创建: \`tests/test_example.py\`
   - [ ] 测试包含: 一个通过的简单测试
-  - [ ] `pytest tests/test_example.py` → 通过 (1个测试)
+  - [ ] \`pytest tests/test_example.py\` → 通过 (1个测试)
 
   **手动执行验证**:
-  - [ ] **运行**: `uv sync`
-  - [ ] **验证**: `uv run pytest --version` → pytest X.Y.Z
-  - [ ] **运行**: `uv run pytest`
+  - [ ] **运行**: \`uv sync\`
+  - [ ] **验证**: \`uv run pytest --version\` → pytest X.Y.Z
+  - [ ] **运行**: \`uv run pytest\`
   - [ ] **预期**: 1个测试通过
 
   **需要的证据**:
   - [ ] 命令输出: pytest版本和测试结果
 
   **提交**: 是
-  - **消息**: `chore: setup project with uv and test infrastructure`
-  - **文件**: `pyproject.toml`, `pytest.ini`, `tests/`
+  - **消息**: \`chore: setup project with uv and test infrastructure\`
+  - **文件**: \`pyproject.toml\`, \`pytest.ini\`, \`tests/\`
 
 - [ ] 2. 实现配置加载器模块
 
   **要做什么**:
-  - 创建 `config_loader.py`
-  - 实现 `load_config(config_path: str) -> dict`
-  - 实现 `validate_config(config: dict) -> None`
-  - 实现对必填字段的验证: `version`, `organization_units`
-  - 实现对每个单位的验证: `template_path`, `start_row`, `field_mappings`, `transformations`
-  - 配置无效时抛出 `ConfigError`
+  - 创建 \`config_loader.py\`
+  - 实现 \`load_config(config_path: str) -> dict\`
+  - 实现 \`validate_config(config: dict) -> None\`
+  - 实现对必填字段的验证: \`version\`, \`organization_units\`
+  - 实现对每个单位的验证: \`template_path\`, \`start_row\`, \`field_mappings\`, \`transformations\`
+  - 配置无效时抛出 \`ConfigError\`
   - 为配置加载和验证添加日志
 
   **必须不做**:
@@ -267,13 +267,13 @@
   - 无（新项目）
 
   **API/类型参考**:
-  - Python `json` 模块API用于JSON解析
+  - Python \`json\` 模块API用于JSON解析
 
   **测试参考**:
-  - `tests/test_example.py` - 基本测试结构模式
+  - \`tests/test_example.py\` - 基本测试结构模式
 
   **文档参考**:
-  - Python json模块: `https://docs.python.org/3/library/json.html`
+  - Python json模块: \`https://docs.python.org/3/library/json.html\`
 
   **外部参考**:
   - JSON模式验证模式（如果使用jsonschema）
@@ -285,7 +285,7 @@
   **验收标准**:
 
   **如果使用TDD**:
-  - [ ] 测试文件已创建: `tests/test_config_loader.py`
+  - [ ] 测试文件已创建: \`tests/test_config_loader.py\`
   - [ ] 测试覆盖:
     - 有效配置加载
     - 无效配置路径 (FileNotFoundError)
@@ -293,10 +293,10 @@
     - 缺失必填字段 (ConfigError)
     - 无效field_mappings结构 (ConfigError)
     - 无效start_row (ConfigError)
-  - [ ] `pytest tests/test_config_loader.py` → 通过 (所有测试)
+  - [ ] \`pytest tests/test_config_loader.py\` → 通过 (所有测试)
 
   **手动执行验证**:
-  - [ ] 创建测试配置文件 `tests/fixtures/test_config.json`
+  - [ ] 创建测试配置文件 \`tests/fixtures/test_config.json\`
   - [ ] **运行** Python REPL:
     \`\`\`
     >>> from config_loader import load_config, validate_config
@@ -315,20 +315,20 @@
   - [ ] 无效配置的错误输出
 
   **提交**: 是
-  - **消息**: `feat: implement configuration loader and validation`
-  - **文件**: `config_loader.py`, `tests/test_config_loader.py`
+  - **消息**: \`feat: implement configuration loader and validation\`
+  - **文件**: \`config_loader.py\`, \`tests/test_config_loader.py\`
 
 - [ ] 3. 实现Excel读取器模块
 
   **要做什么**:
-  - 创建 `excel_reader.py`
-  - 实现带有 `read_excel(file_path: str) -> List[dict]` 的 `ExcelReader` 类
+  - 创建 \`excel_reader.py\`
+  - 实现带有 \`read_excel(file_path: str) -> List[dict]\` 的 \`ExcelReader\` 类
   - 读取Excel文件的第一个工作表
   - 从第1行提取表头
   - 从第2行开始读取数据
   - 将每行转换为带有表头键的字典
   - 跳过空行
-  - 文件未找到或无效Excel格式时抛出 `ExcelError`
+  - 文件未找到或无效Excel格式时抛出 \`ExcelError\`
   - 为文件读取和行计数添加日志
 
   **必须不做**:
@@ -343,16 +343,16 @@
   - 无（新项目）
 
   **API/类型参考**:
-  - openpyxl库API: `openpyxl.load_workbook`, `worksheet.iter_rows`
+  - openpyxl库API: \`openpyxl.load_workbook\`, \`worksheet.iter_rows\`
 
   **测试参考**:
-  - `tests/test_config_loader.py` - 错误处理模式
+  - \`tests/test_config_loader.py\` - 错误处理模式
 
   **文档参考**:
-  - openpyxl文档: `https://openpyxl.readthedocs.io/`
+  - openpyxl文档: \`https://openpyxl.readthedocs.io/\`
 
   **外部参考**:
-  - openpyxl官方文档: `https://openpyxl.readthedocs.io/en/stable/`
+  - openpyxl官方文档: \`https://openpyxl.readthedocs.io/en/stable/\`
 
   **每个参考为何重要**:
   - openpyxl是轻量级的，适合Excel读/写
@@ -361,7 +361,7 @@
   **验收标准**:
 
   **如果使用TDD**:
-  - [ ] 测试文件已创建: `tests/test_excel_reader.py`
+  - [ ] 测试文件已创建: \`tests/test_excel_reader.py\`
   - [ ] 测试覆盖:
     - 有效Excel文件读取
     - 表头提取
@@ -369,8 +369,8 @@
     - 空行跳过
     - 文件未找到 (FileNotFoundError)
     - 无效Excel格式 (ExcelError)
-  - [ ] 创建测试fixture `tests/fixtures/test_input.xlsx` 并附带示例数据
-  - [ ] `pytest tests/test_excel_reader.py` → 通过 (所有测试)
+  - [ ] 创建测试fixture \`tests/fixtures/test_input.xlsx\` 并附带示例数据
+  - [ ] \`pytest tests/test_excel_reader.py\` → 通过 (所有测试)
 
   **手动执行验证**:
   - [ ] **运行** Python REPL:
@@ -389,25 +389,25 @@
   - [ ] 数据结构显示正确的字典转换
 
   **提交**: 是
-  - **消息**: `feat: implement Excel reader module`
-  - **文件**: `excel_reader.py`, `tests/test_excel_reader.py`, `tests/fixtures/test_input.xlsx`
+  - **消息**: \`feat: implement Excel reader module\`
+  - **文件**: \`excel_reader.py\`, \`tests/test_excel_reader.py\`, \`tests/fixtures/test_input.xlsx\`
 
 - [ ] 4. 实现数据转换器模块
 
   **要做什么**:
-  - 创建 `transformer.py`
-  - 实现带有转换方法的 `Transformer` 类:
-    - `transform_date(value, output_format="YYYY-MM-DD") -> str`
-    - `transform_amount(value, decimal_places=2) -> float`
-    - `transform_card_number(value) -> str`
-  - 日期转换: 解析输入日期（按顺序尝试多种格式），格式化为YYYY-MM-DD
-    - 支持的输入格式: `YYYY-MM-DD`, `DD/MM/YYYY`, `MM/DD/YYYY`, `中文格式 YYYY年MM月DD日`, `YYYY-M-D`
+  - 创建 \`transformer.py\`
+  - 实现带有转换方法的 \`Transformer\` 类:
+    - \`transform_date(value, output_format="YYYY-MM-DD") -> str\`
+    - \`transform_amount(value, decimal_places=2) -> float\`
+    - \`transform_card_number(value) -> str\`
+  - 日期转换: 解析输入日期（按顺序尝试多种格式），格式化YYYY-MM-DD
+    - 支持的输入格式: \`YYYY-MM-DD\`, \`DD/MM/YYYY\`, \`MM/DD/YYYY\`, \`中文格式 YYYY年MM月DD日\`, \`YYYY-M-D\`
     - 按顺序尝试每种格式，使用首次成功的解析
-    - 如果所有格式都失败，抛出 `TransformError`
+    - 如果所有格式都失败，抛出 \`TransformError\'
   - 金额转换: 使用标准舍入舍入到2位小数
   - 卡号转换: 移除非数字字符，仅保留数字
   - 对卡号进行Luhn验证：验证符合中国银行卡号要求
-  - 无效数据时抛出 `TransformError`
+  - 无效数据时抛出 \`TransformError\`
   - 为转换添加日志
 
   **必须不做**:
@@ -422,15 +422,15 @@
   - 无（新项目）
 
   **API/类型参考**:
-  - Python `datetime` 模块: `datetime.strptime`, `datetime.strftime`
-  - Python `decimal` 模块: `Decimal.quantize`, `ROUND_HALF_UP`
+  - Python \`datetime\` 模块: \`datetime.strptime\`, \`datetime.strftime\`
+  - Python \`decimal\` 模块: \`Decimal.quantize\`, \`ROUND_HALF_UP\`
 
   **测试参考**:
-  - `tests/test_excel_reader.py` - 错误处理模式
+  - \`tests/test_excel_reader.py\` - 错误处理模式
 
   **文档参考**:
-  - Python datetime: `https://docs.python.org/3/library/datetime.html`
-  - Python decimal: `https://docs.python.org/3/library/decimal.html`
+  - Python datetime: \`https://docs.python.org/3/library/datetime.html\`
+  - Python decimal: \`https://docs.python.org/3/library/decimal.html\`
 
   **外部参考**:
   - 日期格式标准: YYYY-MM-DD使用ISO 8601
@@ -442,16 +442,16 @@
   **验收标准**:
 
   **如果使用TDD**:
-  - [ ] 测试文件已创建: `tests/test_transformer.py`
+  - [ ] 测试文件已创建: \`tests/test_transformer.py\`
   - [ ] 测试覆盖:
     - 日期转换: 多种输入格式 (YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY, YYYY年MM月DD日, YYYY-M-D) → YYYY-MM-DD
     - 金额转换: 舍入到2位小数
     - 卡号转换: 移除空格/横杠
-    - Luhn校验: 中国银行卡号通过Luhn算法验证
     - 无效日期（所有格式失败 → TransformError）
     - 无效金额 (TransformError)
     - 无效卡号 (TransformError)
-  - [ ] `pytest tests/test_transformer.py` → 通过 (所有测试)
+    - Luhn校验: 中国银行卡号通过Luhn算法验证
+  - [ ] \`pytest tests/test_transformer.py\` → 通过 (所有测试)
 
   **手动执行验证**:
   - [ ] **运行** Python REPL:
@@ -470,22 +470,22 @@
   - [ ] REPL输出显示正确的转换
 
   **提交**: 是
-  - **消息**: `feat: implement data transformer module`
-  - **文件**: `transformer.py`, `tests/test_transformer.py`
+  - **消息**: \`feat: implement data transformer module\`
+  - **文件**: \`transformer.py\`, \`tests/test_transformer.py\`
 
 - [ ] 5. 实现数据验证器模块
 
   **要做什么**:
-  - 创建 `validator.py`
-  - 实现带有验证方法的 `Validator` 类:
-    - `validate_required(row: dict, required_fields: List[str]) -> None`
-    - `validate_data_types(row: dict, type_rules: dict) -> None`
-    - `validate_value_ranges(row: dict, range_rules: dict) -> None`
-  - 必填字段验证: 检查必填字段是否存在且非空
+  - 创建 \`validator.py\`
+  - 实现带有验证方法的 \`Validator\` 类:
+    - \`validate_required(row: dict, required_fields: List[str]) -> None\`
+    - \`validate_data_types(row: dict, type_rules: dict) -> None\`
+    - \`validate_value_ranges(row: dict, range_rules: dict) -> None\`
+    - 必填字段验证: 检查必填字段是否存在且非空
   - 数据类型验证: 检查字段值是否匹配预期的类型
-  - 值范围验证: 检查字段值是否在允许的范围内
-  - 验证失败时抛出 `ValidationError`
-  - 为验证结果添加日志
+    - 值范围验证: 检查字段值是否在允许的范围内
+    - 验证失败时抛出 \`ValidationError\`
+    - 为验证结果添加日志
 
   **必须不做**:
   - 添加复杂的验证规则（仅基本类型/范围检查）
@@ -502,7 +502,7 @@
   - 无（基本Python类型检查）
 
   **测试参考**:
-  - `tests/test_transformer.py` - 错误处理模式
+  - \`tests/test_transformer.py\` - 错误处理模式
 
   **文档参考**:
   - 无（基本验证逻辑）
@@ -511,13 +511,13 @@
   - 无（简单验证规则）
 
   **每个参考为何重要**:
-  - 基本验证确保处理前的数据质量
+  - 基本\`验证确保处理前的数据质量
   - 简单规则保持代码可维护
 
   **验收标准**:
 
   **如果使用TDD**:
-  - [ ] 测试文件已创建: `tests/test_validator.py`
+  - [ ] 测试文件已创建: \`tests/test_validator.py\`
   - [ ] 测试覆盖:
     - 必填字段验证: 全部存在 → 通过
     - 必填字段验证: 缺失必填 → ValidationError
@@ -525,31 +525,31 @@
     - 数据类型验证: 错误类型 → ValidationError
     - 值范围验证: 在范围内 → 通过
     - 值范围验证: 超出范围 → ValidationError
-  - [ ] `pytest tests/test_validator.py` → 通过 (所有测试)
+  - [ ] \`pytest tests/test_validator.py\` → 通过 (所有测试)
 
   **手动执行验证**:
   - [ ] **运行** Python REPL:
     \`\`\`
     >>> from validator import Validator
     >>> v = Validator()
-    >>> v.validate_required({'name': 'John', 'amount': 100}, ['name', 'amount'])
+    >>> v.validate_required({'name'\`'John', 'amount'\`'100}, ['name'\`, 'amount'\`])
     预期: 无异常
-    >>> v.validate_required({'name': 'John'}, ['name', 'amount'])
+    >>> v.validate_required({'name'\`'John'}, ['name'\`, 'amount'\`'])
     预期: ValidationError
     \`\`\`
 
   **需要的证据**:
-  - [ ] ] REPL输出显示验证行为
+  - [ ] REPL输出显示验证行为
 
   **提交**: 是
-  - **消息**: `feat: implement data validator module`
-  - **文件**: `validator.py`, `tests/test_validator.py`
+  - **消息**: \`feat: implement data validator module\`
+  - **文件**: \`validator.py\`, \`tests/test_validator.py\`
 
 - [ ] 6. 实现Excel写入器模块
 
   **要做什么**:
-  - 创建 `excel_writer.py`
-  - 实现带有 `write_excel(template_path: str, data: List[dict], field_mappings: dict, output_path: str, start_row: int, mapping_mode: str) -> None` 的 `ExcelWriter` 类
+  - 创建 \`excel_writer.py\`
+  - 实现带有 \`write_excel(template_path: str, data: List[dict], field_mappings: dict, output_path: str, start_row: int, mapping_mode: str) -> None\` 的 \`ExcelWriter\` 类
   - 加载模板Excel文件（先只读模式，然后复制）
   - 从配置获取字段映射和起始行（start_row）
   - 从配置的起始行开始清除所有行（移除现有数据）
@@ -557,12 +557,12 @@
   - 应用字段映射（支持列名优先，列索引备选）
   - 保留配置的起始行-1的模板格式、公式和合并单元格（表头）
   - 保存到输出路径（从不覆盖原始模板）
-  - 写入失败时抛出 `ExcelError`
+  - 写入失败时抛出 \`ExcelError\`
   - 为文件写入和行计数添加日志
 
   **必须不做**:
   - 覆盖原始模板文件（始终写入到新输出文件）
-  - 追从配置的起始行+行开始追加数据（先清除配置的起始行+行）
+  - 从配置的起始行+行开始追加数据（先清除配置的起始行+行）
 
   **可并行化**: 是（与2, 3, 4, 5一起）
 
@@ -572,16 +572,16 @@
   - 无（新项目）
 
   **API/类型参考**:
-  - openpyxl库API: `openpyxl.load_workbook`, `cell.value`, `workbook.save`
+  - openpyxl库API: \`openpyxl.load_workbook\`, \`cell.value\`, \`workbook.save\`
 
   **测试参考**:
-  - `tests/test_validator.py` - 错误处理模式
+  - \`tests/test_validator.py\` - 错误处理模式
 
   **文档参考**:
-  - openpyxl文档: `https://openpyxl.readthedocs.io/`
+  - openpyxl文档: \`https://openpyxl.readthedocs.io/\`
 
   **外部参考**:
-  - openpyxl官方文档: `https://openpyxl.readthedocs.io/en/stable/`
+  - openpyxl官方文档: \`https://openpyxl.readthedocs.io/en/stable/\`
 
   **每个参考为何重要**:
   - openpyxl保留Excel格式和公式
@@ -590,7 +590,7 @@
   **验收标准**:
 
   **如果使用TDD**:
-  - [ ] 测试文件已创建: `tests/test_excel_writer.py`
+  - [ ] 测试文件已创建: \`tests/test_excel_writer.py\`
   - [ ] 测试覆盖:
     - 成功的Excel写入
     - 字段映射应用（列名优先）
@@ -598,17 +598,17 @@
     - 模板格式保留
     - 如需要创建输出目录
     - 权限错误 (ExcelError)
-  - [ ] 创建测试fixture `tests/fixtures/test_template.xlsx`
-  - [ ] `pytest tests/test_excel_writer.py` → 通过 (所有测试)
+  - [ ] 创建测试fixture \`tests/fixtures/test_template.xlsx\`
+  - [ ] \`pytest tests/test_excel_writer.py\` → 通过 (所有测试)
 
   **手动执行验证**:
   - [ ] **运行** Python REPL:
     \`\`\`
     >>> from excel_writer import ExcelWriter
     >>> writer = ExcelWriter()
-    >>> data = [{'姓名': '张三', '卡号': '6222123456789012', '金额': 100.00}]
-    >>> mappings = {'客户姓名': '姓名', '卡号': '卡号', '金额': '金额'}
-    >>> writer.write_excel('tests/fixtures/test_template.xlsx', data, mappings, 'output/test.xlsx', 2, 'name_first')
+    >>> data = [{'姓名'\`'张三', '卡号'\`:'6222123456789012', '金额'\`: 100.00}]
+    >>> mappings = {'客户姓名'\`:'姓名', '卡号'\`:'卡号', '金额'\`:'金额'\`}
+    >>> writer.write_excel('tests/fixtures/test_template.xlsx', data, mappings, 'output/test.xlsx', 2, 'name_first'\`)
     预期: 文件创建于 output/test.xlsx
     \`\`\`
 
@@ -617,20 +617,21 @@
   - [ ] 输出文件包含正确数据
 
   **提交**: 是
-  - - **消息**: `feat: implement Excel writer module`
-  - **文件**: `excel_writer.py`, `tests/test_excel_writer.py`, `tests/fixtures/test_template.xlsx`
+  - **消息**: \`feat: implement Excel writer module\`
+  - **文件**: \`excel_writer.py\`, \`tests/test_excel_writer.py\`, \`tests/fixtures/test_template.xlsx\`
 
 - [ ] 7. 实现主CLI模块
 
   **要做什么**:
-  - 创建 `main.py`
-  - 使用 `argparse` 实现参数解析:
-    - 位置参数1: `excel_path` (输入Excel文件路径)
-    - 位置参数2: `unit_name` (组织单位名称)
-    - 位置参数3: `month` (月份整数)
-    - 可选参数: `--output-dir` (输出目录, 默认: `output/`)
-    - 可选参数: `--config` (配置文件路径, 默认: `config.json`)
-  - - 可选参数: `--output-filename-template` (输出文件名模板, 默认: `{unit_name}_{month}.xlsx`)
+  - 创建 \`main.py\`
+  - 使用 \`argparse\` 实现参数解析:
+    - 位置参数1: \`excel_path\` (输入Excel文件路径)
+    - 位置参数2: \`unit_name\` (组织单位名称)
+    - 位置参数3: \`month\` (月份整数，1-12或01-09格式)
+    - 可选参数: \`--output-dir\` (输出目录, 默认: \`output/\`)
+    - 可选参数: \`--config\` (配置文件路径, 默认: \`config.json\`)
+    - 可选参数: \`--output-filename-template\` (输出文件名模板, 默认: \`{unit_name}_{month}\`)
+  - 实现month参数校验（1-12或01-09，支持01-09等0开头）
   - 实现主工作流程:
     1. 加载并验证配置
     2. 基于unit_name从配置获取单位配置
@@ -638,11 +639,11 @@
     4. 验证输入数据
     5. 按照配置转换数据
     6. 写入到模板Excel文件
-    7. 生成输出文件名: 使用模板和唯一值确保唯一性
+    7. 生成输出文件名: 使用模板+时间戳确保唯一性
     8. 保存到输出目录
   - 实现错误处理: 捕获并记录所有异常
   - 实现日志: 配置带时间戳的日志
-  - 添加 `--help` 并附带清晰的使用说明
+  - 添加 \`--help\` 并附带清晰的使用说明
 
   **必须不做**:
   - 添加TUI或交互式提示
@@ -654,20 +655,20 @@
   **参考**:
 
   **模式参考**:
-  - `config_loader.py` - 配置加载模式
-  - `excel_reader.py` - Excel读取模式
-  - `transformer.py` - 转换模式
-  - `validator.py` - 验证模式
-  - `excel_writer.py` - Excel写入模式
+  - \`config_loader.py\` - 配置加载模式
+  - \`excel_reader.py\` - Excel读取模式
+  - \`transformer.py\` - 转换模式
+  - \`validator.py\` - 验证模式
+  - \`excel_writer.py\` - Excel写入模式
 
   **API/类型参考**:
-  - argparse API: `argparse.ArgumentParser`, `add_argument`, `parse_args`
+  - argparse API: \`argparse.ArgumentParser\`, \`add_argument\`, \`parse_args\`
 
   **测试参考**:
   - 所有模块的测试文件用于模块模式
 
   **文档参考**:
-  - argparse文档: `https://docs.python.org/3/library/argparse.html`
+  - argparse文档: \`https://docs.python.org/3/library/argparse.html\`
 
   **外部参考**:
   - 无（标准库）
@@ -679,23 +680,23 @@
   **验收标准**:
 
   **如果使用TDD**:
-  - [ ] 测试文件已创建: `tests/test_main.py`
+  - [ ] 测试文件已创建: \`tests/test_main.py\`
   - [ ] 测试覆盖:
     - 参数解析（有效参数）
     - 缺失必填参数（argparse错误）
     - 无效文件路径 (FileNotFoundError)
     - 无效单位名称 (ConfigError)
-    - 无效月份 (ValueError)
+    - 无效月份 (ValueError: 必须是1-12或01-09等0开头)
     - 成功的端到端处理
-    - 输出文件名生成策略（时间戳或序列号）
-  - [ ] `pytest tests/test_main.py` → 通过 (所有测试)
+    - 唯一文件名生成策略
+  - [ ] \`pytest tests/test_main.py\` → 通过 (所有测试)
 
   **手动执行验证**:
-  - [ ] **运行**: `python main.py --help`
+  - [ ] **运行**: \`python main.py --help\`
   - [ ] **验证**: 帮助文本显示所有参数
-  - [ ] **运行**: `python main.py tests/fixtures/test_input.xlsx unit_test 01 --output-dir output/`
-  - [ ] **验证**: 输出文件创建于 `output/unit_test_01_202501261234.xlsx`（或类似唯一文件名）
-  - [ ] **运行**: `python main.py nonexistent.xlsx unit_test 01`
+  - [ ] **运行**: \`python main.py tests/fixtures/test_input.xlsx unit_test 01 --output-dir output/\`
+  - [ ] **验证**: 输出文件创建于 \`output/unit_test_01_20250126001234.xlsx\`（或类似唯一文件名）
+  - [ ] **运行**: \`python main.py nonexistent.xlsx unit_test 01\`
   - [ ] **预期**: FileNotFoundError 并附带清晰消息
 
   **需要的证据**:
@@ -704,23 +705,23 @@
   - [ ] 无效输入的错误输出
 
   **提交**: 是
-  - **消息**: `feat: implement main CLI module with argument parsing`
-  - **文件**: `main.py`, `tests/test_main.py`
+  - **消息**: \`feat: implement main CLI module with argument parsing and month validation\`
+  - **文件**: \`main.py\`, \`tests/test_main.py\`
 
 - [ ] 8. 实现集成测试
 
   **要做什么**:
-  - 创建 `tests/test_integration.py`
+  - 创建 \`tests/test_integration.py\`
   - 实现端到端集成测试:
     - 完整工作流: 读取配置，读取输入，转换，写入输出
     - 错误处理: 缺失文件，无效数据
     - 数据转换验证
     - 唯一文件名生成验证
     - Luhn校验功能验证
-  - 创建完整的测试fixtures:
-    - `tests/fixtures/integration_input.xlsx` (示例输入)
-    - `tests/fixtures/integration_template.xlsx` (示例模板)
-    - `tests/fixtures/integration_config.json` (完整配置)
+    - 创建完整的测试fixtures:
+      - \`tests/fixtures/integration_input.xlsx\` (示例输入)
+      - \`tests/fixtures/integration_template.xlsx\` (示例模板)
+      - \`tests/fixtures/integration_config.json\` (完整配置)
   - 验证输出数据正确性
   - 验证转换正确应用
   - 验证错误处理正常工作
@@ -742,7 +743,7 @@
   - 所有模块的测试文件
 
   **文档参考**:
-  - pytest文档: `https://docs.pytest.org/`
+  - pytest文档: \`https://docs.pytest.org/\`
 
   **外部参考**:
   - 无（使用pytest）
@@ -754,21 +755,21 @@
   **验收标准**:
 
   **如果使用TDD**:
-  - [ ] 测试文件已创建: `tests/test_integration.py`
+  - [ ] 测试文件已创建: \`tests/test_integration.py\`
   - [ ] 测试覆盖:
     - 成功的完整工作流
     - 数据转换正确性
     - 缺失文件的错误处理
     - 无效数据的错误处理
-    -    唯一文件名生成验证
+    - 唯一文件名生成验证
     - Luhn校验功能验证
     - 日志输出验证
-  - [ ] `pytest tests/test_integration.py` → 通过 (所有测试)
+  - [ ] \`pytest tests/test_integration.py\` → 通过 (所有测试)
 
   **手动执行验证**:
-  - [ ] **运行**: `pytest tests/test_integration.py -v`
+  - [ ] **运行**: \`pytest tests/test_integration.py -v\`
   - [ ] **验证**: 所有集成测试通过
-  - [ ] **运行**: `pytest --cov=. --cov-report=html`
+  - [ ] **运行**: \`pytest --cov=. --cov-report=html\`
   - [ ] **验证**: 覆盖率报告生成（应>90%）
 
   **需要的证据**:
@@ -776,21 +777,21 @@
   - [ ] 覆盖率报告显示高覆盖率
 
   **提交**: 是
-  - **消息**: `test: add integration tests for complete workflow`
-  - **文件**: `tests/test_integration.py`, `tests/fixtures/integration_*.xlsx`, `tests/fixtures/integration_config.json`
+  - **消息**: \`test: add integration tests for complete workflow\`
+  - **文件**: \`tests/test_integration.py\`, \`tests/fixtures/integration_*.xlsx\`, \`tests/fixtures/integration_config.json\`
 
 - [ ] 9. 创建文档和示例配置
 
   **要做什么**:
-  - 创建 `README.md` 并包含:
+  - 创建 \`README.md\` 并包含:
     - 项目描述（银行进卡模板处理系统）
     - 安装说明（使用uv）
     - 使用示例
     - 配置文件结构说明（包括start_row, mapping_mode, luhn_validation, output_filename_template等新增配置项）
     - 错误处理文档
     - 测试说明
-  - 创建附带清晰注释的示例 `config.json`
-  - 创建示例 `templates/example_template.xlsx`
+  - 创建附带清晰注释的示例 \`config.json\`
+  - 创建示例 \`templates/example_template.xlsx\`
 
   **必须不做**:
   - 添加自动生成的文档工具（未经请求）
@@ -814,7 +815,7 @@
   - 无（标准README格式）
 
   **外部参考**:
-  - Python打包最佳实践: `https://packaging.python.org/`
+  - Python打包最佳实践: \`https://packaging.python.org/\`
 
   **每个参考为何重要**:
   - README是用户首先看到的内容
@@ -823,14 +824,14 @@
   **验收标准**:
 
   **如果使用TDD**:
-  - [ ] `README.md` 完整且可读
-  - [ ] `config.json` 是附带示例配置的有效JSON
-  - [ ] `templates/example_template.xlsx` 是有效的Excel文件
+  - [ ] \`README.md\` 完整且可读
+  - [ ] \`config.json\` 是附带示例配置的有效JSON
+  - [ ] \`templates/example_template.xlsx\` 是有效的Excel文件
 
   **手动执行验证**:
-  - [ ] **运行**: `uv run python main.py --help`
+  - [ ] **运行**: \`uv run python main.py --help\`
   - [ ] **验证**: 帮助输出正确显示
-  - [ ] **打开**: `README.md`
+  - [ ] **打开**: \`README.md\`
   - [ ] **验证**: 包含安装、使用和配置部分
   - [ ] **验证**: README提及使用uv进行安装
 
@@ -839,8 +840,8 @@
   - [ ] 帮助输出
 
   **提交**: 是
-  - **消息**: `docs: add comprehensive README and example configuration`
-  - **文件**: `README.md`, `config.json`, `templates/example_template.xlsx`
+  - **消息**: \`docs: add comprehensive README and example configuration\`
+  - **文件**: \`README.md\`, \`config.json\`, \`templates/example_template.xlsx\`
 
 ---
 
@@ -848,15 +849,15 @@
 
 | 任务后 | 消息 | 文件 | 验证 |
 |------------|---------|-------|--------------|
-| 1 | `chore: setup project with uv and test infrastructure` | `pyproject.toml`, `pytest.ini`, `tests/` | `uv run pytest --version` |
-| 2 | `feat: implement configuration loader and validation` | `config_loader.py`, `tests/` | `uv run pytest tests/test_config_loader.py` |
-| 3 | `feat: implement Excel reader module` | `excel_reader.py`, `tests/` | `uv run pytest tests/test_excel_reader.py` |
-| 4 | `feat: implement data transformer module` | `transformer.py`, `tests/` | `uv run pytest tests/test_transformer.py` |
-| 5 | `feat: implement data validator module` | `validator.py`, `tests/` | `uv run pytest tests/test_validator.py` |
-| 6 | `feat: implement Excel writer module` | `excel_writer.py`, `tests/` | `uv run pytest tests/test_excel_writer.py` |
-| 7 | `feat: implement main CLI module with argument parsing` | `main.py`, `tests/` | `uv run pytest tests/test_main.py` |
-| 8 | `test: add integration tests for complete workflow` | `tests/test_integration.py`, `tests/fixtures/` | `uv run pytest tests/test_integration.py` |
-| 9 | `docs: add comprehensive README and example configuration` | `README.md`, `config.json`, `templates/` | `uv run pytest --cov` |
+| 1 | \`chore: setup project with uv and test infrastructure\` | \`pyproject.toml\`, \`pytest.ini\`, \`tests/\` | \`uv run pytest pytest --version\` |
+| 2 | \`feat: implement configuration loader and validation\` | \`config_loader.py\`, \`tests/\` | \`uv run pytest tests/test_config_loader.py\` |
+| 3 | \`feat: implement Excel reader module\` | \`excel_reader.py\`, \`tests/\` | \`uv run pytest tests/test_excel_reader.py\` |
+| 4 | \`feat: implement data transformer module\` | \`transformer.py\`, \`tests/\` | \`uv run pytest tests/test_transformer.py\` |
+| 5 | \`feat: implement data validator module\` | \`validator.py\`, \`tests/\` | \`uv run pytest tests/test_validator.py\` |
+| 6 | \`feat: implement Excel writer module\` | \`excel_writer.py\`, \`tests/\` | \`uv run pytest tests/test_excel_writer.py\` |
+| 7 | \`feat: implement main CLI module with argument parsing and month validation\` | \`main.py\`, \`tests/\` | \`uv run pytest tests/test_main.py\` |
+| 8 | \`test: add integration tests for complete workflow\` | \`tests/test_integration.py\`, \`tests/fixtures/\` | \`uv run pytest tests/test_integration.py\` |
+| 9 | \`docs: add comprehensive README and example config\` | \`README.md\`, \`config.json\`, \`templates/\` | \`uv run pytest --cov\` |
 
 ---
 
@@ -882,7 +883,7 @@ uv run python main.py --help
 
 # 测试端到端
 uv run python main.py tests/fixtures/test_input.xlsx unit_test 01 --output-dir output/
-# 预期: output/unit_test_01_202501261234.xlsx 已创建（（使用时间戳或序列号确保唯一性）
+# 预期: output/unit_test_01_20250126001234.xlsx 已创建（或带有时间戳以确保唯一性）
 
 # 验证覆盖率报告
 open htmlcov/index.html
@@ -891,7 +892,7 @@ open htmlcov/index.html
 
 ### 最终检查清单
 - [ ] 所有"必须具备"存在
-- [ ] 所有"必须不具备"不存在
+- [ ] 所有"必须不具备不具备"不存在
 - [ ] 所有测试通过（pytest）
 - [ ] 覆盖率>90%
 - [ ] README完整
@@ -953,7 +954,7 @@ open htmlcov/index.html
 **[需要决策: 日期输入格式]**
 - 输入Excel中的日期是什么格式?
 - 工具应该自动检测，还是强制特定格式?
-- 支持的输入格式: `YYYY-MM-DD`, `DD/MM/YYYY`, `MM/DD/YYYY`, `中文格式 YYYY年MM月DD日`, `YYYY-M-D`
+- 支持的输入格式: \`YYYY-MM-DD\`, \`DD/MM/YYYY\`, \`MM/DD/YYYY\`, \`中文格式 YYYY年MM月DD日\`, \`YYYY-M-D\`
 
 **[需要决策: 模板结构]**
 - 仅表头（将被数据替换）?
@@ -990,7 +991,7 @@ open htmlcov/index.html
 
 - **配置格式**: JSON（合理的默认值，可覆盖为YAML）
 - **数据放置方案**: 混合方案（列名优先，回退到列索引）- 这是最终决策
-- **日期输入格式**: 按顺序尝试多种格式: `YYYY-MM-DD`, `DD/MM/YYYY`, `MM/DD/YYYY`, `中文格式 YYYY年MM月DD日`, `YYYY-M-D`（灵活解析，首次匹配胜出）
+- **日期输入格式**: 按顺序尝试多种\`格式: \`YYYY-MM-DD\`, \`DD/MM/YYYY\`, \`MM/DD/YYYY\`, \`中文格式 YYYY年MM月DD日\`, \`YYYY-M-D\`（灵活解析，首次匹配胜出）
 - **日期输出格式**: YYYY-MM-DD（用户已确认）
 - **金额小数位数**: 2（用户已确认）
 - **金额舍入**: 舍入（标准）
@@ -998,7 +999,7 @@ open htmlcov/index.html
 - **卡号验证**: Luhn校验（中国银行卡号要求）
 - **工作表处理**: 使用第一个工作表
 - **模板表头行**: 第1行
-- **模板起始行**: 基于配置（每个主体的模板可能起始行不同）
+- **数据起始行**: 基于配置（每个主体的模板可能起始行不同）
 - **模板数据处理**: 从配置的起始行开始清除所有行后写入数据（替换模式，不是追加）
 - **输出文件名**: 唯一文件名生成（使用时间戳避免冲突）
 - **输出文件已存在**: 覆盖
@@ -1019,7 +1020,7 @@ open htmlcov/index.html
 | 张三 | 6222 1234 5678 9012 | 12345.678 | 2025-01-25 |
 | 李四 | 6222-9876-5432-1098 | 67890.123 | 25/01/2025 |
 | 王五 | 6222987654321098 | 12.5 | 2025年1月25日 |
-| 嵌六 | 6222020061234567 | 99999.99 | 2025-01-25 |
+| 赵六 | 6222020061234567 | 99999.99 | 2025-01-25 |
 
 ### 示例配置 (config.json)
 \`\`\`json
@@ -1130,7 +1131,7 @@ open htmlcov/index.html
         "required_fields": ["姓名", "卡号", "金额", "日期"],
         "data_types": {
           "金额": "numeric",
-          "日期": "date"
+          "date": "date"
         }
       }
     }
@@ -1143,10 +1144,10 @@ open htmlcov/index.html
 |----------|----------|----------|----------|
 | (第2+行将被清除并填充转换后的数据)
 
-### 示例输出Excel (output/工商银行_01_202501261234.xlsx)
+### 示例输出Excel (output/工商银行_01_20250126001234.xlsx)
 | 客户姓名 | 银行卡号 | 转账金额 | 交易日期 |
 |----------|----------|----------|----------|
 | 张三 | 6222123456789012 | 12345.68 | 2025-01-25 |
 | 李四 | 6222987654321098 | 67890.12 | 2025-01-25 |
 | 王五 | 6222987654321098 | 12.50 | 2025-01-25 |
-| 嵌六 | 6222020061234567 | 99999.99 | 2025-01-25 |
+| 赵六 | 6222020061234567 | 99999.99 | 2025-01-25 |
