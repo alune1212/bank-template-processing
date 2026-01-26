@@ -19,6 +19,14 @@
   - 如果传入的是"补偿金"：固定填入"补偿金"
 - 配置中需要指定这个特殊字段的列名（例如"收入类型"或"备注"）
 
+### 新增需求（第10次细化）
+**多格式支持**：
+- 当前仅支持 `.xlsx` 格式
+- 新增支持：`.csv`、`.xls` 格式
+- 支持的格式扩展：`.xlsx`（使用 openpyxl）、`.csv`（使用 csv 模块）、`.xls`（使用 xlwt/xlrd）
+- 模板文件和输入文件都支持这三种格式
+- 输出文件格式与模板文件格式保持一致
+
 ### 面试摘要
 
 **关键讨论**:
@@ -196,11 +204,13 @@
 - [ ] 1. 使用uv和测试基础设施设置项目
 
   **要做什么**:
-  - 使用 `uv init`' 初始化项目
-  - 创建包含依赖项的 `pyproject.toml'`:
-    - \`openpyxl>=3.0.0\`
-    - \`pytest>=7.0.0\`
-    - \`pytest-cov>=4.0.0\`
+   - 使用 `uv init`' 初始化项目
+   - 创建包含依赖项的 `pyproject.toml'`:
+     - \`openpyxl>=3.0.0\` (用于 .xlsx 文件)
+     - \`xlrd>=2.0.0\` (用于读取 .xls 文件)
+     - \`xlwt>=1.3.0\` (用于写入 .xls 文件)
+     - \`pytest>=7.0.0\`
+     - \`pytest-cov>=4.0.0\`
   - 创建 \`pytest.ini\` 配置文件
   - 创建 \`tests/\` 目录
   - 创建 \`tests/__init__.py\`
@@ -334,16 +344,20 @@
 
 - [ ] 3. 实现Excel读取器模块
 
-  **要做什么**:
-  - 创建 \`excel_reader.py\`
-  - 实现带有 \`read_excel(file_path: str) -> List[dict]\` 的 \`ExcelReader\` 类
-  - 读取Excel文件的第一个工作表
-  - 从第1行提取表头
-  - 从第2行开始读取数据
-  - 将每行转换为带有表头键的字典
-  - 跳过空行
-  - 文件未找到或无效Excel格式时抛出 \`ExcelError\`
-  - 为文件读取和行计数添加日志
+   **要做什么**:
+   - 创建 \`excel_reader.py\`
+   - 实现带有 \`read_excel(file_path: str) -> List[dict]\` 的 \`ExcelReader\` 类
+   - 根据文件扩展名自动选择读取方式：
+     - `.xlsx` 文件：使用 openpyxl（读取第一个工作表）
+     - `.csv` 文件：使用 csv 模块（处理 UTF-8 编码）
+     - `.xls` 文件：使用 xlrd（读取第一个工作表）
+   - 从第1行提取表头
+   - 从第2行开始读取数据
+   - 将每行转换为带有表头键的字典
+   - 跳过空行
+   - 文件未找到或无效格式时抛出 \`ExcelError\`
+   - 不支持的格式时抛出 \`ExcelError\`
+   - 为文件读取和行计数添加日志
 
   **必须不做**:
   - 读取多个工作表（仅使用第一个工作表）
@@ -368,23 +382,31 @@
   **外部参考**:
   - openpyxl官方文档: \`https://openpyxl.readthedocs.io/en/stable/\`
 
-  **每个参考为何重要**:
-  - openpyxl是轻量级的，适合Excel读/写
-  - 提供逐行迭代以提高内存效率
+   **每个参考为何重要**:
+   - openpyxl是轻量级的，适合 .xlsx 文件读写，保留格式和公式
+   - xlrd/xlwt 用于 .xls 文件（旧格式）
+   - csv 模块用于 .csv 文件（简单文本格式）
+   - 提供逐行迭代以提高内存效率
 
   **验收标准**:
 
-  **如果使用TDD**:
-  - [ ] 测试文件已创建: \`tests/test_excel_reader.py\`
-  - [ ] 测试覆盖:
-    - 有效Excel文件读取
-    - 表头提取
-    - 数据行转换为字典
-    - 空行跳过
-    - 文件未找到 (FileNotFoundError)
-    - 无效Excel格式 (ExcelError)
-  - [ ] 创建测试fixture \`tests/fixtures/test_input.xlsx\` 并附带示例数据
-  - [ ] \`pytest tests/test_excel_reader.py\` → 通过 (所有测试)
+   **如果使用TDD**:
+   - [ ] 测试文件已创建: \`tests/test_excel_reader.py\`
+   - [ ] 测试覆盖:
+     - 有效 .xlsx 文件读取
+     - 有效 .csv 文件读取
+     - 有效 .xls 文件读取
+     - 表头提取
+     - 数据行转换为字典
+     - 空行跳过
+     - 文件未找到 (FileNotFoundError)
+     - 无效文件格式 (ExcelError)
+     - 不支持的格式 (ExcelError)
+   - [ ] 创建测试fixtures:
+     - \`tests/fixtures/test_input.xlsx\`
+     - \`tests/fixtures/test_input.csv\`
+     - \`tests/fixtures/test_input.xls\`
+   - [ ] \`pytest tests/test_excel_reader.py\` → 通过 (所有测试)
 
   **手动执行验证**:
   - [ ] **运行** Python REPL:
@@ -563,10 +585,14 @@
 
    **要做什么**:
    - 创建 \`excel_writer.py\`
-   - 实现带有 \`write_excel(template_path: str, data: List[dict], field_mappings: dict, output_path: str, start_row: int, mapping_mode: str, fixed_values: dict, auto_number: dict, bank_branch_mapping: dict, month_type_mapping: dict, month_param: str) -> None\` 的 \`ExcelWriter\` 类
-   - 加载模板Excel文件（先只读模式，然后复制）
+   - 实现带有 \`write_excel_excel(template_path: str, data: List[dict], field_mappings: dict, output_path: str, start_row: int, mapping_mode: str, fixed_values: dict, auto_number: dict, bank_branch_mapping: dict, month_type_mapping: dict, month_param: str) -> None\` 的 \`ExcelWriter\` 类
+   - 根据模板文件扩展名自动选择写入方式：
+     - `.xlsx` 文件：使用 openpyxl（保留格式、公式、合并单元格）
+     - `.csv` 文件：使用 csv 模块（UTF-8 编码，无格式保留）
+     - `.xls` 文件：使用 xlwt（基本格式，无公式保留）
+   - 加载模板文件（如果需要，先读取模板的表头）
    - 从配置获取字段映射和起始行（start_row）
-   - 从配置的起始行开始清除所有行（移除现有数据）
+   - 从配置的起始行开始清除所有行（移除现有数据，对 .xlsx/.xls 有效）
    - 从配置的起始行开始将转换后的数据写入模板
    - 应用字段映射（支持列名优先，列索引备选）
    - 处理固定值：为每一行写入配置的固定值到指定列
@@ -578,9 +604,10 @@
      - 如果month_param="年终奖"，写入配置的"bonus_value"（默认"年终奖"）
      - 如果month_param="补偿金"，写入配置的"compensation_value"（默认"补偿金"）
      - 将结果写入到配置的"target_column"
-   - 保留配置的起始行-1的模板格式、公式和合并单元格（表头）
+   - 保留配置的起始行-1的模板格式、公式和合并单元格（表头，仅对 .xlsx/.xls 有效）
    - 保存到输出路径（从不覆盖原始模板）
    - 写入失败时抛出 \`ExcelError\`
+   - 不支持的格式时抛出 \`ExcelError\`
    - 为文件写入和行计数添加日志
 
   **必须不做**:
@@ -600,22 +627,29 @@
   **测试参考**:
   - \`tests/test_validator.py\` - 错误处理模式
 
-  **文档参考**:
-  - openpyxl文档: \`https://openpyxl.readthedocs.io/\`
+   **文档参考**:
+   - openpyxl文档: \`https://openpyxl.readthedocs.io/\`
+   - xlrd/xlwtwt文档: \`https://www.python-excel.org/\`
+   - Python csv模块: \`https://docs.python.org/3/library/csv.html\`
 
-  **外部参考**:
-  - openpyxl官方文档: \`https://openpyxl.readthedocs.io/en/stable/\`
+   **外部参考**:
+   - openpyxl官方文档: \`https://openpyxl.readthedocs.io/en/stable/\`
+   - xlrd官方文档: \`https://xlrd.readthedocs.io/\`
 
-  **每个参考为何重要**:
-  - openpyxl保留Excel格式和公式
-  - 逐单元格写入允许精确控制
+   **每个参考为何重要**:
+   - openpyxl保留Excel格式和公式（用于 .xlsx）
+   - xlrd/xlwt 用于 .xls 文件（旧格式）
+   - csv 模块用于 .csv 文件（简单文本格式）
+   - 逐单元格写入允许精确控制
 
   **验收标准**:
 
    **如果使用TDD**:
    - [ ] 测试文件已创建: \`tests/test_excel_writer.py\`
    - [ ] 测试覆盖:
-     - 成功的Excel写入
+     - 成功的 .xlsx 文件写入（保留格式、公式）
+     - 成功的 .csv 文件写入（无格式）
+     - 成功的 .xls 文件写入（基本格式）
      - 字段映射应用（列名优先）
      - 字段映射应用（列索引备选）
      - 固定值填写（fixed_values）
@@ -625,10 +659,14 @@
        - 月份参数为数字时，格式化为"01月收入"、"12月收入"等
        - 月份参数为"年终奖"时，填入"年终奖"
        - 月份参数为"补偿金"时，填入"补偿金"
-     - 模板格式保留
+     - 模板格式保留（.xlsx/.xls）
      - 如需要创建输出目录
      - 权限错误 (ExcelError)
-   - [ ] 创建测试fixture \`tests/fixtures/test_template.xlsx\`
+     - 不支持的格式 (ExcelError)
+   - [ ] 创建测试fixtures:
+     - \`tests/fixtures/test_template.xlsx\`
+     - \`tests/fixtures/test_template.csv\`
+     - \`tests/fixtures/test_template.xls\`
    - [ ] \`pytest tests/test_excel_writer.py\` → 通过 (所有测试)
 
    **手动执行验证**:
@@ -641,8 +679,16 @@
      >>> fixed_values = {'省份': '浙江省', '业务类型': '工资代发'}
      >>> auto_number = {'enabled': True, 'column_name': '序号', 'start_from': 1}
      >>> bank_branch = {'enabled': True, 'source_column': '开户银行', 'target_column': '开户支行'}
-     >>> writer.write_excel('tests/fixtures/test_template.xlsx', data, mappings, 'output/test.xlsx', 2, 'name_first', fixed_values, auto_number, bank_branch)
+     >>> month_mapping = {'enabled': False}
+     >>> # 测试 .xlsx 格式
+     >>> writer.write_excel('tests/fixtures/test_template.xlsx', data, mappings, 'output/test.xlsx', 2, 'name_first', fixed_values, auto_number, bank_branch, month_mapping, '01')
      预期: 文件创建于 output/test.xlsx
+     >>> # 测试 .csv 格式
+     >>> writer.write_excel('tests/fixtures/test_template.csv', data, mappings, 'output/test.csv', 2, 'name_first', fixed_values, auto_number, bank_branch, month_mapping, '01')
+     预期: 文件创建于 output/test.csv
+     >>> # 测试 .xls 格式
+     >>> writer.write_excel('tests/fixtures/test_template.xls', data, mappings, 'output/test.xls', 2, 'name_first', fixed_values, auto_number, bank_branch, month_mapping, '01')
+     预期: 文件创建于 output/test.xls
      \`\`\`
 
   **需要的证据**:
@@ -1261,7 +1307,24 @@ open htmlcov/index.html
 }
 \`\`\`
 
-### 示例模板Excel (icbc_template.xlsx)
+### 支持的文件格式
+
+系统支持三种文件格式，根据文件扩展名自动选择处理方式：
+
+| 格式 | 读取库 | 写入库 | 特性 |
+|------|--------|--------|------|
+| `.xlsx` | openpyxl | openpyxl | 保留格式、公式、合并单元格 |
+| `.xls` | xlrd | xlwt | 基本格式，无公式保留 |
+| `.csv` | csv | csv | 纯文本，无格式，UTF-8编码 |
+
+**注意**：
+- 模板文件和输入文件都可以是任何支持的格式
+- 输出文件格式与模板文件格式保持一致
+- CSV 文件不支持格式、公式和合并单元格
+
+### 示例模板文件
+
+#### icbc_template.xlsx (.xlsx 格式)
 | 序号 | 客户姓名 | 银行卡号 | 转账金额 | 交易日期 | 省份 | 业务类型 | 账户类型 | 开户支行 | 收入类型 |
 |------|----------|----------|----------|----------|------|----------|----------|----------|----------|
 | (第2+行将被清除并填充转换后的数据)
@@ -1326,3 +1389,105 @@ python main.py input.xlsx 工商银行 年终奖 --output-dir output/
 # 补偿金处理
 python main.py input.xlsx 工商银行 补偿金 --output-dir output/
 ```
+
+---
+
+## 第10次细化：多格式文件支持
+
+**系统现在支持三种文件格式**：
+
+### 格式对比
+
+| 格式 | 扩展名 | 读取库 | 写入库 | 格式保留 | 公式保留 | 合并单元格 |
+|------|--------|--------|--------|----------|----------|------------|
+| **Excel 2007+** | `.xlsx` | openpyxl | openpyxl | ✅ 完全保留 | ✅ 保留 | ✅ 保留 |
+| **Excel 97-2003** | `.xls` | xlrd | xlwt | ⚠️ 基本保留 | ❌ 不保留 | ❌ 不保留 |
+| **CSV** | `.csv` | csv | csv | ❌ 无格式 | ❌ 不适用 | ❌ 不适用 |
+
+### 使用示例
+
+**命令行使用**：
+```bash
+# 使用 .xlsx 模板和输入文件
+python main.py input.xlsx 工商银行 01 --output-dir output/
+
+# 使用 .csv 模板和输入文件
+python main.py input.csv 工商银行 年终奖 --output-dir output/
+
+# 使用 .xls 模板和输入文件
+python main.py input.xls 工商银行 补偿金 --output-dir output/
+```
+
+**不同格式的输出结果**：
+
+1. **`.xlsx` 输出**：
+   - 完全保留模板的格式、字体、颜色、边框
+   - 保留所有公式
+   - 保留合并单元格
+   - 适合需要复杂格式化的银行模板
+
+2. **`.xls` 输出**：
+   - 保留基本格式（字体、对齐）
+   - 公式不会被保留
+   - 合并单元格不会保留
+   - 适合旧版Excel兼容
+
+3. **`.csv` 输出**：
+   - 纯文本格式，无任何格式
+   - UTF-8 编码
+   - 逗号分隔，双引号包裹（如果包含逗号）
+   - 适合简单数据交换
+
+### 格式处理规则
+
+1. **自动检测格式**：根据文件扩展名自动选择处理方式
+2. **输出格式继承**：输出文件格式与模板文件格式一致
+3. **错误处理**：不支持的格式会抛出 `ExcelError`
+4. **模板优先**：模板文件的格式决定输出文件的格式
+
+### CSV 特殊处理
+
+- 编码：UTF-8（无 BOM）
+- 分隔符：逗号（`,`）
+- 引用：双引号（`"`），仅在必要时使用
+- 换行符：`\n`（Unix 风格）
+
+### 配置示例
+
+配置文件中不需要指定格式，系统会自动根据 `template_path` 的扩展名判断：
+
+```json
+{
+  "organization_units": {
+    "工商银行": {
+      "template_path": "templates/icbc_template.xlsx",  // 自动识别为 .xlsx
+      ...
+    },
+    "建设银行": {
+      "template_path": "templates/ccb_template.xls",   // 自动识别为 .xls
+      ...
+    },
+    "农业银行": {
+      "template_path": "templates/abc_template.csv",    // 自动识别为 .csv
+      ...
+    }
+  }
+}
+```
+
+### 依赖包说明
+
+项目需要安装以下依赖：
+
+```toml
+[dependencies]
+openpyxl = ">=3.0.0"  # 用于 .xlsx 文件
+xlrd = ">=2.0.0"      # 用于 .xls 文件读取
+xlwt = ">=1.3.0"      # 用于 .xls 文件写入
+
+[dev-dependencies]
+pytest = ">=7.0.0"
+pytest-cov = ">=4.0.0"
+```
+
+注意：CSV 模块是 Python 标准库，无需额外安装。
