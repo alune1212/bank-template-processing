@@ -1,10 +1,10 @@
 {
   "version": "1.0",
   "organization_units": {
-    "农业银行": {
-      "template_path": "templates/example_template.xlsx",
-      "header_row": 1,
-      "start_row": 2,
+    "南京硕博睿达企业管理有限公司": {
+      "template_path": "templates/农业银行模板.csv",
+      "header_row": 0,
+      "start_row": 1,
       "field_mappings": {
         "姓名": {
           "source_column": "姓名",
