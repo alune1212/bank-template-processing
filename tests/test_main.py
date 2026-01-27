@@ -136,7 +136,9 @@ class TestGenerateOutputFilename:
         """测试生成输出文件名（不含模板名）"""
         from main import generate_output_filename
 
-        filename = generate_output_filename("unit1", "01", None, "20250127_120000")
+        filename = generate_output_filename(
+            "unit1", "01", None, "20250127_120000", "template.xlsx"
+        )
 
         assert filename == "unit1_01_20250127_120000.xlsx"
 
@@ -145,10 +147,30 @@ class TestGenerateOutputFilename:
         from main import generate_output_filename
 
         filename = generate_output_filename(
-            "unit1", "年终奖", "工商银行", "20250127_120000"
+            "unit1", "年终奖", "工商银行", "20250127_120000", "template.xlsx"
         )
 
         assert filename == "unit1_工商银行_年终奖_20250127_120000.xlsx"
+
+    def test_generate_output_filename_csv_extension(self):
+        """测试CSV模板生成CSV扩展名"""
+        from main import generate_output_filename
+
+        filename = generate_output_filename(
+            "unit1", "01", None, "20250127_120000", "template.csv"
+        )
+
+        assert filename == "unit1_01_20250127_120000.csv"
+
+    def test_generate_output_filename_xls_extension(self):
+        """测试XLS模板生成XLS扩展名"""
+        from main import generate_output_filename
+
+        filename = generate_output_filename(
+            "unit1", "01", None, "20250127_120000", "template.xls"
+        )
+
+        assert filename == "unit1_01_20250127_120000.xls"
 
 
 class TestMainWorkflow:

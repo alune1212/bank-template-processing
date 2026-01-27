@@ -195,7 +195,9 @@ class TestUniqueFilenameGeneration:
         from main import generate_output_filename, generate_timestamp
 
         timestamp = generate_timestamp()
-        filename = generate_output_filename("测试单位", "01", "农业银行", timestamp)
+        filename = generate_output_filename(
+            "测试单位", "01", "农业银行", timestamp, "template.xlsx"
+        )
 
         assert "测试单位" in filename
         assert "农业银行" in filename
@@ -208,7 +210,9 @@ class TestUniqueFilenameGeneration:
         from main import generate_output_filename, generate_timestamp
 
         timestamp = generate_timestamp()
-        filename = generate_output_filename("测试单位", "01", None, timestamp)
+        filename = generate_output_filename(
+            "测试单位", "01", None, timestamp, "template.xlsx"
+        )
 
         assert "测试单位" in filename
         assert "01" in filename
@@ -323,7 +327,9 @@ class TestDynamicTemplateSelection:
 
             from main import generate_output_filename
 
-            filename = generate_output_filename("测试单位", "01", group_name, timestamp)
+            filename = generate_output_filename(
+                "测试单位", "01", group_name, timestamp, template_path
+            )
             output_path = tmp_path / filename
 
             simple_field_mappings = {

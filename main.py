@@ -113,7 +113,11 @@ def generate_timestamp() -> str:
 
 
 def generate_output_filename(
-    unit_name: str, month: str, template_name: str | None, timestamp: str
+    unit_name: str,
+    month: str,
+    template_name: str | None,
+    timestamp: str,
+    template_path: str,
 ) -> str:
     """
     生成输出文件名
@@ -123,14 +127,19 @@ def generate_output_filename(
         month: 月份参数
         template_name: 模板名称（可选）
         timestamp: 时间戳字符串
+        template_path: 模板文件路径（用于获取文件扩展名）
 
     Returns:
-        输出文件名（包含.xlsx扩展名）
+        输出文件名（包含与模板相同的扩展名）
     """
+    from pathlib import Path
+
+    template_ext = Path(template_path).suffix
+
     if template_name:
-        return f"{unit_name}_{template_name}_{month}_{timestamp}.xlsx"
+        return f"{unit_name}_{template_name}_{month}_{timestamp}{template_ext}"
     else:
-        return f"{unit_name}_{month}_{timestamp}.xlsx"
+        return f"{unit_name}_{month}_{timestamp}{template_ext}"
 
 
 def setup_logging() -> None:
@@ -260,7 +269,11 @@ def main(argv=None) -> None:
 
             template_path = unit_config["template_path"]
             output_filename = generate_output_filename(
-                args.unit_name, validated_month, None, generate_timestamp()
+                args.unit_name,
+                validated_month,
+                None,
+                generate_timestamp(),
+                template_path,
             )
             output_path = output_dir / output_filename
 
@@ -302,7 +315,11 @@ def main(argv=None) -> None:
                 template_name = group_info["group_name"]
 
                 output_filename = generate_output_filename(
-                    args.unit_name, validated_month, template_name, generate_timestamp()
+                    args.unit_name,
+                    validated_month,
+                    template_name,
+                    generate_timestamp(),
+                    template_path,
                 )
                 output_path = output_dir / output_filename
 
