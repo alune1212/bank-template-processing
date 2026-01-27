@@ -42,6 +42,12 @@
         "bonus_value": "年终奖",
         "compensation_value": "补偿金"
       },
+      "template_selector": {
+        "enabled": true,
+        "default_bank": "中国农业银行",
+        "special_template": "templates/农业银行跨行进卡模板.xlsx",
+        "bank_column": "开户银行"
+      },
       "transformations": {
         "date": {
           "output_format": "YYYY-MM-DD"
@@ -59,61 +65,6 @@
         "data_types": {
           "实发工资": "numeric",
           "工资卡卡号": "integer"
-        }
-      }
-    },
-    "工商银行": {
-      "template_path": "templates/complex_template.xlsx",
-      "header_row": 4,
-      "start_row": 5,
-      "field_mappings": {
-        "客户姓名": {
-          "source_column": "姓名",
-          "target_column": "A",
-          "transform": "none",
-          "required": true
-        },
-        "银行卡号": {
-          "source_column": "卡号",
-          "target_column": "B",
-          "transform": "card_number",
-          "required": true
-        },
-        "工资金额": {
-          "source_column": "金额",
-          "target_column": "C",
-          "transform": "amount_decimal",
-          "required": true
-        },
-        "工资日期": {
-          "source_column": "日期",
-          "target_column": "D",
-          "transform": "date_format",
-          "required": true
-        }
-      },
-      "fixed_values": {
-        "E": "北京市",
-        "F": "工资"
-      },
-      "transformations": {
-        "date": {
-          "output_format": "YYYY-MM-DD"
-        },
-        "amount": {
-          "decimal_places": 2,
-          "rounding": "round"
-        },
-        "card_number": {
-          "remove_formatting": true,
-          "luhn_validation": true
-        }
-      },
-      "validation_rules": {
-        "required_fields": ["姓名", "卡号", "金额", "日期"],
-        "data_types": {
-          "金额": "numeric",
-          "日期": "date"
         }
       }
     }

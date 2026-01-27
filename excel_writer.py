@@ -186,12 +186,14 @@ class ExcelWriter:
 
         # 读取表头（用于字段映射）
         headers = {}
-        for col_idx in range(1, ws.max_column + 1):
-            cell_value = ws.cell(header_row, col_idx).value
-            if cell_value:
-                headers[str(cell_value).strip()] = col_idx
-
-        logger.debug(f"读取到 {len(headers)} 个表头字段")
+        if header_row > 0:
+            for col_idx in range(1, ws.max_column + 1):
+                cell_value = ws.cell(header_row, col_idx).value
+                if cell_value:
+                    headers[str(cell_value).strip()] = col_idx
+            logger.debug(f"读取到 {len(headers)} 个表头字段")
+        else:
+            logger.debug("header_row = 0，跳过读取表头（使用列标识符）")
 
         # 清除从start_row开始的所有行（保留header_row）
         logger.debug(f"清除从第 {start_row} 行开始的数据")
@@ -241,27 +243,32 @@ class ExcelWriter:
             reader = csv.reader(f)
             rows = list(reader)
 
-        if len(rows) < header_row:
-            raise ExcelError(f"模板文件行数不足，无法读取表头行: {header_row}")
-
         # 读取表头
         headers = {}
-        header_row_data = rows[header_row - 1]  # 转换为0-index
-        for col_idx, cell_value in enumerate(header_row_data, 1):  # 1-index
-            if cell_value:
-                headers[cell_value.strip()] = col_idx
+        if header_row > 0:
+            if len(rows) < header_row:
+                raise ExcelError(f"模板文件行数不足，无法读取表头行: {header_row}")
 
-        logger.debug(f"读取到 {len(headers)} 个表头字段")
+            header_row_data = rows[header_row - 1]  # 转换为0-index
+            for col_idx, cell_value in enumerate(header_row_data, 1):  # 1-index
+                if cell_value:
+                    headers[cell_value.strip()] = col_idx
+
+            logger.debug(f"读取到 {len(headers)} 个表头字段")
+            max_columns = len(header_row_data)
+        else:
+            logger.debug("header_row = 0，跳过读取表头（使用列标识符）")
+            max_columns = len(rows[0]) if rows else 0
 
         # 保留header_row行之前的所有内容
-        output_rows = rows[:header_row]
+        output_rows = rows[:header_row] if header_row > 0 else []
 
         # 处理数据并转换为行列表
         data_rows = self._process_data_to_rows(
             data,
             field_mappings,
             headers,
-            len(header_row_data),
+            max_columns,
             mapping_mode,
             fixed_values,
             auto_number,
@@ -312,23 +319,26 @@ class ExcelWriter:
         ws_template = wb_template.sheet_by_index(0)
 
         headers = {}
-        for col_idx in range(ws_template.ncols):
-            cell_value = ws_template.cell_value(
-                header_row - 1, col_idx
-            )  # xlrd使用0-index
-            if cell_value:
-                headers[str(cell_value).strip()] = col_idx + 1
-
-        logger.debug(f"读取到 {len(headers)} 个表头字段")
+        if header_row > 0:
+            for col_idx in range(ws_template.ncols):
+                cell_value = ws_template.cell_value(
+                    header_row - 1, col_idx
+                )  # xlrd使用0-index
+                if cell_value:
+                    headers[str(cell_value).strip()] = col_idx + 1
+            logger.debug(f"读取到 {len(headers)} 个表头字段")
+        else:
+            logger.debug("header_row = 0，跳过读取表头（使用列标识符）")
 
         wb_output = xlwt.Workbook(encoding="utf-8")
         ws_output = wb_output.add_sheet("Sheet1")
 
-        for row_idx in range(header_row):
-            for col_idx in range(ws_template.ncols):
-                cell_value = ws_template.cell_value(row_idx, col_idx)
-                if cell_value:
-                    ws_output.write(row_idx, col_idx, cell_value)
+        if header_row > 0:
+            for row_idx in range(header_row):
+                for col_idx in range(ws_template.ncols):
+                    cell_value = ws_template.cell_value(row_idx, col_idx)
+                    if cell_value:
+                        ws_output.write(row_idx, col_idx, cell_value)
 
         self._write_data_to_xls_sheet(
             ws_output,

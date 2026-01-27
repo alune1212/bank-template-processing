@@ -154,8 +154,8 @@ class TestValidateConfig:
         with pytest.raises(ConfigError, match="缺少必填字段.*transformations"):
             validate_config(config)
 
-    def test_validate_invalid_header_row_zero(self):
-        """测试header_row为0（必须≥1）"""
+    def test_validate_valid_header_row_zero(self):
+        """测试header_row为0（模板无表头，使用列标识符）"""
         config = {
             "version": "1.0",
             "organization_units": {
@@ -168,8 +168,8 @@ class TestValidateConfig:
                 }
             },
         }
-        with pytest.raises(ConfigError, match=r"header_row.*必须大于或等于 1"):
-            validate_config(config)
+        validate_config(config)
+        assert config["organization_units"]["test_unit"]["start_row"] == 1
 
     def test_validate_invalid_header_row_negative(self):
         """测试header_row为负数"""
@@ -177,7 +177,7 @@ class TestValidateConfig:
             "version": "1.0",
             "organization_units": {
                 "test_unit": {
-                    "template_path": "templates/test.xlsx",
+                    "template_path": "templates/test/test.xlsx",
                     "header_row": -1,
                     "start_row": 0,
                     "field_mappings": {"姓名": "name"},
@@ -185,7 +185,7 @@ class TestValidateConfig:
                 }
             },
         }
-        with pytest.raises(ConfigError, match=r"header_row.*必须大于或等于 1"):
+        with pytest.raises(ConfigError, match=r"header_row.*必须大于或等于 0"):
             validate_config(config)
 
     def test_validate_invalid_start_row_equal_to_header(self):

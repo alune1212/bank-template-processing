@@ -104,14 +104,14 @@ def _validate_unit_config(unit_name: str, unit_config: dict) -> None:
     if not isinstance(unit_config["template_path"], str):
         raise ConfigError(f"单位 '{unit_name}' 的 template_path 必须是字符串")
 
-    # 验证header_row是整数且≥1
+    # 验证header_row是整数且≥0
     header_row = unit_config["header_row"]
     if not isinstance(header_row, int):
         raise ConfigError(f"单位 '{unit_name}' 的 header_row 必须是整数")
 
-    if header_row < 1:
+    if header_row < 0:
         raise ConfigError(
-            f"单位 '{unit_name}' 的 header_row 必须大于或等于 1，当前值: {header_row}"
+            f"单位 '{unit_name}' 的 header_row 必须大于或等于 0，当前值: {header_row}"
         )
 
     # 验证start_row（如果指定）
@@ -125,8 +125,8 @@ def _validate_unit_config(unit_name: str, unit_config: dict) -> None:
                 f"单位 '{unit_name}' 的 start_row ({start_row}) 必须大于 header_row ({header_row})"
             )
     else:
-        # 设置默认值：start_row = header_row + 1
-        unit_config["start_row"] = header_row + 1
+        # 设置默认值：start_row = max(1, header_row + 1)
+        unit_config["start_row"] = max(1, header_row + 1)
         logger.debug(
             f"单位 '{unit_name}' 使用默认 start_row: {unit_config['start_row']}"
         )
