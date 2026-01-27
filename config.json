@@ -8,32 +8,22 @@
       "field_mappings": {
         "姓名": {
           "source_column": "姓名",
-          "target_column": "A",
+          "target_column": "C",
           "transform": "none",
           "required": true
         },
-        "卡号": {
-          "source_column": "卡号",
+        "工资卡卡号": {
+          "source_column": "工资卡卡号",
           "target_column": "B",
           "transform": "card_number",
           "required": true
         },
-        "金额": {
-          "source_column": "金额",
-          "target_column": "C",
+        "实发工资": {
+          "source_column": "实发工资",
+          "target_column": "D",
           "transform": "amount_decimal",
           "required": true
-        },
-        "日期": {
-          "source_column": "日期",
-          "target_column": "D",
-          "transform": "date_format",
-          "required": true
         }
-      },
-      "fixed_values": {
-        "E": "浙江省",
-        "F": "工资代发"
       },
       "auto_number": {
         "enabled": true,
@@ -41,13 +31,13 @@
         "start_from": 1
       },
       "bank_branch_mapping": {
-        "enabled": true,
-        "source_column": "开户银行",
-        "target_column": "G"
+        "enabled": false,
+        "source_column": "",
+        "target_column": ""
       },
       "month_type_mapping": {
         "enabled": true,
-        "target_column": "H",
+        "target_column": "E",
         "month_format": "{month}月收入",
         "bonus_value": "年终奖",
         "compensation_value": "补偿金"
@@ -66,10 +56,9 @@
         }
       },
       "validation_rules": {
-        "required_fields": ["姓名", "卡号", "金额", "日期"],
         "data_types": {
-          "金额": "numeric",
-          "日期": "date"
+          "实发工资": "numeric",
+          "工资卡卡号": "integer"
         }
       }
     },
