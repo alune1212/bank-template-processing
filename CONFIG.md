@@ -124,17 +124,21 @@ python main.py input.xlsx 单位名称 01 --config custom_config.json
 `field_mappings` 定义了如何从输入Excel文件的列映射到模板的列，以及如何转换数据。
 
 **重要说明**：
-- 字典的**键**（模板列名）用于识别模板中的列
-- `source_column` 指定从输入Excel的哪一列读取数据
-- 这个设计适用于模板中没有表头的情况
-
+- 字典的**键**只是一个标识符，用于配置管理
+- `source_column` 指定从输入Excel（待处理文件）的哪一列读取数据
+  - 输入Excel是标准模板，一定有表头
+  - 支持使用列名或列索引（0-based）
+- `target_column` 指定写入模板（templates目录下）的哪一列
+  - 模板可能没有表头或不标准
+  - 支持三种格式：列名、Excel列标识（A, B, C...）、数字索引（1, 2, 3...）
+  
 ### 配置结构
 
 ```json
 "field_mappings": {
-  "模板列名": {
+  "字段标识": {
     "source_column": "输入列名或列索引",
-    "target_column": "模板目标列名（可选）",
+    "target_column": "模板列名或列标识或列索引",
     "transform": "转换方式",
     "required": true
   }
@@ -146,7 +150,7 @@ python main.py input.xlsx 单位名称 01 --config custom_config.json
 | 字段名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
 | `source_column` | string / integer | ✅ | 输入Excel中的列名或列索引（0-based），数据来源 |
-| `target_column` | string / integer | ❌ | 模板中的目标列名或列索引，默认使用字典的键 |
+| `target_column` | string / integer | ❌ | 模板中的目标列名、列标识或列索引，默认使用字典的键 |
 | `transform` | string | ✅ | 数据转换方式，见下方 |
 | `required` | boolean | ✅ | 该字段是否必填 |
 
@@ -154,7 +158,10 @@ python main.py input.xlsx 单位名称 01 --config custom_config.json
 
 1. **从输入Excel读取**：根据 `source_column` 指定的列名或索引读取数据
 2. **转换数据**：根据 `transform` 指定的方式转换数据
-3. **写入模板**：根据 `target_column` 或字典键指定的列名写入模板
+3. **智能解析目标列**：根据 `target_column` 的类型写入模板
+   - 列名 → 在模板表头中查找
+   - Excel列标识（A, B, C...）→ 转换为索引
+   - 数字索引 → 直接使用
 
 ### source_column 使用方式
 
@@ -188,11 +195,15 @@ python main.py input.xlsx 单位名称 01 --config custom_config.json
 
 ### target_column 使用方式
 
-如果模板中的列名与字典键不同，可以使用 `target_column` 指定：
+`target_column` 支持三种格式，系统会自动识别：
+
+#### 格式1：列名
+
+如果模板有表头，可以使用列名：
 
 ```json
 {
-  "员工姓名": {
+  "姓名": {
     "source_column": "姓名",
     "target_column": "姓名",
     "transform": "none",
@@ -201,12 +212,36 @@ python main.py input.xlsx 单位名称 01 --config custom_config.json
 }
 ```
 
-如果不指定 `target_column`，则使用字典的键作为目标列名：
+#### 格式2：Excel列标识（推荐用于无表头模板）
+
+使用 Excel 列标识（A=第1列, B=第2列, ...）：
 
 ```json
 {
   "姓名": {
     "source_column": "姓名",
+    "target_column": "A",
+    "transform": "none",
+    "required": true
+  },
+  "卡号": {
+    "source_column": "卡号",
+    "target_column": "B",
+    "transform": "card_number",
+    "required": true
+  }
+}
+```
+
+#### 格式3：数字索引
+
+使用数字索引（1-based）：
+
+```json
+{
+  "姓名": {
+    "source_column": "姓名",
+    "target_column": 1,
     "transform": "none",
     "required": true
   }
@@ -222,29 +257,86 @@ python main.py input.xlsx 单位名称 01 --config custom_config.json
 | `"amount_decimal"` | 金额舍入转换，保留指定位数小数 | 金额字段 |
 | `"card_number"` | 卡号格式化，移除分隔符并执行 Luhn 校验 | 银行卡号 |
 
-### 示例
+### 完整示例
+
+#### 示例1：使用列标识（推荐用于无表头模板）
+
+```json
+"field_mappings": {
+  "姓名字段": {
+    "source_column": "姓名",
+    "target_column": "A",
+    "transform": "none",
+    "required": true
+  },
+  "卡号字段": {
+    "source_column": "卡号",
+    "target_column": "B",
+    "transform": "card_number",
+    "required": true
+  },
+  "金额字段": {
+    "source_column": "金额",
+    "target_column": "C",
+    "transform": "amount_decimal",
+    "required": true
+  },
+  "日期字段": {
+    "source_column": "日期",
+    "target_column": "D",
+    "transform": "date_format",
+    "required": true
+  }
+}
+```
+
+#### 示例2：混合使用列名和列标识
 
 ```json
 "field_mappings": {
   "姓名": {
     "source_column": "姓名",
+    "target_column": "姓名",
     "transform": "none",
     "required": true
   },
   "卡号": {
     "source_column": "卡号",
+    "target_column": "B",
     "transform": "card_number",
     "required": true
+  }
+}
+```
+
+### 字典键的最佳实践
+
+建议使用**有语义的标识符**作为字典键：
+
+```json
+{
+  "姓名字段": {  // 清晰的字段描述
+    "source_column": "姓名",
+    "target_column": "A"
   },
-  "金额": {
-    "source_column": "金额",
-    "transform": "amount_decimal",
-    "required": true
+  "卡号字段": {
+    "source_column": "卡号",
+    "target_column": "B"
+  }
+}
+```
+
+也可以使用 `source_column` 作为键（更简洁）：
+
+```json
+{
+  "姓名": {
+    "source_column": "姓名",
+    "target_column": "A"
   },
-  "日期": {
-    "source_column": "日期",
-    "transform": "date_format",
-    "required": true
+  "卡号": {
+    "source_column": "卡号",
+    "target_column": "B"
   }
 }
 ```

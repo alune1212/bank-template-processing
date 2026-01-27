@@ -6,14 +6,14 @@
 import csv
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 
 try:
     import openpyxl
     from openpyxl.utils.exceptions import InvalidFileException
 except ImportError:
     openpyxl = None
-    InvalidFileException = None
+    InvalidFileException = type("InvalidFileException", (Exception,), {})
 
 try:
     import xlrd
@@ -397,16 +397,14 @@ class ExcelWriter:
                 # 获取源数据值
                 value = row_data.get(source_column, "")
 
-                # 获取目标列索引
-                if mapping_mode == "column_name":
-                    # 使用列名
-                    if target_column in headers:
-                        col_idx = headers[target_column]
-                    else:
-                        continue
-                else:
-                    # 使用列索引（支持"A"这样的Excel列标识）
-                    col_idx = self._column_letter_to_index(str(target_column).upper())
+                # 智能解析目标列索引
+                try:
+                    col_idx = self._resolve_column_index(
+                        target_column, headers, max_columns
+                    )
+                except ValueError as e:
+                    logger.warning(f"跳过字段 {template_column}: {e}")
+                    continue
 
                 # 写入数据（转换为0-index）
                 if 1 <= col_idx <= max_columns:
@@ -490,16 +488,14 @@ class ExcelWriter:
                 # 获取源数据值
                 value = row_data.get(source_column, "")
 
-                # 获取目标列索引
-                if mapping_mode == "column_name":
-                    # 使用列名
-                    if target_column in headers:
-                        col_idx = headers[target_column]
-                    else:
-                        continue
-                else:
-                    # 使用列索引（支持"A"这样的Excel列标识）
-                    col_idx = self._column_letter_to_index(str(target_column).upper())
+                # 智能解析目标列索引
+                try:
+                    col_idx = self._resolve_column_index(
+                        target_column, headers, ws.max_column
+                    )
+                except ValueError as e:
+                    logger.warning(f"跳过字段 {template_column}: {e}")
+                    continue
 
                 # 写入数据
                 ws.cell(output_row_idx, col_idx, value)
@@ -576,16 +572,14 @@ class ExcelWriter:
                 # 获取源数据值
                 value = row_data.get(source_column, "")
 
-                # 获取目标列索引
-                if mapping_mode == "column_name":
-                    # 使用列名
-                    if target_column in headers:
-                        col_idx = headers[target_column]
-                    else:
-                        continue
-                else:
-                    # 使用列索引（支持"A"这样的Excel列标识）
-                    col_idx = self._column_letter_to_index(str(target_column).upper())
+                # 智能解析目标列索引
+                try:
+                    col_idx = self._resolve_column_index(
+                        target_column, headers, max_columns
+                    )
+                except ValueError as e:
+                    logger.warning(f"跳过字段 {template_column}: {e}")
+                    continue
 
                 # 写入数据（转换为0-index）
                 if 1 <= col_idx <= max_columns:
@@ -673,3 +667,68 @@ class ExcelWriter:
         for char in column:
             index = index * 26 + (ord(char) - ord("A") + 1)
         return index
+
+    def _resolve_column_index(
+        self,
+        column_spec,
+        headers: Optional[dict] = None,
+        max_columns: Optional[int] = None,
+    ) -> int:
+        """
+        智能解析列标识为列索引
+
+        支持的格式：
+        1. 列名（字符串）- 在模板表头（headers）中查找
+        2. Excel列标识（A, B, C... AA, AB...）- 转换为数字索引
+        3. 数字索引（整数或数字字符串）- 直接使用
+
+        Args:
+            column_spec: 列标识（列名、列标识或列索引）
+            headers: 模板表头映射（列名 -> 列索引），可选
+            max_columns: 最大列数，用于验证索引有效性
+
+        Returns:
+            int: 列索引（从1开始）
+
+        Raises:
+            ValueError: 无法解析列标识或索引超出范围
+        """
+        # 尝试作为列名查找
+        if headers and isinstance(column_spec, str) and column_spec in headers:
+            col_idx = headers[column_spec]
+            if max_columns and col_idx > max_columns:
+                raise ValueError(
+                    f"列名 '{column_spec}' 对应的索引 {col_idx} 超出最大列数 {max_columns}"
+                )
+            return col_idx
+
+        # 尝试作为整数索引
+        if isinstance(column_spec, int):
+            if column_spec >= 1:
+                if max_columns and column_spec > max_columns:
+                    raise ValueError(f"列索引 {column_spec} 超出最大列数 {max_columns}")
+                return column_spec
+            raise ValueError(f"列索引必须 >= 1，当前值: {column_spec}")
+
+        # 尝试作为数字字符串索引
+        if isinstance(column_spec, str):
+            if column_spec.isdigit():
+                idx = int(column_spec)
+                if idx >= 1:
+                    if max_columns and idx > max_columns:
+                        raise ValueError(f"列索引 {idx} 超出最大列数 {max_columns}")
+                    return idx
+                raise ValueError(f"列索引必须 >= 1，当前值: {column_spec}")
+
+            # 尝试作为Excel列标识（A, B, C...）
+            if column_spec.isalpha():
+                col_idx = self._column_letter_to_index(column_spec.upper())
+                if max_columns and col_idx > max_columns:
+                    raise ValueError(
+                        f"Excel列标识 '{column_spec}' 对应的索引 {col_idx} 超出最大列数 {max_columns}"
+                    )
+                return col_idx
+
+        raise ValueError(
+            f"无法解析列标识: {column_spec} (支持的格式: 列名、Excel列标识A-Z、数字索引)"
+        )

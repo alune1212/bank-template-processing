@@ -8,53 +8,52 @@
       "field_mappings": {
         "姓名": {
           "source_column": "姓名",
+          "target_column": "A",
           "transform": "none",
           "required": true
         },
         "卡号": {
           "source_column": "卡号",
+          "target_column": "B",
           "transform": "card_number",
           "required": true
         },
         "金额": {
           "source_column": "金额",
+          "target_column": "C",
           "transform": "amount_decimal",
           "required": true
         },
         "日期": {
           "source_column": "日期",
+          "target_column": "D",
           "transform": "date_format",
           "required": true
         }
       },
       "fixed_values": {
-        "省份": "浙江省",
-        "业务类型": "工资代发"
+        "E": "浙江省",
+        "F": "工资代发"
       },
       "auto_number": {
         "enabled": true,
-        "column_name": "序号",
+        "column": "A",
         "start_from": 1
       },
       "bank_branch_mapping": {
         "enabled": true,
         "source_column": "开户银行",
-        "target_column": "开户支行"
+        "target_column": "G"
       },
       "month_type_mapping": {
         "enabled": true,
-        "target_column": "收入类型",
+        "target_column": "H",
         "month_format": "{month}月收入",
         "bonus_value": "年终奖",
         "compensation_value": "补偿金"
       },
-      "template_selector": {
-        "enabled": true,
-        "default_bank": "中国农业银行",
-        "special_template": "templates/example_special_template.xlsx"
-      },
       "transformations": {
-        "date_format": {
+        "date": {
           "output_format": "YYYY-MM-DD"
         },
         "amount": {
@@ -81,31 +80,35 @@
       "field_mappings": {
         "客户姓名": {
           "source_column": "姓名",
+          "target_column": "A",
           "transform": "none",
           "required": true
         },
         "银行卡号": {
           "source_column": "卡号",
+          "target_column": "B",
           "transform": "card_number",
           "required": true
         },
         "工资金额": {
           "source_column": "金额",
+          "target_column": "C",
           "transform": "amount_decimal",
           "required": true
         },
-"工资日期": {
+        "工资日期": {
           "source_column": "日期",
+          "target_column": "D",
           "transform": "date_format",
           "required": true
         }
       },
       "fixed_values": {
-        "省": "北京市",
-        "类型": "工资"
+        "E": "北京市",
+        "F": "工资"
       },
       "transformations": {
-        "date_format": {
+        "date": {
           "output_format": "YYYY-MM-DD"
         },
         "amount": {
