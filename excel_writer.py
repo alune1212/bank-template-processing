@@ -280,8 +280,8 @@ class ExcelWriter:
         # 添加数据行
         output_rows.extend(data_rows)
 
-        # 写入输出文件
-        with open(output_path, "w", encoding="utf-8", newline="") as f:
+        # 写入输出文件（使用utf-8-sig编码，让Excel正确识别UTF-8）
+        with open(output_path, "w", encoding="utf-8-sig", newline="") as f:
             writer = csv.writer(f)
             writer.writerows(output_rows)
 

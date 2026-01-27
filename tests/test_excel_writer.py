@@ -99,8 +99,8 @@ class TestExcelWriter:
         # 验证输出文件存在
         assert output_path.exists()
 
-        # 验证数据
-        with open(output_path, "r", encoding="utf-8", newline="") as f:
+        # 验证数据（使用utf-8-sig编码以正确处理BOM）
+        with open(output_path, "r", encoding="utf-8-sig", newline="") as f:
             reader = csv.reader(f)
             rows = list(reader)
             assert rows[0] == ["说明文字"]
