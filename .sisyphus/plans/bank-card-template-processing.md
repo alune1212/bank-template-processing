@@ -40,7 +40,33 @@
   - 配置：`header_row: 4`, `start_row: 5`
   - 系统会保留第1-3行的说明信息和第4行的表头，从第5行开始写入数据
 
-### 面试摘要
+### 新增需求（第12次细化）
+**动态模板选择功能**：
+- 核心功能：根据输入Excel中的"开户银行"字段动态选择模板
+- 二元选择模式：配置一个默认银行和一个特殊模板
+  - 如果"开户银行" = 默认银行 → 使用默认模板（template_path）
+  - 如果"开户银行" ≠ 默认银行 → 使用特殊模板（special_template）
+- 分组输出：输入Excel可能生成多个输出文件（最多2个）
+  - 默认组数据 → 默认模板 → 输出文件1
+  - 特殊组数据 → 特殊模板 → 输出文件2
+  - 空组处理：如果某一组没有数据，跳过该输出文件
+- 边界情况：
+  - 全默认银行：只生成一个文件（默认模板）
+  - 全特殊银行：只生成一个文件（特殊模板）
+  - 混合银行：生成两个文件
+  - 开户银行列不存在：报错退出
+  - 开户银行为空/None：报ValidationError，明确指出哪一行为空
+- 配置项名称：`template_selection_rules`（可选配置）
+- 向后兼容：如果配置不存在或`enabled=false`，使用原单模板逻辑
+- 模板路径配置：复用`template_path`作为默认模板，`special_template`单独指定
+- 银行列名：硬编码为"开户银行"
+- 输出文件命名：`{unit_name}_{template_name}_{month}_{timestamp}.xlsx`
+  - template_name：从模板文件名提取（不带扩展名）
+  - month：从命令行month参数获取
+  - timestamp：紧凑格式`YYYYMMDD_HHMMSS`
+- 输出目录：使用当前配置的output-dir，不创建子目录
+
+ ### 面试摘要
 
 **关键讨论**:
 - **编程语言**: Python（适合Excel处理，脚本友好）
@@ -194,26 +220,34 @@
 ## 任务流程
 
 \`\`
-任务1 (测试基础设施) → 任务2 (配置) → 任务3 (Excel读取) → 任务4 (转换器) → 任务5 (验证器) → 任务6 (Excel写入) → 任务7 (主程序) → 任务8 (集成测试)
-                                   ↘ 任务9 (文档)
+任务1 (测试基础设施) → 任务2 (配置) → 任务3 (Excel读取) → 任务4 (转换器) → 任务5 (验证器) → 任务6 (Excel写入) → 任务7 (模板选择器) → 任务8 (主程序) → 任务9 (集成测试)
+                                   ↘ 任务10 (文档)
 \`\`
 
 ## 并行化
 
 | 组别 | 任务 | 原因 |
 |-------|-------|--------|
-| A | 2,3, 4, 5, 6 | 独立模块 |
-| B | 9 | 文档 |
+| A | 2,3, 4, 5, 6, 7 | 独立模块 |
+| B | 10 | 文档 |
 
 | 任务 | 依赖 | 原因 |
 |------|------------|--------|
-| 7 | 2, 3, 4, 5, 6 | 主程序集成所有模块 |
-| 8 | 7 | 集成测试需要主流程 |
-| 9 | 7 | 实现后的文档 |
+| 8 | 2, 3, 4, 5, 6, 7 | 主程序集成所有模块 |
+| 9 | 8 | 集成测试需要主流程 |
+| 10 | 8 | 实现后的文档 |
 
 ---
 
-## 任务列表
+## 任务列表（10个任务）
+
+**第12次需求细化新增**：任务7 - 模板选择器模块
+
+原有任务编号调整：
+- 任务1-6：不变
+- 原任务7 → 新任务8（主CLI模块）
+- 原任务8 → 新任务9（集成测试）
+- 原任务9 → 新任务10（文档和示例配置）
 
 - [ ] 1. 使用uv和测试基础设施设置项目
 
@@ -722,40 +756,175 @@
   - **消息**: \`feat: implement Excel writer module\`
   - **文件**: \`excel_writer.py\`, \`tests/test_excel_writer.py\`, \`tests/fixtures/test_template.xlsx\`
 
-- [ ] 7. 实现主CLI模块
+- [ ] 7. 实现模板选择器模块
 
    **要做什么**:
-   - 创建 \`main.py\`
-   - 使用 \`argparse\` 实现参数解析:
-     - 位置参数1: \`excel_path\` (输入Excel文件路径)
-     - 位置参数2: \`unit_name\` (组织单位名称)
-     - 位置参数3: \`month\` (月份参数，支持：1-12或01-09格式的月份，或"年终奖"，或"补偿金")
-     - 可选参数: \`--output-dir\` (输出目录, 默认: \`output/\`)
-     - 可选参数: \`--config\` (配置文件路径, 默认: \`config.json\`)
-     - 可选参数: \`--output-filename-template\` (输出文件名模板, 默认: \`{unit_name}_{month}\`)
-   - 实现month参数校验：
-     - 数字格式：1-12或01-09，支持0开头
-     - 关键字格式："年终奖"或"补偿金"
-     - 其他值：抛出ValueError
-   - 实现主工作流程:
-     1. 加载并验证配置
-     2. 基于unit_name从配置获取单位配置
-     3. 读取输入Excel文件
-     4. 验证输入数据
-     5. 按照配置转换数据
-     6. 写入到模板Excel文件（传入month参数）
-     7. 生成输出文件名: 使用模板+时间戳确保唯一性
-     8. 保存到输出目录
-   - 实现错误处理: 捕获并记录所有异常
-   - 实现日志: 配置带时间戳的日志
-   - 添加 \`--help\` 并附带清晰的使用说明
+   - 创建 \`template_selector.py\`
+   - 实现 \`TemplateSelector\` 类:
+     - \`__init__(config: dict)\`: 初始化选择器，加载配置
+     - \`is_enabled() -> bool\`: 检查是否启用模板选择
+     - \`group_data(data: List[dict], default_bank: str, bank_column: str = "开户银行") -> dict\`: 分组数据
+   - 分组逻辑:
+     1. 验证所有行包含`bank_column`字段（硬编码"开户银行"）
+     2. 验证所有行的`bank_column`值非空（空字符串或None都抛出ValidationError）
+     3. 根据银行值分组：
+        - `bank_column` == `default_bank` → 归入默认组
+        - `bank_column` != `default_bank` → 归入特殊组
+     4. 返回分组结果:
+        ```python
+        {
+          "default": {
+            "data": [...],
+            "template": template_path,
+            "group_name": "农业银行"  # 从模板文件名提取
+          },
+          "special": {
+            "data": [...],
+            "template": special_template,
+            "group_name": "农业银行-特殊"  # 从模板文件名提取
+          }
+        }
+        ```
+   - 边界情况处理:
+     - 开户银行列不存在：抛出ValidationError，明确提示"缺少'开户银行'列"
+     - 开户银行为空：抛出ValidationError，明确提示"第X行的'开户银行'字段为空"
+     - 所有数据都是默认银行：只返回默认组，特殊组为空
+     - 所有数据都不是默认银行：只返回特殊组，默认组为空
+     - 混合银行：返回两个组
+   - 为分组操作添加日志：
+     - "检测到模板选择规则已启用"
+     - "开始根据'开户银行'分组数据..."
+     - "默认银行: XXX"
+     - "默认组: X条数据"
+     - "特殊组: Y条数据"
+     - "所有数据都是XXX银行，仅生成默认模板文件"（全默认）
+     - "没有XXX银行的数据，仅生成特殊模板文件"（全特殊）
 
-  **必须不做**:
-  - 添加TUI或交互式提示
-  - 添加进度条或spinners
-  - 添加网络功能
+   **必须不做**:
+   - 支持多银行选择（严格二元：默认 vs 其他）
+   - 允许空银行值（必须报错）
+   - 支持自定义银行列名（硬编码"开户银行"）
 
-  **可并行化**: 否（依赖2, 3, 4, 5, 6）
+   **可并行化**: 是（与2, 3, 4, 5, 6一起）
+
+   **参考**:
+
+   **模式参考**:
+   - 无（新模块）
+
+   **API/类型参考**:
+   - 无（纯Python逻辑）
+
+   **测试参考**:
+   - \`tests/test_validator.py\` - 错误处理模式
+
+   **文档参考**:
+   - 无（简单分组逻辑）
+
+   **外部参考**:
+   - 无（纯Python实现）
+
+   **每个参考为何重要**:
+   - 模板选择器是核心功能，需要独立测试
+   - 分组逻辑必须准确，确保数据正确分配
+
+   **验收标准**:
+
+   **如果使用TDD**:
+   - [ ] 测试文件已创建: \`tests/test_template_selector.py\`
+   - [ ] 测试覆盖:
+     - \`is_enabled()\`方法（enabled=true, enabled=false, 配置不存在）
+     - \`group_data()\`方法：
+       - 混合银行（两组都有数据）
+       - 全默认银行（只有默认组）
+       - 全特殊银行（只有特殊组）
+       - 开户银行列不存在（ValidationError）
+       - 开户银行为空字符串（ValidationError）
+       - 开户银行为None（ValidationError）
+       - 单行数据
+       - 空数据列表
+       - 多个不同银行都归入特殊组（验证都是特殊组）
+   - [ ] 创建测试fixtures:
+     - 包含"开户银行"列的测试数据
+     - 有效配置示例
+     - 无效配置示例
+   - [ ] \`pytest tests/test_template_selector.py\` → 通过 (所有测试)
+
+   **手动执行验证**:
+   - [ ] **运行** Python REPL:
+     \`\`\`
+     >>> from template_selector import TemplateSelector
+     >>> config = {"enabled": True, "default_bank": "中国农业银行", "special_template": "templates/特殊.xlsx"}
+     >>> selector = TemplateSelector(config)
+     >>> selector.is_enabled()
+     预期: True
+     >>> data = [{"姓名": "张三", "开户银行": "中国农业银行"}, {"姓名": "李四", "开户银行": "中国工商银行"}]
+     >>> groups = selector.group_data(data, "中国农业银行", "开户银行")
+     >>> len(groups["default"]["data"])
+     预期: 1
+     >>> len(groups["special"]["data"])
+     预期: 1
+     \`\`\`
+   - [ ] 测试空银行值:
+     \`\`\`
+     >>> data = [{"姓名": "张三", "开户银行": ""}]
+     >>> selector.group_data(data, "中国农业银行", "开户银行")
+     预期: ValidationError
+     \`\`\`
+
+   **需要的证据**:
+   - [ ] REPL输出显示正确的分组逻辑
+   - [ ] 错误输出显示清晰的错误消息
+
+   **提交**: 是
+   - **消息**: \`feat: implement template selector module with data grouping\`
+   - **文件**: \`template_selector.py\`, \`tests/test_template_selector.py\`
+
+- [ ] 8. 实现主CLI模块
+
+   **要做什么**:
+    - 创建 \`main.py\`
+    - 使用 \`argparse\` 实现参数解析:
+      - 位置参数1: \`excel_path\` (输入Excel文件路径)
+      - 位置参数2: \`unit_name\` (组织单位名称)
+      - 位置参数3: \`month\` (月份参数，支持：1-12或01-09格式的月份，或"年终奖"，或"补偿金")
+      - 可选参数: \`--output-dir\` (输出目录, 默认: \`output/\`)
+      - 可选参数: \`--config\` (配置文件路径, 默认: \`config.json\`)
+      - 可选参数: \`--output-filename-template\` (输出文件名模板, 默认: \`{unit_name}_{month}\`)
+    - 实现month参数校验：
+      - 数字格式：1-12或01-09，支持0开头
+      - 关键字格式："年终奖"或"补偿金"
+      - 其他值：抛出ValueError
+    - 实现主工作流程:
+      1. 加载并验证配置
+      2. 基于unit_name从配置获取单位配置
+      3. 读取输入Excel文件
+      4. 验证输入数据
+      5. 按照配置转换数据
+      6. **检查template_selection_rules**:
+         - 如果不存在或enabled=false：
+           - 写入到模板Excel文件（传入month参数）
+           - 生成输出文件名: \`{unit_name}_{month}_{timestamp}.xlsx\`
+           - 保存到输出目录
+         - 如果enabled=true：
+           - 调用template_selector分组数据
+           - 对每个非空组：
+             - 选择对应的模板
+             - 写入数据到模板（传入month参数）
+             - 生成输出文件名: \`{unit_name}_{template_name}_{month}_{timestamp}.xlsx\`
+               - template_name: 从模板文件名提取（不带扩展名）
+               - timestamp: 紧凑格式YYYYMMDD_HHMMSS
+             - 保存到输出目录
+      7. 实现错误处理: 捕获并记录所有异常
+      8. 实现日志: 配置带时间戳的日志
+      9. 添加 \`--help\` 并附带清晰的使用说明
+
+   **必须不做**:
+   - 添加TUI或交互式提示
+   - 添加进度条或spinners
+   - 添加网络功能
+
+   **可并行化**: 否（依赖2, 3, 4, 5, 6, 7）
 
   **参考**:
 
@@ -784,18 +953,26 @@
 
   **验收标准**:
 
-   **如果使用TDD**:
-   - [ ] 测试文件已创建: \`tests/test_main.py\`
-   - [ ] 测试覆盖:
-     - 参数解析（有效参数）
-     - 缺失必填参数（argparse错误）
-     - 无效文件路径 (FileNotFoundError)
-     - 无效单位名称 (ConfigError)
-     - 无效月份格式 (ValueError: 不是1-12、01-09、"年终奖"或"补偿金")
-     - 有效月份格式（1-12、01-09、"年终奖"、"补偿金"）
-     - 成功的端到端处理
-     - 唯一文件名生成策略
-   - [ ] \`pytest tests/test_main.py\` → 通过 (所有测试)
+    **如果使用TDD**:
+    - [ ] 测试文件已创建: \`tests/test_main.py\`
+    - [ ] 测试覆盖:
+      - 参数解析（有效参数）
+      - 缺失必填参数（argparse错误）
+      - 无效文件路径 (FileNotFoundError)
+      - 无效单位名称 (ConfigError)
+      - 无效月份格式 (ValueError: 不是1-12、01-09、"年终奖"或"补偿金")
+      - 有效月份格式（1-12、01-09、"年终奖"、"补偿金"）
+      - 成功的端到端处理（单模板，无template_selection_rules）
+      - 成功的端到端处理（单模板，enabled=false）
+      - 成功的端到端处理（动态模板选择，混合银行）
+      - 成功的端到端处理（动态模板选择，全默认银行）
+      - 成功的端到端处理（动态模板选择，全特殊银行）
+      - 开户银行列不存在（ValidationError）
+      - 开户银行为空（ValidationError）
+      - 输出文件名格式正确（包含template_name）
+      - 唯一文件名生成策略（时间戳）
+      - 空组跳过（无文件生成）
+    - [ ] \`pytest tests/test_main.py\` → 通过 (所有测试)
 
    **手动执行验证**:
    - [ ] **运行**: \`python main.py --help\`
@@ -818,97 +995,126 @@
   - **消息**: \`feat: implement main CLI module with argument parsing and month validation\`
   - **文件**: \`main.py\`, \`tests/test_main.py\`
 
-- [ ] 8. 实现集成测试
-
-  **要做什么**:
-  - 创建 \`tests/test_integration.py\`
-  - 实现端到端集成测试:
-    - 完整工作流: 读取配置，读取输入，转换，写入输出
-    - 错误处理: 缺失文件，无效数据
-    - 数据转换验证
-    - 唯一文件名生成验证
-    - Luhn校验功能验证
-    - 创建完整的测试fixtures:
-      - \`tests/fixtures/integration_input.xlsx\` (示例输入)
-      - \`tests/fixtures/integration_template.xlsx\` (示例模板)
-      - \`tests/fixtures/integration_config.json\` (完整配置)
-  - 验证输出数据正确性
-  - 验证转换正确应用
-  - 验证错误处理正常工作
-
-  **必须不做**:
-  - 测试外部依赖（网络、数据库）
-
-  **可并行化**: 否（依赖7）
-
-  **参考**:
-
-  **模式参考**:
-  - 所有模块的测试文件用于模块模式
-
-  **API/类型参考**:
-  - pytest API用于fixtures和断言
-
-  **测试参考**:
-  - 所有模块的测试文件
-
-  **文档参考**:
-  - pytest文档: \`https://docs.pytest.org/\`
-
-  **外部参考**:
-  - 无（使用pytest）
-
-  **每个参考为何重要**:
-  - 集成测试验证完整工作流
-  - 捕获单元测试中未发现的集成问题
-
-  **验收标准**:
-
-  **如果使用TDD**:
-  - [ ] 测试文件已创建: \`tests/test_integration.py\`
-  - [ ] 测试覆盖:
-    - 成功的完整工作流
-    - 数据转换正确性
-    - 缺失文件的错误处理
-    - 无效数据的错误处理
-    - 唯一文件名生成验证
-    - Luhn校验功能验证
-    - 日志输出验证
-  - [ ] \`pytest tests/test_integration.py\` → 通过 (所有测试)
-
-  **手动执行验证**:
-  - [ ] **运行**: \`pytest tests/test_integration.py -v\`
-  - [ ] **验证**: 所有集成测试通过
-  - [ ] **运行**: \`pytest --cov=. --cov-report=html\`
-  - [ ] **验证**: 覆盖率报告生成（应>90%）
-
-  **需要的证据**:
-  - [ ] pytest输出显示所有集成测试通过
-  - [ ] 覆盖率报告显示高覆盖率
-
-  **提交**: 是
-  - **消息**: \`test: add integration tests for complete workflow\`
-  - **文件**: \`tests/test_integration.py\`, \`tests/fixtures/integration_*.xlsx\`, \`tests/fixtures/integration_config.json\`
-
-- [ ] 9. 创建文档和示例配置
+- [ ] 9. 实现集成测试
 
    **要做什么**:
-   - 创建 \`README.md\` 并包含:
-     - 项目描述（银行进卡模板处理系统）
-     - 安装说明（使用uv）
-     - 使用示例
-     - 配置文件结构说明（包括header_row, start_row, mapping_mode, luhn_validation, output_filename_template等新增配置项）
-     - 多格式支持说明（.xlsx, .csv, .xls）
-     - 错误处理文档
-     - 测试说明
-   - 创建附带清晰注释的`示例 \`config.json\`（包括所有新增配置项：fixed_values, auto_number, bank_branch_mapping, month_type_mapping）
-   - 创建示例 \`templates/example_template.xlsx\`（包含序号、开户支行、收入类型等列）
-   - 创建复杂模板示例 \`templates/complex_template.xlsx\`（包含多行说明、标题等，演示 header_row 和 start_row 的使用）
+   - 创建 \`tests/test_integration.py\`
+   - 实现端到端集成测试:
+     - 完整工作流: 读取配置，读取输入，转换，写入输出
+     - 错误处理: 缺失文件，无效数据
+     - 数据转换验证
+     - 唯一文件名生成验证
+     - Luhn校验功能验证
+     - **动态模板选择测试**：
+       - 混合银行 → 生成两个文件
+       - 全默认银行 → 生成一个文件（默认模板）
+       - 全特殊银行 → 生成一个文件（特殊模板）
+       - 无template_selection_rules → 单文件（向后兼容）
+       - enabled=false → 单文件（向后兼容）
+       - 开户银行列不存在 → ValidationError
+       - 开户银行为空 → ValidationError
+       - 空组跳过 → 不生成对应文件
+     - 创建完整的测试fixtures:
+       - \`tests/fixtures/integration_input.xlsx\` (示例输入)
+       - \`tests/fixtures/integration_template.xlsx\` (示例模板)
+       - \`tests/fixtures/integration_config.json\` (完整配置，含template_selection_rules)
+   - 验证输出数据正确性
+   - 验证转换正确应用
+   - 验证错误处理正常工作
 
-  **必须不做**:
-  - 添加自动生成的文档工具（未经请求）
-  - 添加交互式教程（未经请求）
-  - 创建requirements.txt（使用uv/pyproject.toml）
+   **必须不做**:
+   - 测试外部依赖（网络、数据库）
+
+   **可并行化**: 否（依赖8）
+
+   **参考**:
+
+   **模式参考**:
+   - 所有模块的测试文件用于模块模式
+
+   **API/类型参考**:
+   - pytest API用于fixtures和断言
+
+   **测试参考**:
+   - 所有模块的测试文件
+
+   **文档参考**:
+   - pytest文档: \`https://docs.pytest.org/\`
+
+   **外部参考**:
+   - 无（使用pytest）
+
+   **每个参考为何重要**:
+   - 集成测试验证完整工作流
+   - 捕获单元测试中未发现的集成问题
+   - 验证动态模板选择的端到端行为
+
+   **验收标准**:
+
+   **如果使用TDD**:
+   - [ ] 测试文件已创建: \`tests/test_integration.py\`
+   - [ ] 测试覆盖:
+     - 成功的完整工作流（单模板模式）
+     - 数据转换正确性
+     - 缺失文件的错误处理
+     - 无效数据的错误处理
+     - 唯一文件名生成验证
+     - Luhn校验功能验证
+     - 日志输出验证
+     - **动态模板选择测试**：
+       - 混合银行 → 两个文件，命名正确
+       - 全默认银行 → 单文件，默认模板
+       - 全特殊银行 → 单文件，特殊模板
+       - 无template_selection_rules → 向后兼容
+       - enabled=false → 向后兼容
+       - 开户银行列缺失 → ValidationError
+       - 开户银行值为空 → ValidationError
+   - [ ] 创建测试fixtures:
+     - 包含template_selection_rules的配置
+     - 包含"开户银行"列的测试数据
+   - [ ] \` \`pytest tests/test_integration.py\` → 通过 (所有测试)
+
+   **手动执行验证**:
+   - [ ] **运行**: \`pytest tests/test_integration.py -v\`
+   - [ ] **验证**: 所有集成测试通过
+   - [ ] **运行**: \`pytest --cov=. --cov-report=html\`
+   - [ ] **验证**: 覆盖率报告生成（应>90%）
+
+   **需要的证据**:
+   - [ ] pytest输出显示所有集成测试通过
+   - [ ] 覆盖率报告显示高覆盖率
+   - [ ] 输出文件列表（验证动态模板选择）
+
+   **提交**: 是
+   - **消息**: \`test: add integration tests including dynamic template selection\`
+   - **文件**: \`tests/test_integration.py\`, \`tests/fixtures/integration_*.xlsx\`, \`tests/fixtures/integration_config.json\`
+
+- [ ] 10. 创建文档和示例配置
+
+    **要做什么**:
+    - 创建 \`README.md\` 并包含:
+      - 项目描述（银行进卡模板处理系统）
+      - 安装说明（使用uv）
+      - 使用示例
+      - 配置文件结构说明（包括所有新增配置项：header_row, start_row, mapping_mode, fixed_values, auto_number, bank_branch_mapping, month_type_mapping, template_selection_rules）
+      - 多格式支持说明（.xlsx, .csv, .xls）
+      - **动态模板选择功能说明**：
+        - 功能概述
+        - 配置示例
+        - 使用场景
+        - 输出文件命名规则
+        - 边界情况处理
+      - 错误处理文档
+      - 测试说明
+    - 创建附带清晰注释的`示例 \`config.json\`（包括所有新增配置项：fixed_values, auto_number, bank_branch_mapping, month_type_mapping, template_selection_rules）
+    - 创建示例 \`templates/example_template.xlsx\`（包含序号、开户支行、收入类型等列）
+    - 创建复杂模板示例 \`templates/complex_template.xlsx\`（包含多行说明、标题等，演示 header_row 和 start_row 的使用）
+    - 创建特殊模板示例 \`templates/example_special_template.xlsx\`（用于演示动态模板选择）
+
+   **必须不做**:
+   - 添加自动生成的文档工具（未经请求）
+   - 添加交互式教程（未经请求）
+   - 创建requirements.txt（使用uv/pyproject.toml）
 
   **可并行化**: 是（与其他所有任务一起）
 
@@ -1060,6 +1266,11 @@ open htmlcov/index.html
         "month_format": "{month}月收入",  // 月份格式模板，例如 "01月收入"
         "bonus_value": "年终奖",  // 当month="年终奖"时填写的值
         "compensation_value": "补偿金"  // 当month="补偿金"时填写的值
+      },
+      "template_selection_rules": {
+        "enabled": true,  // 是否启用动态模板选择
+        "default_bank": "中国农业银行",  // 默认银行名称
+        "special_template": "templates/农业银行-特殊.xlsx"  // 特殊模板路径（非默认银行时使用）
       },
       "transformations": {
         "date_format": {
@@ -1283,10 +1494,15 @@ open htmlcov/index.html
       "bank_branch_mapping": {
         "enabled": false
       },
-      "month_type_mapping": {
-        "enabled": false
-      },
-      "transformations": {
+       "month_type_mapping": {
+         "enabled": false
+       },
+       "template_selection_rules": {
+         "enabled": false,
+         "default_bank": "中国农业银行",
+         "special_template": "templates/ccb_template-特殊.xlsx"
+       },
+       "transformations": {
         "date_format": {
           "output_format": "YYYY-MM-DD"
         },
@@ -1306,6 +1522,22 @@ open htmlcov/index.html
           "日期": "date"
         }
       }
+        "validation_rules": {
+          "required_fields": ["姓名", "卡号", "金额", "日期"],
+          "data_types": {
+            "金额": "numeric",
+            "日期": "date"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### 支持的文件格式和库
+
+| 格式 | 读取库 | 写入库 | 特性 |
 |------|--------|--------|------|
 | `.xlsx` | openpyxl | openpyxl | 保留格式、公式、合并单元格 |
 | `.xls` | xlrd | xlwt | 基本格式，无公式保留 |
@@ -1331,6 +1563,46 @@ open htmlcov/index.html
 | 2 | 李四 | 6222987654321098 | 67890.12 | 2025-01-25 | 浙江省 | 工资代发 | 个人结算账户 | 工商银行宁波分行 | 01月收入 |
 | 3 | 王五 | 6222987654321098 | 12.50 | 2025-01-25 | 浙江省 | 工资代发 | 个人结算账户 | 工商银行温州分行 | 01月收入 |
 | 4 | 赵六 | 6222020061234567 | 99999.99 | 2025-01-25 | 浙江省 | 工资代发 | 个人结算账户 | 工商银行嘉兴分行 | 01月收入 |
+
+### 动态模板选择示例（第12次需求）
+
+**输入Excel** (包含多个银行):
+| 姓名 | 卡号 | 金额 | 开户银行 |
+|------|------|------|----------|
+| 张三 | 6222... | 1000 | 中国农业银行 |
+| 李四 | 6222... | 2000 | 中国工商银行 |
+| 王五 | 6222... | 3000 | 中国农业银行 |
+| 赵六 | 6222... | 4000 | 中国建设银行 |
+
+**配置** (启用template_selection_rules):
+```json
+{
+  "organization_units": {
+    "A公司": {
+      "template_path": "templates/农业银行.xlsx",
+      "template_selection_rules": {
+        "enabled": true,
+        "default_bank": "中国农业银行",
+        "special_template": "templates/农业银行-特殊.xlsx"
+      }
+    }
+  }
+}
+```
+
+**输出文件**（假设时间戳为20250127_143022）:
+
+1. **output/A公司_农业银行_01_20250127_143022.xlsx** (默认模板，2条数据)
+| 姓名 | 卡号 | 金额 | 开户银行 |
+|------|------|------|----------|
+| 张三 | 6222... | 1000 | 中国农业银行 |
+| 王五 | 6222... | 3000 | 中国农业银行 |
+
+2. **output/A公司_农业银行-特殊_01_20250127_143022.xlsx** (特殊模板，2条数据)
+| 姓名 | 卡号 | 金额 | 开户银行 |
+|------|------|------|----------|
+| 李四 | 6222... | 2000 | 中国工商银行 |
+| 赵六 | 6222... | 4000 | 中国建设银行 |
 
 **当month参数为"年终奖"时**：
 | 序号 | 客户姓名 | 银行卡号 | 转账金额 | 交易日期 | 省份 | 业务类型 | 账户类型 | 开户支行 | 收入类型 |
