@@ -381,22 +381,32 @@ class ExcelWriter:
             row_output = [""] * max_columns
 
             # 应用字段映射
-            for source_field, target_config in field_mappings.items():
-                # 获取源数据值
-                value = row_data.get(source_field, "")
+            for template_column, mapping_config in field_mappings.items():
+                # 兼容两种配置格式：
+                # 1. 新格式：{ "模板列名": { "source_column": "输入列名", ... } }
+                # 2. 旧格式：{ "输入列名": "模板列名" }
+                if isinstance(mapping_config, dict):
+                    # 新格式
+                    source_column = mapping_config.get("source_column")
+                    target_column = mapping_config.get("target_column", template_column)
+                else:
+                    # 旧格式：key是输入列名，value是模板列名
+                    source_column = template_column
+                    target_column = mapping_config
 
-                # 获取目标列
+                # 获取源数据值
+                value = row_data.get(source_column, "")
+
+                # 获取目标列索引
                 if mapping_mode == "column_name":
                     # 使用列名
-                    target_column = target_config
                     if target_column in headers:
                         col_idx = headers[target_column]
                     else:
                         continue
                 else:
                     # 使用列索引（支持"A"这样的Excel列标识）
-                    target_column = str(target_config).upper()
-                    col_idx = self._column_letter_to_index(target_column)
+                    col_idx = self._column_letter_to_index(str(target_column).upper())
 
                 # 写入数据（转换为0-index）
                 if 1 <= col_idx <= max_columns:
@@ -464,22 +474,32 @@ class ExcelWriter:
             output_row_idx = start_row + row_idx
 
             # 应用字段映射
-            for source_field, target_config in field_mappings.items():
-                # 获取源数据值
-                value = row_data.get(source_field, "")
+            for template_column, mapping_config in field_mappings.items():
+                # 兼容两种配置格式：
+                # 1. 新格式：{ "模板列名": { "source_column": "输入列名", ... } }
+                # 2. 旧格式：{ "输入列名": "模板列名" }
+                if isinstance(mapping_config, dict):
+                    # 新格式
+                    source_column = mapping_config.get("source_column")
+                    target_column = mapping_config.get("target_column", template_column)
+                else:
+                    # 旧格式：key是输入列名，value是模板列名
+                    source_column = template_column
+                    target_column = mapping_config
 
-                # 获取目标列
+                # 获取源数据值
+                value = row_data.get(source_column, "")
+
+                # 获取目标列索引
                 if mapping_mode == "column_name":
                     # 使用列名
-                    target_column = target_config
                     if target_column in headers:
                         col_idx = headers[target_column]
                     else:
                         continue
                 else:
-                    # 使用列索引
-                    target_column = str(target_config).upper()
-                    col_idx = self._column_letter_to_index(target_column)
+                    # 使用列索引（支持"A"这样的Excel列标识）
+                    col_idx = self._column_letter_to_index(str(target_column).upper())
 
                 # 写入数据
                 ws.cell(output_row_idx, col_idx, value)
@@ -540,22 +560,32 @@ class ExcelWriter:
             output_row_idx = start_row + row_idx
 
             # 应用字段映射
-            for source_field, target_config in field_mappings.items():
-                # 获取源数据值
-                value = row_data.get(source_field, "")
+            for template_column, mapping_config in field_mappings.items():
+                # 兼容两种配置格式：
+                # 1. 新格式：{ "模板列名": { "source_column": "输入列名", ... } }
+                # 2. 旧格式：{ "输入列名": "模板列名" }
+                if isinstance(mapping_config, dict):
+                    # 新格式
+                    source_column = mapping_config.get("source_column")
+                    target_column = mapping_config.get("target_column", template_column)
+                else:
+                    # 旧格式：key是输入列名，value是模板列名
+                    source_column = template_column
+                    target_column = mapping_config
 
-                # 获取目标列
+                # 获取源数据值
+                value = row_data.get(source_column, "")
+
+                # 获取目标列索引
                 if mapping_mode == "column_name":
                     # 使用列名
-                    target_column = target_config
                     if target_column in headers:
                         col_idx = headers[target_column]
                     else:
                         continue
                 else:
-                    # 使用列索引
-                    target_column = str(target_config).upper()
-                    col_idx = self._column_letter_to_index(target_column)
+                    # 使用列索引（支持"A"这样的Excel列标识）
+                    col_idx = self._column_letter_to_index(str(target_column).upper())
 
                 # 写入数据（转换为0-index）
                 if 1 <= col_idx <= max_columns:

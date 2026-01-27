@@ -123,17 +123,136 @@ python main.py input.xlsx 单位名称 01 --config custom_config.json
 
 `field_mappings` 定义了如何从输入Excel文件的列映射到模板的列，以及如何转换数据。
 
+**重要说明**：
+- 字典的**键**（模板列名）用于识别模板中的列
+- `source_column` 指定从输入Excel的哪一列读取数据
+- 这个设计适用于模板中没有表头的情况
+
 ### 配置结构
 
 ```json
 "field_mappings": {
   "模板列名": {
     "source_column": "输入列名或列索引",
+    "target_column": "模板目标列名（可选）",
     "transform": "转换方式",
     "required": true
   }
 }
 ```
+
+### 字段说明
+
+| 字段名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| `source_column` | string / integer | ✅ | 输入Excel中的列名或列索引（0-based），数据来源 |
+| `target_column` | string / integer | ❌ | 模板中的目标列名或列索引，默认使用字典的键 |
+| `transform` | string | ✅ | 数据转换方式，见下方 |
+| `required` | boolean | ✅ | 该字段是否必填 |
+
+### 工作原理
+
+1. **从输入Excel读取**：根据 `source_column` 指定的列名或索引读取数据
+2. **转换数据**：根据 `transform` 指定的方式转换数据
+3. **写入模板**：根据 `target_column` 或字典键指定的列名写入模板
+
+### source_column 使用方式
+
+#### 方式1：使用列名（推荐）
+
+```json
+{
+  "姓名": {
+    "source_column": "姓名",
+    "transform": "none",
+    "required": true
+  }
+}
+```
+
+当输入Excel的表头包含"姓名"列时，会自动匹配。
+
+#### 方式2：使用列索引
+
+```json
+{
+  "姓名": {
+    "source_column": 0,
+    "transform": "none",
+    "required": true
+  }
+}
+```
+
+`0` 表示第1列，`1` 表示第2列，以此类推。
+
+### target_column 使用方式
+
+如果模板中的列名与字典键不同，可以使用 `target_column` 指定：
+
+```json
+{
+  "员工姓名": {
+    "source_column": "姓名",
+    "target_column": "姓名",
+    "transform": "none",
+    "required": true
+  }
+}
+```
+
+如果不指定 `target_column`，则使用字典的键作为目标列名：
+
+```json
+{
+  "姓名": {
+    "source_column": "姓名",
+    "transform": "none",
+    "required": true
+  }
+}
+```
+
+### transform 转换方式
+
+| 值 | 说明 | 适用场景 |
+|-----|------|----------|
+| `"none"` | 不进行任何转换，直接复制原值 | 姓名、文本等不需要转换的字段 |
+| `"date_format"` | 日期格式转换，统一转换为 `YYYY-MM-DD` 格式 | 日期字段 |
+| `"amount_decimal"` | 金额舍入转换，保留指定位数小数 | 金额字段 |
+| `"card_number"` | 卡号格式化，移除分隔符并执行 Luhn 校验 | 银行卡号 |
+
+### 示例
+
+```json
+"field_mappings": {
+  "姓名": {
+    "source_column": "姓名",
+    "transform": "none",
+    "required": true
+  },
+  "卡号": {
+    "source_column": "卡号",
+    "transform": "card_number",
+    "required": true
+  },
+  "金额": {
+    "source_column": "金额",
+    "transform": "amount_decimal",
+    "required": true
+  },
+  "日期": {
+    "source_column": "日期",
+    "transform": "date_format",
+    "required": true
+  }
+}
+```
+
+**配置说明**：
+- 字典键 `"姓名"`、`"卡号"`、`"金额"`、`"日期"` 是模板中的列名
+- `source_column` 指定从输入Excel的哪一列读取数据
+- 数据会写入到模板对应的列中
 
 ### 字段说明
 
