@@ -1,0 +1,59 @@
+{
+  "version": "1.0",
+  "organization_units": {
+    "测试单位": {
+      "template_path": "tests/fixtures/integration_template.xlsx",
+      "header_row": 3,
+      "start_row": 4,
+      "field_mappings": {
+        "姓名": {
+          "column_name": "姓名"
+        },
+        "银行卡号": {
+          "column_name": "银行卡号"
+        },
+        "开户支行": {
+          "column_name": "开户支行"
+        },
+        "金额": {
+          "column_name": "金额"
+        },
+        "日期": {
+          "column_name": "日期"
+        }
+      },
+      "fixed_values": {
+        "备注": "标准模板"
+      },
+      "auto_number": {
+        "enabled": true,
+        "start_from": 1
+      },
+      "bank_branch_mapping": {
+        "enabled": false
+      },
+      "month_type_mapping": {
+        "enabled": false
+      },
+      "transformations": {
+        "金额": {
+          "type": "amount",
+          "decimal_places": 2
+        },
+        "银行卡号": {
+          "type": "card_number"
+        },
+        "日期": {
+          "type": "date"
+        }
+      }
+    }
+  },
+  "template_selector": {
+    "enabled": true,
+    "default_bank": "农业银行",
+    "default_template": "tests/fixtures/integration_template.xlsx",
+    "special_template": "tests/fixtures/integration_special_template.xlsx",
+    "bank_column": "开户银行"
+  }
+}

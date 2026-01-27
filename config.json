@@ -1,0 +1,129 @@
+{
+  "version": "1.0",
+  "organization_units": {
+    "农业银行": {
+      "template_path": "templates/example_template.xlsx",
+      "header_row": 1,
+      "start_row": 2,
+      "field_mappings": {
+        "姓名": {
+          "source_column": "姓名",
+          "transform": "none",
+          "required": true
+        },
+        "卡号": {
+          "source_column": "卡号",
+          "transform": "card_number",
+          "required": true
+        },
+        "金额": {
+          "source_column": "金额",
+          "transform": "amount_decimal",
+          "required": true
+        },
+        "日期": {
+          "source_column": "日期",
+          "transform": "date_format",
+          "required": true
+        }
+      },
+      "fixed_values": {
+        "省份": "浙江省",
+        "业务类型": "工资代发"
+      },
+      "auto_number": {
+        "enabled": true,
+        "column_name": "序号",
+        "start_from": 1
+      },
+      "bank_branch_mapping": {
+        "enabled": true,
+        "source_column": "开户银行",
+        "target_column": "开户支行"
+      },
+      "month_type_mapping": {
+        "enabled": true,
+        "target_column": "收入类型",
+        "month_format": "{month}月收入",
+        "bonus_value": "年终奖",
+        "compensation_value": "补偿金"
+      },
+      "template_selector": {
+        "enabled": true,
+        "default_bank": "中国农业银行",
+        "special_template": "templates/example_special_template.xlsx"
+      },
+      "transformations": {
+        "date_format": {
+          "output_format": "YYYY-MM-DD"
+        },
+        "amount": {
+          "decimal_places": 2,
+          "rounding": "round"
+        },
+        "card_number": {
+          "remove_formatting": true,
+          "luhn_validation": true
+        }
+      },
+      "validation_rules": {
+        "required_fields": ["姓名", "卡号", "金额", "日期"],
+        "data_types": {
+          "金额": "numeric",
+          "日期": "date"
+        }
+      }
+    },
+    "工商银行": {
+      "template_path": "templates/complex_template.xlsx",
+      "header_row": 4,
+      "start_row": 5,
+      "field_mappings": {
+        "客户姓名": {
+          "source_column": "姓名",
+          "transform": "none",
+          "required": true
+        },
+        "银行卡号": {
+          "source_column": "卡号",
+          "transform": "card_number",
+          "required": true
+        },
+        "工资金额": {
+          "source_column": "金额",
+          "transform": "amount_decimal",
+          "required": true
+        },
+"工资日期": {
+          "source_column": "日期",
+          "transform": "date_format",
+          "required": true
+        }
+      },
+      "fixed_values": {
+        "省": "北京市",
+        "类型": "工资"
+      },
+      "transformations": {
+        "date_format": {
+          "output_format": "YYYY-MM-DD"
+        },
+        "amount": {
+          "decimal_places": 2,
+          "rounding": "round"
+        },
+        "card_number": {
+          "remove_formatting": true,
+          "luhn_validation": true
+        }
+      },
+      "validation_rules": {
+        "required_fields": ["姓名", "卡号", "金额", "日期"],
+        "data_types": {
+          "金额": "numeric",
+          "日期": "date"
+        }
+      }
+    }
+  }
+}

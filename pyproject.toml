@@ -1,7 +1,24 @@
 [project]
 name = "bank-template-processing"
 version = "0.1.0"
-description = "Add your description here"
+description = "处理OA系统审批流程中的数据，将数据处理为银行模版对应的格式"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "openpyxl>=3.0.0",
+    "xlrd>=2.0.0",
+    "xlwt>=1.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=. --cov-report=term-missing"
