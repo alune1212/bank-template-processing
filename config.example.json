@@ -35,6 +35,9 @@
         "F": "固定值示例",
         "G": "2024-01"
       },
+      "row_filter": {
+        "exclude_keywords": ["合计", "总计", "小计"]
+      },
       "auto_number": {
         "enabled": true,
         "column": "A",

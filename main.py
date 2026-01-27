@@ -221,7 +221,10 @@ def main(argv=None) -> None:
         logger.info(f"加载单位配置：{args.unit_name}")
 
         logger.info(f"读取输入文件：{args.excel_path}")
-        reader = ExcelReader()
+
+        # 获取行过滤配置
+        row_filter = unit_config.get("row_filter", {})
+        reader = ExcelReader(row_filter=row_filter)
         data = reader.read_excel(args.excel_path)
         logger.info(f"读取到 {len(data)} 行数据")
 

@@ -6,13 +6,12 @@
 import logging
 import csv
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional, Any
 
 import openpyxl
 import xlrd
 
 
-# 配置日志
 logger = logging.getLogger(__name__)
 
 
@@ -28,9 +27,14 @@ class ExcelReader:
     支持读取多种格式的Excel文件，并转换为字典列表。
     """
 
-    def __init__(self):
-        """初始化ExcelReader"""
+    def __init__(self, row_filter: Optional[Dict[str, Any]] = None):
+        """初始化ExcelReader
+
+        Args:
+            row_filter: 行过滤配置，用于排除特定行
+        """
         logger.debug("初始化ExcelReader")
+        self.row_filter = row_filter or {}
 
     def read_excel(self, file_path: str) -> List[Dict[str, str]]:
         """读取Excel文件并返回字典列表
@@ -73,6 +77,40 @@ class ExcelReader:
             logger.error(f"读取文件失败: {file_path}, 错误: {e}")
             raise ExcelError(f"文件格式无效: {file_path}") from e
 
+    def _should_skip_row(
+        self, row_values: List[str], headers: Optional[List[str]]
+    ) -> bool:
+        """检查是否应该跳过该行
+
+        Args:
+            row_values: 行数据（值列表）
+            headers: 表头列表
+
+        Returns:
+            True: 应该跳过，False: 不跳过
+        """
+        if not self.row_filter:
+            return False
+
+        exclude_keywords = self.row_filter.get("exclude_keywords", [])
+        if not exclude_keywords:
+            return False
+
+        # 将行转换为字典以便检查
+        row_dict = {}
+        if headers:
+            for i, value in enumerate(row_values):
+                if i < len(headers):
+                    row_dict[headers[i]] = value
+
+        # 检查是否包含排除关键字
+        for keyword in exclude_keywords:
+            if keyword in row_dict.values():
+                logger.debug(f"检测到排除关键字 '{keyword}'，跳过该行")
+                return True
+
+        return False
+
     def _read_xlsx(self, file_path: str) -> List[Dict[str, str]]:
         """读取.xlsx文件
 
@@ -105,6 +143,11 @@ class ExcelReader:
                     # 检查是否为空行（所有单元格都为空）
                     if not row_values or all(not cell.strip() for cell in row_values):
                         logger.debug(f"跳过空行: 第{row_idx}行")
+                        continue
+
+                    # 应用行过滤（排除指定关键字）
+                    if self._should_skip_row(row_values, headers):
+                        logger.debug(f"跳过过滤行: 第{row_idx}行")
                         continue
 
                     # 将行转换为字典
@@ -156,6 +199,11 @@ class ExcelReader:
                     logger.debug(f"跳过空行: 第{row_idx}行")
                     continue
 
+                # 应用行过滤（排除指定关键字）
+                if self._should_skip_row(row, headers):
+                    logger.debug(f"跳过过滤行: 第{row_idx}行")
+                    continue
+
                 # 将行转换为字典
                 row_dict = {}
                 for col_idx, value in enumerate(row):
@@ -204,6 +252,11 @@ class ExcelReader:
                 # 检查是否为空行（所有单元格都为空）
                 if not row_values or all(not cell.strip() for cell in row_values):
                     logger.debug(f"跳过空行: 第{row_idx + 1}行")
+                    continue
+
+                # 应用行过滤（排除指定关键字）
+                if self._should_skip_row(row_values, headers):
+                    logger.debug(f"跳过过滤行: 第{row_idx + 1}行")
                     continue
 
                 # 将行转换为字典

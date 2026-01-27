@@ -5,6 +5,9 @@
       "template_path": "templates/农业银行模板.csv",
       "header_row": 0,
       "start_row": 1,
+      "row_filter": {
+        "exclude_keywords": ["合计"]
+      },
       "field_mappings": {
         "姓名": {
           "source_column": "姓名",
