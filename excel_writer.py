@@ -423,17 +423,25 @@ class ExcelWriter:
             # 应用固定值
             if fixed_values:
                 for column, value in fixed_values.items():
-                    col_idx = self._column_letter_to_index(column)
-                    if 1 <= col_idx <= max_columns:
-                        row_output[col_idx - 1] = str(value)
+                    try:
+                        col_idx = self._resolve_column_index(
+                            column, headers, max_columns
+                        )
+                        if 1 <= col_idx <= max_columns:
+                            row_output[col_idx - 1] = str(value)
+                    except ValueError as e:
+                        logger.warning(f"跳过固定值列 {column}: {e}")
 
             if auto_number and auto_number.get("enabled"):
-                column = auto_number.get("column", "A")
-                col_idx = self._column_letter_to_index(column)
-                if 1 <= col_idx <= max_columns:
-                    row_output[col_idx - 1] = str(current_number)
-                if current_number is not None:
-                    current_number += 1
+                column = auto_number.get("column", auto_number.get("column_name", "A"))
+                try:
+                    col_idx = self._resolve_column_index(column, headers, max_columns)
+                    if 1 <= col_idx <= max_columns:
+                        row_output[col_idx - 1] = str(current_number)
+                    if current_number is not None:
+                        current_number += 1
+                except ValueError as e:
+                    logger.warning(f"跳过自动编号列 {column}: {e}")
 
             # 应用银行支行映射
             if bank_branch_mapping and bank_branch_mapping.get("enabled"):
@@ -441,15 +449,25 @@ class ExcelWriter:
                 target_column = bank_branch_mapping.get("target_column", "B")
                 branch_info = row_data.get(source_column, "")
                 if branch_info:
-                    col_idx = self._column_letter_to_index(target_column)
-                    if 1 <= col_idx <= max_columns:
-                        row_output[col_idx - 1] = str(branch_info)
+                    try:
+                        col_idx = self._resolve_column_index(
+                            target_column, headers, max_columns
+                        )
+                        if 1 <= col_idx <= max_columns:
+                            row_output[col_idx - 1] = str(branch_info)
+                    except ValueError as e:
+                        logger.warning(f"跳过银行支行映射列 {target_column}: {e}")
 
             if month_value is not None and month_type_mapping:
                 target_column = month_type_mapping.get("target_column", "C")
-                col_idx = self._column_letter_to_index(target_column)
-                if 1 <= col_idx <= max_columns:
-                    row_output[col_idx - 1] = str(month_value)
+                try:
+                    col_idx = self._resolve_column_index(
+                        target_column, headers, max_columns
+                    )
+                    if 1 <= col_idx <= max_columns:
+                        row_output[col_idx - 1] = str(month_value)
+                except ValueError as e:
+                    logger.warning(f"跳过月类型映射列 {target_column}: {e}")
 
             result_rows.append(row_output)
 
@@ -513,28 +531,46 @@ class ExcelWriter:
             # 应用固定值
             if fixed_values:
                 for column, value in fixed_values.items():
-                    col_idx = self._column_letter_to_index(column)
-                    ws.cell(output_row_idx, col_idx, value)
+                    try:
+                        col_idx = self._resolve_column_index(
+                            column, headers, ws.max_column
+                        )
+                        ws.cell(output_row_idx, col_idx, value)
+                    except ValueError as e:
+                        logger.warning(f"跳过固定值列 {column}: {e}")
 
             if auto_number and auto_number.get("enabled"):
-                column = auto_number.get("column", "A")
-                col_idx = self._column_letter_to_index(column)
-                ws.cell(output_row_idx, col_idx, current_number)
-                if current_number is not None:
-                    current_number += 1
+                column = auto_number.get("column", auto_number.get("column_name", "A"))
+                try:
+                    col_idx = self._resolve_column_index(column, headers, ws.max_column)
+                    ws.cell(output_row_idx, col_idx, current_number)
+                    if current_number is not None:
+                        current_number += 1
+                except ValueError as e:
+                    logger.warning(f"跳过自动编号列 {column}: {e}")
 
             if bank_branch_mapping and bank_branch_mapping.get("enabled"):
                 source_column = bank_branch_mapping.get("source_column")
                 target_column = bank_branch_mapping.get("target_column", "B")
                 branch_info = row_data.get(source_column, "")
                 if branch_info:
-                    col_idx = self._column_letter_to_index(target_column)
-                    ws.cell(output_row_idx, col_idx, branch_info)
+                    try:
+                        col_idx = self._resolve_column_index(
+                            target_column, headers, ws.max_column
+                        )
+                        ws.cell(output_row_idx, col_idx, branch_info)
+                    except ValueError as e:
+                        logger.warning(f"跳过银行支行映射列 {target_column}: {e}")
 
             if month_value is not None and month_type_mapping:
                 target_column = month_type_mapping.get("target_column", "C")
-                col_idx = self._column_letter_to_index(target_column)
-                ws.cell(output_row_idx, col_idx, month_value)
+                try:
+                    col_idx = self._resolve_column_index(
+                        target_column, headers, ws.max_column
+                    )
+                    ws.cell(output_row_idx, col_idx, month_value)
+                except ValueError as e:
+                    logger.warning(f"跳过月类型映射列 {target_column}: {e}")
 
         logger.debug(f"已写入 {len(data)} 行数据到工作表")
 
@@ -598,32 +634,50 @@ class ExcelWriter:
             # 应用固定值
             if fixed_values:
                 for column, value in fixed_values.items():
-                    col_idx = self._column_letter_to_index(column)
-                    if 1 <= col_idx <= max_columns:
-                        ws.write(output_row_idx - 1, col_idx - 1, value)
+                    try:
+                        col_idx = self._resolve_column_index(
+                            column, headers, max_columns
+                        )
+                        if 1 <= col_idx <= max_columns:
+                            ws.write(output_row_idx - 1, col_idx - 1, value)
+                    except ValueError as e:
+                        logger.warning(f"跳过固定值列 {column}: {e}")
 
             if auto_number and auto_number.get("enabled"):
-                column = auto_number.get("column", "A")
-                col_idx = self._column_letter_to_index(column)
-                if 1 <= col_idx <= max_columns:
-                    ws.write(output_row_idx - 1, col_idx - 1, current_number)
-                if current_number is not None:
-                    current_number += 1
+                column = auto_number.get("column", auto_number.get("column_name", "A"))
+                try:
+                    col_idx = self._resolve_column_index(column, headers, max_columns)
+                    if 1 <= col_idx <= max_columns:
+                        ws.write(output_row_idx - 1, col_idx - 1, current_number)
+                    if current_number is not None:
+                        current_number += 1
+                except ValueError as e:
+                    logger.warning(f"跳过自动编号列 {column}: {e}")
 
             if bank_branch_mapping and bank_branch_mapping.get("enabled"):
                 source_column = bank_branch_mapping.get("source_column")
                 target_column = bank_branch_mapping.get("target_column", "B")
                 branch_info = row_data.get(source_column, "")
                 if branch_info:
-                    col_idx = self._column_letter_to_index(target_column)
-                    if 1 <= col_idx <= max_columns:
-                        ws.write(output_row_idx - 1, col_idx - 1, branch_info)
+                    try:
+                        col_idx = self._resolve_column_index(
+                            target_column, headers, max_columns
+                        )
+                        if 1 <= col_idx <= max_columns:
+                            ws.write(output_row_idx - 1, col_idx - 1, branch_info)
+                    except ValueError as e:
+                        logger.warning(f"跳过银行支行映射列 {target_column}: {e}")
 
             if month_value is not None and month_type_mapping:
                 target_column = month_type_mapping.get("target_column", "C")
-                col_idx = self._column_letter_to_index(target_column)
-                if 1 <= col_idx <= max_columns:
-                    ws.write(output_row_idx - 1, col_idx - 1, month_value)
+                try:
+                    col_idx = self._resolve_column_index(
+                        target_column, headers, max_columns
+                    )
+                    if 1 <= col_idx <= max_columns:
+                        ws.write(output_row_idx - 1, col_idx - 1, month_value)
+                except ValueError as e:
+                    logger.warning(f"跳过月类型映射列 {target_column}: {e}")
 
         logger.debug(f"已写入 {len(data)} 行数据到xls工作表")
 
@@ -730,8 +784,10 @@ class ExcelWriter:
                     return idx
                 raise ValueError(f"列索引必须 >= 1，当前值: {column_spec}")
 
-            # 尝试作为Excel列标识（A, B, C...）
-            if column_spec.isalpha():
+            # 尝试作为Excel列标识（A, B, C...）- 必须只包含A-Z
+            if column_spec.isalpha() and all(
+                c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" for c in column_spec.upper()
+            ):
                 col_idx = self._column_letter_to_index(column_spec.upper())
                 if max_columns and col_idx > max_columns:
                     raise ValueError(
