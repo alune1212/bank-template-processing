@@ -18,8 +18,6 @@ def validate_month(month: str) -> str:
     """
     验证月份参数
 
-
-
     支持的格式：
     - 数字格式：1-12 或 01-09
     - 关键字格式："年终奖" 或 "补偿金"
@@ -33,11 +31,9 @@ def validate_month(month: str) -> str:
     Raises:
         ValueError: 月份格式无效
     """
-    # 关键字格式
     if month in ["年终奖", "补偿金"]:
         return month
 
-    # 数字格式：1-12 或 01-09
     try:
         month_int = int(month)
         if 1 <= month_int <= 12:
@@ -189,6 +185,88 @@ def apply_transformations(data: list, transformations: dict) -> list:
     return result
 
 
+def get_unit_config(config: dict, unit_name: str, rule_group: str = "default") -> dict:
+    """
+    获取单位配置，支持规则组选择
+
+    Args:
+        config: 配置字典
+        unit_name: 单位名称
+        rule_group: 规则组名称（默认：default）
+
+    Returns:
+        单位配置字典
+    """
+    units = config["organization_units"]
+
+    if unit_name not in units:
+        raise ConfigError(f"配置文件中未找到单位配置：{unit_name}")
+
+    unit_config = units[unit_name]
+
+    if "rule_groups" in unit_config:
+        rule_groups = unit_config["rule_groups"]
+
+        base_config = {k: v for k, v in unit_config.items() if k != "rule_groups"}
+
+        if rule_group in rule_groups:
+            group_config = rule_groups[rule_group].copy()
+            merged_config = base_config.copy()
+            merged_config.update(group_config)
+            return merged_config
+
+        return base_config
+
+    return unit_config
+
+
+def process_group(
+    group_data: list,
+    group_config: dict,
+    template_path: str,
+    output_path: Path,
+    month_param: str,
+    logger,
+) -> None:
+    """
+    处理单个分组的数据
+
+    Args:
+        group_data: 分组数据
+        group_config: 分组配置
+        template_path: 模板路径
+        output_path: 输出路径
+        month_param: 月份参数
+        logger: 日志记录器
+    """
+    field_mappings = group_config.get("field_mappings", {})
+    header_row = group_config.get("header_row", 1)
+    start_row = group_config.get("start_row", header_row + 1)
+    mapping_mode = "column_name"
+    fixed_values = group_config.get("fixed_values", {})
+    auto_number = group_config.get("auto_number", {"enabled": False})
+    bank_branch_mapping = group_config.get("bank_branch_mapping", {"enabled": False})
+    month_type_mapping = group_config.get("month_type_mapping", {"enabled": False})
+
+    logger.info(f"写入输出文件：{output_path}")
+    writer = ExcelWriter()
+    writer.write_excel(
+        template_path=template_path,
+        data=group_data,
+        field_mappings=field_mappings,
+        output_path=str(output_path),
+        header_row=header_row,
+        start_row=start_row,
+        mapping_mode=mapping_mode,
+        fixed_values=fixed_values,
+        auto_number=auto_number,
+        bank_branch_mapping=bank_branch_mapping,
+        month_type_mapping=month_type_mapping,
+        month_param=month_param,
+    )
+    logger.info(f"输出文件已保存：{output_path}")
+
+
 def main(argv=None) -> None:
     """
     主函数
@@ -217,60 +295,22 @@ def main(argv=None) -> None:
         if args.unit_name not in config["organization_units"]:
             raise ConfigError(f"配置文件中未找到单位配置：{args.unit_name}")
 
-        unit_config = config["organization_units"][args.unit_name]
         logger.info(f"加载单位配置：{args.unit_name}")
-
-        logger.info(f"读取输入文件：{args.excel_path}")
-
-        # 获取行过滤配置
-        row_filter = unit_config.get("row_filter", {})
-        reader = ExcelReader(row_filter=row_filter)
-        data = reader.read_excel(args.excel_path)
-        logger.info(f"读取到 {len(data)} 行数据")
-
-        validation_rules = unit_config.get("validation_rules", {})
-        if validation_rules:
-            logger.info("验证输入数据")
-
-            for row in data:
-                if "required_fields" in validation_rules:
-                    Validator.validate_required(
-                        row, validation_rules["required_fields"]
-                    )
-                if "type_rules" in validation_rules:
-                    Validator.validate_data_types(row, validation_rules["type_rules"])
-                if "range_rules" in validation_rules:
-                    Validator.validate_value_ranges(
-                        row, validation_rules["range_rules"]
-                    )
-
-            logger.info("数据验证通过")
-
-        transformations = unit_config.get("transformations", {})
-        if transformations:
-            logger.info("转换数据")
-            data = apply_transformations(data, transformations)
-            logger.info("数据转换完成")
 
         template_selection_rules = config.get("template_selection_rules", {})
         selector_enabled = template_selection_rules.get("enabled", False)
 
-        output_dir = Path(args.output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
+        default_unit_config = get_unit_config(config, args.unit_name, "default")
+        row_filter = default_unit_config.get("row_filter", {})
 
-        field_mappings = unit_config.get("field_mappings", {})
-        header_row = unit_config.get("header_row", 1)
-        start_row = unit_config.get("start_row", header_row + 1)
-        mapping_mode = "column_name"
-        fixed_values = unit_config.get("fixed_values", {})
-        auto_number = unit_config.get("auto_number", {"enabled": False})
-        bank_branch_mapping = unit_config.get("bank_branch_mapping", {"enabled": False})
-        month_type_mapping = unit_config.get("month_type_mapping", {"enabled": False})
+        reader = ExcelReader(row_filter=row_filter)
+        data = reader.read_excel(args.excel_path)
+        logger.info(f"读取到 {len(data)} 行数据")
 
         if not selector_enabled:
             logger.info("使用默认模板（未启用模板选择）")
 
-            template_path = unit_config["template_path"]
+            template_path = default_unit_config["template_path"]
             output_filename = generate_output_filename(
                 args.unit_name,
                 validated_month,
@@ -278,34 +318,54 @@ def main(argv=None) -> None:
                 generate_timestamp(),
                 template_path,
             )
-            output_path = output_dir / output_filename
+            output_path = Path(args.output_dir) / output_filename
+            Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
-            logger.info(f"写入输出文件：{output_path}")
-            writer = ExcelWriter()
-            writer.write_excel(
-                template_path=template_path,
-                data=data,
-                field_mappings=field_mappings,
-                output_path=str(output_path),
-                header_row=header_row,
-                start_row=start_row,
-                mapping_mode=mapping_mode,
-                fixed_values=fixed_values,
-                auto_number=auto_number,
-                bank_branch_mapping=bank_branch_mapping,
-                month_type_mapping=month_type_mapping,
-                month_param=validated_month,
+            validation_rules = default_unit_config.get("validation_rules", {})
+            if validation_rules:
+                logger.info("验证输入数据")
+
+                for row in data:
+                    if "required_fields" in validation_rules:
+                        Validator.validate_required(
+                            row, validation_rules["required_fields"]
+                        )
+                    if "type_rules" in validation_rules:
+                        Validator.validate_data_types(
+                            row, validation_rules["type_rules"]
+                        )
+                    if "range_rules" in validation_rules:
+                        Validator.validate_value_ranges(
+                            row, validation_rules["range_rules"]
+                        )
+
+                logger.info("数据验证通过")
+
+            transformations = default_unit_config.get("transformations", {})
+            if transformations:
+                logger.info("转换数据")
+                data = apply_transformations(data, transformations)
+                logger.info("数据转换完成")
+
+            process_group(
+                data,
+                default_unit_config,
+                template_path,
+                output_path,
+                validated_month,
+                logger,
             )
-            logger.info(f"输出文件已保存：{output_path}")
         else:
             logger.info("启用动态模板选择")
             selector = TemplateSelector(template_selection_rules)
-
             default_bank = template_selection_rules.get("default_bank", "")
             bank_column = template_selection_rules.get("bank_column", "开户银行")
 
             groups = selector.group_data(data, default_bank, bank_column)
             logger.info(f"数据分组完成，共 {len(groups)} 个组")
+
+            output_dir = Path(args.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
 
             for group_key, group_info in groups.items():
                 group_data = group_info["data"]
@@ -329,24 +389,47 @@ def main(argv=None) -> None:
                 logger.info(
                     f"处理组：{group_key}，模板：{template_name}，数据行数：{len(group_data)}"
                 )
-                logger.info(f"写入输出文件：{output_path}")
 
-                writer = ExcelWriter()
-                writer.write_excel(
-                    template_path=template_path,
-                    data=group_data,
-                    field_mappings=field_mappings,
-                    output_path=str(output_path),
-                    header_row=header_row,
-                    start_row=start_row,
-                    mapping_mode=mapping_mode,
-                    fixed_values=fixed_values,
-                    auto_number=auto_number,
-                    bank_branch_mapping=bank_branch_mapping,
-                    month_type_mapping=month_type_mapping,
-                    month_param=validated_month,
+                rule_group = (
+                    group_key if group_key in ["default", "special"] else "default"
                 )
-                logger.info(f"输出文件已保存：{output_path}")
+                group_config = get_unit_config(config, args.unit_name, rule_group)
+                logger.info(f"使用规则组配置：{rule_group}")
+
+                validation_rules = group_config.get("validation_rules", {})
+                if validation_rules:
+                    logger.info("验证输入数据")
+
+                    for row in group_data:
+                        if "required_fields" in validation_rules:
+                            Validator.validate_required(
+                                row, validation_rules["required_fields"]
+                            )
+                        if "type_rules" in validation_rules:
+                            Validator.validate_data_types(
+                                row, validation_rules["type_rules"]
+                            )
+                        if "range_rules" in validation_rules:
+                            Validator.validate_value_ranges(
+                                row, validation_rules["range_rules"]
+                            )
+
+                    logger.info("数据验证通过")
+
+                transformations = group_config.get("transformations", {})
+                if transformations:
+                    logger.info("转换数据")
+                    group_data = apply_transformations(group_data, transformations)
+                    logger.info("数据转换完成")
+
+                process_group(
+                    group_data,
+                    group_config,
+                    template_path,
+                    output_path,
+                    validated_month,
+                    logger,
+                )
 
         logger.info("处理完成")
 

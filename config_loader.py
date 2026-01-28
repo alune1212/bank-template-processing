@@ -76,6 +76,84 @@ def validate_config(config: dict) -> None:
     logger.info("配置验证成功")
 
 
+def get_unit_config(
+    config: dict, unit_name: str, template_key: str | None = None
+) -> dict:
+    """
+    获取单位配置，支持多规则组结构
+
+    Args:
+        config: 配置字典
+        unit_name: 单位名称
+        template_key: 模板标识符（如 "default", "crossbank"），用于多规则组结构
+
+    Returns:
+        单位配置字典
+
+    说明:
+        支持两种配置结构：
+        1. 旧结构（向后兼容）：所有规则直接在单位配置下
+        2. 新结构（多规则组）：规则在 default/crossbank 等子组下
+
+        旧结构示例：
+        {
+          "organization_units": {
+            "单位名": {
+              "template_path": "...",
+              "field_mappings": {...},
+              ...
+            }
+          }
+        }
+
+        新结构示例：
+        {
+          "organization_units": {
+            "单位名": {
+              "default": {
+                "template_path": "...",
+                "field_mappings": {...},
+                ...
+              },
+              "crossbank": {
+                "template_path": "...",
+                "field_mappings": {...},
+                ...
+              }
+            }
+          }
+        }
+    """
+    org_units = config.get("organization_units", {})
+
+    if unit_name not in org_units:
+        raise ConfigError(f"配置文件中未找到单位配置：{unit_name}")
+
+    unit_config = org_units[unit_name]
+
+    # 检查是否为多规则组结构
+    # 判断方法：单位配置下是否有 "default" 键
+    if "default" in unit_config:
+        # 多规则组结构
+        if template_key is None:
+            # 如果没有指定 template_key，返回默认规则组
+            return unit_config["default"]
+        else:
+            # 返回指定的规则组
+            if template_key in unit_config:
+                return unit_config[template_key]
+            else:
+                logger.warning(
+                    f"单位 '{unit_name}' 中未找到规则组 '{template_key}'，使用默认规则组"
+                )
+                return unit_config["default"]
+    else:
+        # 旧结构（向后兼容）
+        if template_key is not None:
+            logger.warning(f"单位 '{unit_name}' 使用旧配置结构，忽略 template_key 参数")
+        return unit_config
+
+
 def _validate_unit_config(unit_name: str, unit_config: dict) -> None:
     """
     验证单个单位配置
@@ -89,6 +167,28 @@ def _validate_unit_config(unit_name: str, unit_config: dict) -> None:
     """
     logger.debug(f"验证单位配置: {unit_name}")
 
+    # 检查是否为多规则组结构
+    # 判断方法：单位配置下是否有 "default" 键
+    if "default" in unit_config:
+        # 多规则组结构：验证每个规则组
+        for rule_name, rule_config in unit_config.items():
+            if rule_name == "template_selector":
+                # template_selector 放在顶层，跳过验证
+                continue
+            _validate_rule_group_config(unit_name, rule_name, rule_config)
+    else:
+        # 旧结构（向后兼容）
+        _validate_legacy_unit_config(unit_name, unit_config)
+
+
+def _validate_legacy_unit_config(unit_name: str, unit_config: dict) -> None:
+    """
+    验证旧结构的单位配置（向后兼容）
+
+    Args:
+        unit_name: 单位名称
+        unit_config: 单位配置字典
+    """
     # 验证必填字段
     required_fields = [
         "template_path",
@@ -139,4 +239,78 @@ def _validate_unit_config(unit_name: str, unit_config: dict) -> None:
     if not isinstance(unit_config["transformations"], dict):
         raise ConfigError(f"单位 '{unit_name}' 的 transformations 必须是字典")
 
-    logger.debug(f"单位 '{unit_name}' 配置验证通过")
+
+def _validate_rule_group_config(
+    unit_name: str, rule_name: str, rule_config: dict
+) -> None:
+    """
+    验证规则组配置
+
+    Args:
+        unit_name: 单位名称
+        rule_name: 规则组名称（如 "default", "crossbank"）
+        rule_config: 规则组配置字典
+    """
+    logger.debug(f"验证单位 '{unit_name}' 的规则组 '{rule_name}'")
+
+    # 验证必填字段
+    required_fields = [
+        "template_path",
+        "header_row",
+        "field_mappings",
+        "transformations",
+    ]
+    for field in required_fields:
+        if field not in rule_config:
+            raise ConfigError(
+                f"单位 '{unit_name}' 的规则组 '{rule_name}' 缺少必填字段: {field}"
+            )
+
+    # 验证template_path是字符串
+    if not isinstance(rule_config["template_path"], str):
+        raise ConfigError(
+            f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 template_path 必须须是字符串"
+        )
+
+    # 验证header_row是整数且≥0
+    header_row = rule_config["header_row"]
+    if not isinstance(header_row, int):
+        raise ConfigError(
+            f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 header_row 必须须是整数"
+        )
+
+    if header_row < 0:
+        raise ConfigError(
+            f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 header_row 必须须大于或等于 0，当前值: {header_row}"
+        )
+
+    # 验证start_row（如果指定）
+    if "start_row" in rule_config:
+        start_row = rule_config["start_row"]
+        if not isinstance(start_row, int):
+            raise ConfigError(
+                f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 start_row 必须须是整数"
+            )
+
+        if start_row <= header_row:
+            raise ConfigError(
+                f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 start_row ({start_row}) 必须大于 header_row ({header_row})"
+            )
+    else:
+        # 设置默认值：start_row = max(1, header_row + 1)
+        rule_config["start_row"] = max(1, header_row + 1)
+        logger.debug(
+            f"单位 '{unit_name}' 的规则组 '{rule_name}' 使用默认 start_row: {rule_config['start_row']}"
+        )
+
+    # 验证field_mappings是字典
+    if not isinstance(rule_config["field_mappings"], dict):
+        raise ConfigError(
+            f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 field_mappings 必须须是字典"
+        )
+
+    # 验证transformations是字典
+    if not isinstance(rule_config["transformations"], dict):
+        raise ConfigError(
+            f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 transformations 必须须是字典"
+        )
