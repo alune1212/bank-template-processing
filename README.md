@@ -18,6 +18,30 @@
 
 ## 安装
 
+### 方式一：Windows 可执行文件（推荐普通用户）
+
+下载 `bank-template-processing-win.zip` 压缩包，解压后即可使用，无需安装 Python。
+
+解压后目录结构：
+```
+bank-template-processing/
+├── bank-template-processing.exe  # 主程序
+├── config.example.json           # 配置示例
+├── README.md                     # 说明文档
+├── 配置文件说明.md               # 配置说明
+├── 快速使用指南.txt              # 快速指南
+├── templates/                    # 模板目录（放入银行模板文件）
+└── output/                       # 输出目录（处理结果保存在这里）
+```
+
+**首次使用步骤：**
+1. 将 `config.example.json` 复制为 `config.json`
+2. 根据实际需求修改 `config.json` 中的配置
+3. 将银行模板文件放入 `templates/` 目录
+4. 打开命令提示符（CMD）或 PowerShell 运行程序
+
+### 方式二：从源码安装（开发者）
+
 本项目使用 `uv` 作为包管理器：
 
 ```bash
@@ -34,7 +58,26 @@ pip install openpyxl xlrd xlwt pytest pytest-cov
 
 ## 使用示例
 
-### 基本用法
+### Windows 可执行文件用法
+
+```cmd
+# 处理1月份数据
+bank-template-processing.exe input.xlsx 单位名称 01
+
+# 处理年终奖数据
+bank-template-processing.exe input.xlsx 单位名称 年终奖
+
+# 处理补偿金数据
+bank-template-processing.exe input.xlsx 单位名称 补偿金
+
+# 自定义输出目录
+bank-template-processing.exe input.xlsx 单位名称 01 --output-dir custom_output/
+
+# 使用自定义配置文件
+bank-template-processing.exe input.xlsx 单位名称 01 --config custom_config.json
+```
+
+### Python 源码用法
 
 ```bash
 # 处理1月份数据
@@ -250,6 +293,55 @@ uv run pytest --cov=. --cov-report=html
 open htmlcov/index.html
 ```
 
+## Windows 打包（开发者）
+
+如需自行构建 Windows 可执行文件：
+
+### 前置条件
+
+- Windows 操作系统
+- Python 3.13+
+- PyInstaller (`pip install pyinstaller`)
+
+### 构建步骤
+
+**方式一：使用 PowerShell 脚本（推荐）**
+
+```powershell
+# 在项目根目录执行
+.\scripts\build_windows.ps1
+```
+
+**方式二：使用批处理脚本**
+
+```cmd
+# 双击运行或在命令行执行
+scripts\build_windows.bat
+```
+
+**方式三：手动执行 PyInstaller**
+
+```cmd
+# 安装 PyInstaller
+pip install pyinstaller
+
+# 执行打包
+pyinstaller bank_template_processing.spec --noconfirm
+
+# 打包结果在 dist\bank-template-processing\ 目录
+```
+
+### 构建产物
+
+- `dist/bank-template-processing/` - 可分发目录
+- `dist/bank-template-processing-win.zip` - 压缩包（可直接分发）
+
+### 注意事项
+
+- 必须在 Windows 环境下构建，才能生成 Windows 可执行文件
+- 构建完成后，将模板文件放入 `dist/bank-template-processing/templates/` 目录
+- 用户收到压缩包后，需要自行创建 `config.json` 配置文件
+
 ## 日志
 
 日志格式：`%(asctime)s - %(name)s - %(levelname)s - %(message)s`
@@ -264,28 +356,32 @@ open htmlcov/index.html
 
 ```
 bank-template-processing/
-├── main.py                 # 命令行入口
-├── config_loader.py         # 配置加载器
-├── excel_reader.py         # Excel读取器
-├── excel_writer.py         # Excel写入器
-├── transformer.py           # 数据转换器
-├── validator.py            # 数据验证器
-├── template_selector.py     # 模板选择器
-├── config.json            # 示例配置文件
-├── README.md              # 项目文档
-├── pyproject.toml          # 项目配置
-├── pytest.ini             # pytest配置
-├── tests/                 # 测试目录
+├── main.py                       # 命令行入口
+├── config_loader.py              # 配置加载器
+├── excel_reader.py               # Excel读取器
+├── excel_writer.py               # Excel写入器
+├── transformer.py                # 数据转换器
+├── validator.py                  # 数据验证器
+├── template_selector.py          # 模板选择器
+├── config.json                   # 配置文件（用户创建）
+├── config.example.json           # 配置文件示例
+├── README.md                     # 项目文档
+├── 配置文件说明.md               # 配置说明（中文）
+├── pyproject.toml                # 项目配置
+├── pytest.ini                    # pytest配置
+├── bank_template_processing.spec # PyInstaller 打包规格
+├── scripts/                      # 构建脚本
+│   ├── build_windows.ps1         # PowerShell 打包脚本
+│   └── build_windows.bat         # 批处理打包脚本
+├── tests/                        # 测试目录
 │   ├── __init__.py
-│   ├── test_*.py           # 测试文件
-│   └── fixtures/            # 测试fixtures
-│       ├── test_*.xlsx       # 测试Excel文件
-│       ├── test_*.csv        # 测试CSV文件
-│       └── test_*.xls        # 测试XLS文件
-└── templates/             # 模板文件目录
-    ├── example_template.xlsx
-    ├── complex_template.xlsx
-    └── example_special_template.xlsx
+│   ├── test_*.py                 # 测试文件
+│   └── fixtures/                 # 测试fixtures
+│       ├── test_*.xlsx           # 测试Excel文件
+│       ├── test_*.csv            # 测试CSV文件
+│       └── test_*.xls            # 测试XLS文件
+└── templates/                    # 模板文件目录（用户创建）
+    └── ...                       # 银行模板文件
 ```
 
 ## 许可证
