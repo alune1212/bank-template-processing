@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from config_loader import load_config, validate_config, ConfigError
+from config_loader import load_config, validate_config, ConfigError, get_unit_config
 from excel_reader import ExcelReader, ExcelError
 from validator import Validator, ValidationError
 from transformer import Transformer, TransformError
@@ -185,41 +185,6 @@ def apply_transformations(data: list, transformations: dict) -> list:
     return result
 
 
-def get_unit_config(config: dict, unit_name: str, rule_group: str = "default") -> dict:
-    """
-    获取单位配置，支持规则组选择
-
-    Args:
-        config: 配置字典
-        unit_name: 单位名称
-        rule_group: 规则组名称（默认：default）
-
-    Returns:
-        单位配置字典
-    """
-    units = config["organization_units"]
-
-    if unit_name not in units:
-        raise ConfigError(f"配置文件中未找到单位配置：{unit_name}")
-
-    unit_config = units[unit_name]
-
-    if "rule_groups" in unit_config:
-        rule_groups = unit_config["rule_groups"]
-
-        base_config = {k: v for k, v in unit_config.items() if k != "rule_groups"}
-
-        if rule_group in rule_groups:
-            group_config = rule_groups[rule_group].copy()
-            merged_config = base_config.copy()
-            merged_config.update(group_config)
-            return merged_config
-
-        return base_config
-
-    return unit_config
-
-
 def process_group(
     group_data: list,
     group_config: dict,
@@ -297,9 +262,14 @@ def main(argv=None) -> None:
 
         logger.info(f"加载单位配置：{args.unit_name}")
 
-        template_selection_rules = config.get("template_selection_rules", {})
+        # 获取原始配置以检查模板选择器设置
+        raw_unit_config = config["organization_units"][args.unit_name]
+        template_selection_rules = raw_unit_config.get(
+            "template_selector", config.get("template_selection_rules", {})
+        )
         selector_enabled = template_selection_rules.get("enabled", False)
 
+        # 获取默认配置用于单模板模式或作为基础配置
         default_unit_config = get_unit_config(config, args.unit_name, "default")
         row_filter = default_unit_config.get("row_filter", {})
 
@@ -390,11 +360,24 @@ def main(argv=None) -> None:
                     f"处理组：{group_key}，模板：{template_name}，数据行数：{len(group_data)}"
                 )
 
-                rule_group = (
-                    group_key if group_key in ["default", "special"] else "default"
-                )
+                rule_group = "crossbank" if group_key == "special" else group_key
+
                 group_config = get_unit_config(config, args.unit_name, rule_group)
                 logger.info(f"使用规则组配置：{rule_group}")
+
+                if not template_path:
+                    template_path = group_config.get("template_path", "")
+                    if not template_path:
+                        raise ConfigError(f"规则组 '{rule_group}' 未配置 template_path")
+                    output_filename = generate_output_filename(
+                        args.unit_name,
+                        validated_month,
+                        template_name,
+                        generate_timestamp(),
+                        template_path,
+                    )
+                    output_path = output_dir / output_filename
+                    logger.info(f"使用规则组配置中的模板路径：{template_path}")
 
                 validation_rules = group_config.get("validation_rules", {})
                 if validation_rules:
