@@ -1,96 +1,9 @@
 {
   "version": "1.0",
   "organization_units": {
-    "单位名称（替换为实际单位名）": {
-      "template_path": "templates/example_template.xlsx",
-      "header_row": 1,
-      "start_row": 2,
-      "row_filter": {
-        "exclude_keywords": ["合计", "总计", "小计"]
-      },
-      "field_mappings": {
-        "姓名字段": {
-          "source_column": "姓名",
-          "target_column": "B",
-          "transform": "none",
-          "required": true
-        },
-        "卡号字段": {
-          "source_column": "卡号",
-          "target_column": "C",
-          "transform": "card_number",
-          "required": true
-        },
-        "金额字段": {
-          "source_column": "金额",
-          "target_column": "D",
-          "transform": "amount_decimal",
-          "required": true
-        },
-        "日期字段": {
-          "source_column": "日期",
-          "target_column": "E",
-          "transform": "date_format",
-          "required": true
-        }
-      },
-      "fixed_values": {
-        "F": "固定值示例",
-        "G": "2024-01"
-      },
-      "auto_number": {
-        "enabled": true,
-        "column": "A",
-        "start_from": 1
-      },
-      "bank_branch_mapping": {
-        "enabled": true,
-        "source_column": "开户银行",
-        "target_column": "H"
-      },
-      "month_type_mapping": {
-        "enabled": true,
-        "target_column": "I",
-        "month_format": "{month}月收入",
-        "bonus_value": "年终奖",
-        "compensation_value": "补偿金"
-      },
+    "单位名称（通用示例）": {
       "template_selector": {
         "enabled": false,
-        "default_bank": "中国农业银行",
-        "special_template": "templates/example_special_template.xlsx",
-        "bank_column": "开户银行"
-      },
-      "transformations": {
-        "date_format": {
-          "output_format": "YYYY-MM-DD"
-        },
-        "amount_decimal": {
-          "decimal_places": 2,
-          "rounding": "round"
-        },
-        "card_number": {
-          "remove_formatting": true,
-          "luhn_validation": true
-        }
-      },
-      "validation_rules": {
-        "required_fields": ["姓名", "卡号", "金额", "日期"],
-        "data_types": {
-          "金额": "numeric",
-          "日期": "date"
-        },
-        "value_ranges": {
-          "金额": {
-            "min": 0,
-            "max": 999999.99
-          }
-        }
-      }
-    },
-    "单位名称（多规则组示例）": {
-      "template_selector": {
-        "enabled": true,
         "default_bank": "中国农业银行",
         "special_template": "templates/example_special_template.xlsx",
         "bank_column": "开户银行"
@@ -99,45 +12,62 @@
         "template_path": "templates/example_template.xlsx",
         "header_row": 1,
         "start_row": 2,
+        "row_filter": {
+          "exclude_keywords": ["合计", "总计", "小计", "Total", "总计：", "小计："]
+        },
         "field_mappings": {
-          "姓名": {
+          "姓名字段": {
             "source_column": "姓名",
             "target_column": "B",
             "transform": "none",
             "required": true
           },
-          "卡号": {
+          "卡号字段": {
             "source_column": "卡号",
             "target_column": "C",
             "transform": "card_number",
             "required": true
           },
-          "金额": {
+          "金额字段": {
             "source_column": "金额",
             "target_column": "D",
             "transform": "amount_decimal",
             "required": true
           },
-          "日期": {
+          "日期字段": {
             "source_column": "日期",
             "target_column": "E",
             "transform": "date_format",
-            "required": true
+            "required": false
+          },
+          "开户银行字段": {
+            "source_column": "开户银行",
+            "target_column": "F",
+            "transform": "none",
+            "required": false
           }
         },
         "fixed_values": {
           "省份": "浙江省",
+          "城市": "杭州市",
           "业务类型": "工资代发"
         },
         "auto_number": {
           "enabled": true,
-          "column": "A",
+          "column_name": "A",
           "start_from": 1
+        },
+        "bank_branch_mapping": {
+          "enabled": true,
+          "source_column": "开户银行",
+          "target_column": "G"
         },
         "month_type_mapping": {
           "enabled": true,
-          "target_column": "I",
-          "month_format": "{month}月收入"
+          "target_column": "H",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
         },
         "transformations": {
           "date_format": {
@@ -151,9 +81,22 @@
             "remove_formatting": true,
             "luhn_validation": true
           }
+        },
+        "validation_rules": {
+          "required_fields": ["姓名", "卡号", "金额"],
+          "data_types": {
+            "金额": "numeric",
+            "日期": "date"
+          },
+          "value_ranges": {
+            "金额": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
         }
       },
-      "跨行": {
+      "crossbank": {
         "template_path": "templates/example_special_template.xlsx",
         "header_row": 2,
         "start_row": 3,
@@ -176,25 +119,12 @@
             "transform": "amount_decimal",
             "required": true
           },
-          "开户银行（行别）": {
+          "开户银行": {
             "source_column": "开户银行",
-            "target_column": "开户银行（行别）",
+            "target_column": "开户银行",
             "transform": "none",
             "required": false
           }
-        },
-        "fixed_values": {
-          "是否农行账户": "否"
-        },
-        "auto_number": {
-          "enabled": true,
-          "column": "序号",
-          "start_from": 1
-        },
-        "month_type_mapping": {
-          "enabled": true,
-          "target_column": "用途（附言）",
-          "month_format": "{month}月收入"
         },
         "transformations": {
           "date_format": {
