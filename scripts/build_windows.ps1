@@ -11,8 +11,9 @@
 
 .NOTES
     前置条件：
+    - uv (https://github.com/astral-sh/uv)
     - Python 3.13+
-    - PyInstaller (pip install pyinstaller)
+    - PyInstaller 在 dev 依赖组中，脚本会自动同步
 #>
 
 param(
@@ -46,26 +47,36 @@ Get-ChildItem -Recurse -Filter "*.pyc" -ErrorAction SilentlyContinue | Remove-It
 Write-Host "  已清理 .pyc 缓存文件" -ForegroundColor Gray
 Write-Host ""
 
-# 步骤 2: 检查 PyInstaller
-Write-Host "[2/4] 检查 PyInstaller..." -ForegroundColor Yellow
+# 步骤 2: 同步依赖并检查 PyInstaller
+Write-Host "[2/4] 同步依赖并检查 PyInstaller..." -ForegroundColor Yellow
+Write-Host "  正在同步 dev 依赖组（包含 PyInstaller）..." -ForegroundColor Gray
+& uv sync --group dev
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "错误: 无法同步依赖" -ForegroundColor Red
+    exit 1
+}
 try {
-    $pyinstallerVersion = & python -m PyInstaller --version 2>&1
+    $pyinstallerVersion = & uv run pyinstaller --version 2>&1
     Write-Host "  PyInstaller 版本: $pyinstallerVersion" -ForegroundColor Gray
 } catch {
-    Write-Host "  PyInstaller 未安装，正在安装..." -ForegroundColor Gray
-    & pip install pyinstaller
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "错误: 无法安装 PyInstaller" -ForegroundColor Red
-        exit 1
-    }
+    Write-Host "错误: 无法获取 PyInstaller 版本" -ForegroundColor Red
+    exit 1
 }
 Write-Host ""
 
 # 步骤 3: 执行 PyInstaller 打包
 Write-Host "[3/4] 执行 PyInstaller 打包..." -ForegroundColor Yellow
-& python -m PyInstaller bank_template_processing.spec --noconfirm
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "错误: PyInstaller 打包失败" -ForegroundColor Red
+& uv run pyinstaller bank_template_processing.spec --noconfirm 2>&1 | ForEach-Object {
+    if ($_ -match "WARNING.*upx") {
+        # UPX 警告是正常的，只显示为灰色信息
+        Write-Host $_ -ForegroundColor DarkGray
+    } else {
+        Write-Host $_
+    }
+}
+# 检查是否生成了可执行文件，而不是仅依赖退出码（UPX 警告可能导致非零退出码）
+if (-not (Test-Path "dist\bank-template-processing\bank-template-processing.exe")) {
+    Write-Host "错误: PyInstaller 打包失败，未找到可执行文件" -ForegroundColor Red
     exit 1
 }
 Write-Host "  打包完成" -ForegroundColor Green

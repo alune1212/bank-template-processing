@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +13,46 @@ from validator import Validator, ValidationError
 from transformer import Transformer, TransformError
 from excel_writer import ExcelWriter
 from template_selector import TemplateSelector
+
+
+def get_executable_dir() -> Path:
+    """
+    获取可执行文件所在目录
+    
+    在 PyInstaller 打包的应用中，需要获取可执行文件所在目录
+    而不是当前工作目录，以确保能找到同目录下的配置文件。
+    
+    Returns:
+        可执行文件所在目录的 Path 对象
+    """
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 打包后的应用
+        return Path(os.path.dirname(sys.executable))
+    else:
+        # 开发环境：使用脚本所在目录
+        return Path(__file__).parent.resolve()
+
+
+def resolve_path(path: str, base_dir: Path | None = None) -> str:
+    """
+    解析文件路径，如果是相对路径则相对于可执行文件所在目录
+    
+    Args:
+        path: 文件路径（可以是绝对路径或相对路径）
+        base_dir: 基础目录，如果为 None 则使用可执行文件所在目录
+    
+    Returns:
+        解析后的绝对路径字符串
+    """
+    path_obj = Path(path)
+    if path_obj.is_absolute():
+        return str(path_obj)
+    
+    if base_dir is None:
+        base_dir = get_executable_dir()
+    
+    resolved = base_dir / path_obj
+    return str(resolved.resolve())
 
 
 def validate_month(month: str) -> str:
@@ -252,8 +293,16 @@ def main(argv=None) -> None:
         validated_month = validate_month(args.month)
         logger.info(f"月份参数验证通过：{validated_month}")
 
-        logger.info(f"加载配置文件：{args.config}")
-        config = load_config(args.config)
+        # 处理配置文件路径：如果是相对路径，则相对于可执行文件所在目录
+        config_path = Path(args.config)
+        if not config_path.is_absolute():
+            # 相对路径：相对于可执行文件所在目录
+            executable_dir = get_executable_dir()
+            config_path = executable_dir / config_path
+            logger.info(f"配置文件相对路径已解析为：{config_path}")
+        
+        logger.info(f"加载配置文件：{config_path}")
+        config = load_config(str(config_path))
         validate_config(config)
         logger.info(f"配置版本：{config['version']}")
 
@@ -281,6 +330,11 @@ def main(argv=None) -> None:
             logger.info("使用默认模板（未启用模板选择）")
 
             template_path = default_unit_config["template_path"]
+            # 处理模板路径：如果是相对路径，则相对于可执行文件所在目录
+            original_template_path = template_path
+            template_path = resolve_path(template_path)
+            if template_path != original_template_path:
+                logger.info(f"模板路径相对路径已解析为：{template_path}")
             output_filename = generate_output_filename(
                 args.unit_name,
                 validated_month,
@@ -369,6 +423,11 @@ def main(argv=None) -> None:
                     template_path = group_config.get("template_path", "")
                     if not template_path:
                         raise ConfigError(f"规则组 '{rule_group}' 未配置 template_path")
+                    # 处理模板路径：如果是相对路径，则相对于可执行文件所在目录
+                    original_template_path = template_path
+                    template_path = resolve_path(template_path)
+                    if template_path != original_template_path:
+                        logger.info(f"模板路径相对路径已解析为：{template_path}")
                     output_filename = generate_output_filename(
                         args.unit_name,
                         validated_month,
@@ -378,6 +437,12 @@ def main(argv=None) -> None:
                     )
                     output_path = output_dir / output_filename
                     logger.info(f"使用规则组配置中的模板路径：{template_path}")
+                else:
+                    # 处理模板路径：如果是相对路径，则相对于可执行文件所在目录
+                    original_template_path = template_path
+                    template_path = resolve_path(template_path)
+                    if template_path != original_template_path:
+                        logger.info(f"模板路径相对路径已解析为：{template_path}")
 
                 validation_rules = group_config.get("validation_rules", {})
                 if validation_rules:
