@@ -47,6 +47,12 @@
             "target_column": "F",
             "transform": "none",
             "required": false
+          },
+          "开户支行字段": {
+            "source_column": "开户银行",
+            "target_column": "G",
+            "transform": "none",
+            "required": false
           }
         },
         "fixed_values": {
@@ -58,11 +64,6 @@
           "enabled": true,
           "column_name": "A",
           "start_from": 1
-        },
-        "bank_branch_mapping": {
-          "enabled": true,
-          "source_column": "开户银行",
-          "target_column": "G"
         },
         "month_type_mapping": {
           "enabled": true,
@@ -135,6 +136,12 @@
             "target_column": "F",
             "transform": "none",
             "required": false
+          },
+          "开户支行字段": {
+            "source_column": "开户银行",
+            "target_column": "G",
+            "transform": "none",
+            "required": false
           }
         },
         "fixed_values": {
@@ -146,11 +153,6 @@
           "enabled": true,
           "column_name": "A",
           "start_from": 1
-        },
-        "bank_branch_mapping": {
-          "enabled": true,
-          "source_column": "开户银行",
-          "target_column": "G"
         },
         "month_type_mapping": {
           "enabled": true,
