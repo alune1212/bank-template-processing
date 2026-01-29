@@ -25,6 +25,11 @@ try:
 except ImportError:
     xlwt = None
 
+try:
+    from xlutils.copy import copy as xl_copy
+except ImportError:
+    xl_copy = None
+
 from config_loader import ConfigError
 
 
@@ -182,7 +187,10 @@ class ExcelWriter:
             raise ExcelError(f"无效的Excel文件: {e}") from e
 
         # 使用第一个工作表
-        ws = wb.active
+        if wb.worksheets:
+            ws = wb.worksheets[0]
+        else:
+            ws = wb.active
 
         # 读取表头（用于字段映射）
         headers = {}
@@ -302,7 +310,7 @@ class ExcelWriter:
         month_type_mapping: Optional[dict] = None,
         month_param: Optional[str] = None,
     ) -> None:
-        """使用xlwt写入.xls文件（基本格式，无公式保留）"""
+        """使用xlwt写入.xls文件（保留模板其他Sheet）"""
         logger.debug(f"使用xlwt写入xls文件: {template_path}")
 
         if xlwt is None:
@@ -311,12 +319,23 @@ class ExcelWriter:
         if xlrd is None:
             raise ExcelError("xlrd未安装，无法读取.xls模板文件")
 
+        if xl_copy is None:
+            raise ExcelError("xlutils未安装，无法保留.xls模板格式")
+
         try:
-            wb_template = xlrd.open_workbook(template_path, formatting_info=False)
+            # formatting_info=True 仅支持 .xls，用于保留样式
+            wb_template = xlrd.open_workbook(template_path, formatting_info=True)
         except Exception as e:
             raise ExcelError(f"无法读取Excel文件: {e}") from e
 
+        # 使用 xlutils.copy 复制工作簿，保留所有 Sheet 和样式
+        wb_output = xl_copy(wb_template)
+
+        # 获取模板的第一个 Sheet（用于读取表头和行数信息）
         ws_template = wb_template.sheet_by_index(0)
+
+        # 获取输出的第一个 Sheet（用于写入）
+        ws_output = wb_output.get_sheet(0)
 
         headers = {}
         if header_row > 0:
@@ -330,15 +349,13 @@ class ExcelWriter:
         else:
             logger.debug("header_row = 0，跳过读取表头（使用列标识符）")
 
-        wb_output = xlwt.Workbook(encoding="utf-8")
-        ws_output = wb_output.add_sheet("Sheet1")
-
-        if header_row > 0:
-            for row_idx in range(header_row):
+        # 尝试清除已有数据（覆盖为空字符串）
+        # 注意：xlwt 无法真正删除行，只能覆盖内容
+        if ws_template.nrows > start_row - 1:
+            logger.debug(f"清除从第 {start_row} 行开始的数据 (覆盖为空)")
+            for row_idx in range(start_row - 1, ws_template.nrows):
                 for col_idx in range(ws_template.ncols):
-                    cell_value = ws_template.cell_value(row_idx, col_idx)
-                    if cell_value:
-                        ws_output.write(row_idx, col_idx, cell_value)
+                    ws_output.write(row_idx, col_idx, "")
 
         self._write_data_to_xls_sheet(
             ws_output,
