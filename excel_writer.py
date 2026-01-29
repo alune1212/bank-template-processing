@@ -759,6 +759,7 @@ class ExcelWriter:
         column_spec,
         headers: Optional[dict] = None,
         max_columns: Optional[int] = None,
+        strict_bounds: bool = False,
     ) -> int:
         """
         智能解析列标识为列索引
@@ -772,6 +773,7 @@ class ExcelWriter:
             column_spec: 列标识（列名、列标识或列索引）
             headers: 模板表头映射（列名 -> 列索引），可选
             max_columns: 最大列数，用于验证索引有效性
+            strict_bounds: 是否严格限制列索引不能超出max_columns（默认False，允许超出以便自动扩展列）
 
         Returns:
             int: 列索引（从1开始）
@@ -782,7 +784,7 @@ class ExcelWriter:
         # 尝试作为列名查找
         if headers and isinstance(column_spec, str) and column_spec in headers:
             col_idx = headers[column_spec]
-            if max_columns and col_idx > max_columns:
+            if strict_bounds and max_columns and col_idx > max_columns:
                 raise ValueError(
                     f"列名 '{column_spec}' 对应的索引 {col_idx} 超出最大列数 {max_columns}"
                 )
@@ -791,7 +793,7 @@ class ExcelWriter:
         # 尝试作为整数索引
         if isinstance(column_spec, int):
             if column_spec >= 1:
-                if max_columns and column_spec > max_columns:
+                if strict_bounds and max_columns and column_spec > max_columns:
                     raise ValueError(f"列索引 {column_spec} 超出最大列数 {max_columns}")
                 return column_spec
             raise ValueError(f"列索引必须 >= 1，当前值: {column_spec}")
@@ -801,7 +803,7 @@ class ExcelWriter:
             if column_spec.isdigit():
                 idx = int(column_spec)
                 if idx >= 1:
-                    if max_columns and idx > max_columns:
+                    if strict_bounds and max_columns and idx > max_columns:
                         raise ValueError(f"列索引 {idx} 超出最大列数 {max_columns}")
                     return idx
                 raise ValueError(f"列索引必须 >= 1，当前值: {column_spec}")
@@ -811,7 +813,7 @@ class ExcelWriter:
                 c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" for c in column_spec.upper()
             ):
                 col_idx = self._column_letter_to_index(column_spec.upper())
-                if max_columns and col_idx > max_columns:
+                if strict_bounds and max_columns and col_idx > max_columns:
                     raise ValueError(
                         f"Excel列标识 '{column_spec}' 对应的索引 {col_idx} 超出最大列数 {max_columns}"
                     )
