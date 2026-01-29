@@ -37,14 +37,14 @@
       },
       "transformations": {
         "金额": {
-          "type": "amount",
+          "type": "amount_decimal",
           "decimal_places": 2
         },
         "银行卡号": {
           "type": "card_number"
         },
         "日期": {
-          "type": "date"
+          "type": "date_format"
         }
       }
     }

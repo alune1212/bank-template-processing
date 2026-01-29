@@ -147,6 +147,868 @@
           }
         }
       }
+    },
+    "上海外服易盟实业发展有限公司南京江宁分公司": {
+      "template_selector": {
+        "enabled": true,
+        "default_bank": "中国农业银行",
+        "special_template": "templates/农业银行跨行进卡模板.xlsx",
+        "bank_column": "开户银行"
+      },
+      "default": {
+        "template_path": "templates/农业银行模板.csv",
+        "header_row": 0,
+        "start_row": 1,
+        "row_filter": {
+          "exclude_keywords": ["合计"]
+        },
+        "field_mappings": {
+          "姓名": {
+            "source_column": "姓名",
+            "target_column": "C",
+            "transform": "none",
+            "required": true
+          },
+          "工资卡卡号": {
+            "source_column": "工资卡卡号",
+            "target_column": "B",
+            "transform": "card_number",
+            "required": true
+          },
+          "实发工资": {
+            "source_column": "实发工资",
+            "target_column": "D",
+            "transform": "amount_decimal",
+            "required": true
+          }
+        },
+        "auto_number": {
+          "enabled": true,
+          "column_name": "A",
+          "start_from": 1
+        },
+        "month_type_mapping": {
+          "enabled": true,
+          "target_column": "E",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      },
+      "crossbank": {
+        "template_path": "templates/农业银行跨行进卡模板.xlsx",
+        "header_row": 2,
+        "start_row": 3,
+        "row_filter": {
+          "exclude_keywords": ["合计"]
+        },
+        "auto_number": {
+          "enabled": true,
+          "column_name": "编号",
+          "start_from": 1
+        },
+        "field_mappings": {
+          "收款方账号": {
+            "source_column": "工资卡卡号",
+            "target_column": "收款方账号",
+            "transform": "card_number",
+            "required": true
+          },
+          "收款方户名": {
+            "source_column": "姓名",
+            "target_column": "收款方户名",
+            "transform": "none",
+            "required": true
+          },
+          "金额": {
+            "source_column": "实发工资",
+            "target_column": "金额",
+            "transform": "amount_decimal",
+            "required": true
+          },
+          "开户行支行名称": {
+            "source_column": "开户银行",
+            "target_column": "开户行支行名称",
+            "transform": "none",
+            "required": false
+          }
+        },
+        "fixed_values": {
+          "是否农行账户": "否"
+        },
+        "month_type_mapping": {
+          "enabled": true,
+          "target_column": "用途（附言）",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      }
+    },
+    "宁波悦鸣企业管理有限公司": {
+      "template_selector": {
+        "enabled": true,
+        "default_bank": "中国农业银行",
+        "special_template": "templates/农业银行跨行进卡模板.xlsx",
+        "bank_column": "开户银行"
+      },
+      "default": {
+        "template_path": "templates/农业银行模板.csv",
+        "header_row": 0,
+        "start_row": 1,
+        "row_filter": {
+          "exclude_keywords": ["合计"]
+        },
+        "field_mappings": {
+          "姓名": {
+            "source_column": "姓名",
+            "target_column": "C",
+            "transform": "none",
+            "required": true
+          },
+          "工资卡卡号": {
+            "source_column": "工资卡卡号",
+            "target_column": "B",
+            "transform": "card_number",
+            "required": true
+          },
+          "实发工资": {
+            "source_column": "实发工资",
+            "target_column": "D",
+            "transform": "amount_decimal",
+            "required": true
+          }
+        },
+        "auto_number": {
+          "enabled": true,
+          "column_name": "A",
+          "start_from": 1
+        },
+        "month_type_mapping": {
+          "enabled": true,
+          "target_column": "E",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      },
+      "crossbank": {
+        "template_path": "templates/农业银行跨行进卡模板.xlsx",
+        "header_row": 2,
+        "start_row": 3,
+        "row_filter": {
+          "exclude_keywords": ["合计"]
+        },
+        "auto_number": {
+          "enabled": true,
+          "column_name": "编号",
+          "start_from": 1
+        },
+        "field_mappings": {
+          "收款方账号": {
+            "source_column": "工资卡卡号",
+            "target_column": "收款方账号",
+            "transform": "card_number",
+            "required": true
+          },
+          "收款方户名": {
+            "source_column": "姓名",
+            "target_column": "收款方户名",
+            "transform": "none",
+            "required": true
+          },
+          "金额": {
+            "source_column": "实发工资",
+            "target_column": "金额",
+            "transform": "amount_decimal",
+            "required": true
+          },
+          "开户行支行名称": {
+            "source_column": "开户银行",
+            "target_column": "开户行支行名称",
+            "transform": "none",
+            "required": false
+          }
+        },
+        "fixed_values": {
+          "是否农行账户": "否"
+        },
+        "month_type_mapping": {
+          "enabled": true,
+          "target_column": "用途（附言）",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      }
+    },
+    "苏州悦鸣服务外包有限公司": {
+      "template_selector": {
+        "enabled": true,
+        "default_bank": "中国农业银行",
+        "special_template": "templates/农业银行跨行进卡模板.xlsx",
+        "bank_column": "开户银行"
+      },
+      "default": {
+        "template_path": "templates/农业银行模板.csv",
+        "header_row": 0,
+        "start_row": 1,
+        "row_filter": {
+          "exclude_keywords": ["合计"]
+        },
+        "field_mappings": {
+          "姓名": {
+            "source_column": "姓名",
+            "target_column": "C",
+            "transform": "none",
+            "required": true
+          },
+          "工资卡卡号": {
+            "source_column": "工资卡卡号",
+            "target_column": "B",
+            "transform": "card_number",
+            "required": true
+          },
+          "实发工资": {
+            "source_column": "实发工资",
+            "target_column": "D",
+            "transform": "amount_decimal",
+            "required": true
+          }
+        },
+        "auto_number": {
+          "enabled": true,
+          "column_name": "A",
+          "start_from": 1
+        },
+        "month_type_mapping": {
+          "enabled": true,
+          "target_column": "E",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      },
+      "crossbank": {
+        "template_path": "templates/农业银行跨行进卡模板.xlsx",
+        "header_row": 2,
+        "start_row": 3,
+        "row_filter": {
+          "exclude_keywords": ["合计"]
+        },
+        "auto_number": {
+          "enabled": true,
+          "column_name": "编号",
+          "start_from": 1
+        },
+        "field_mappings": {
+          "收款方账号": {
+            "source_column": "工资卡卡号",
+            "target_column": "收款方账号",
+            "transform": "card_number",
+            "required": true
+          },
+          "收款方户名": {
+            "source_column": "姓名",
+            "target_column": "收款方户名",
+            "transform": "none",
+            "required": true
+          },
+          "金额": {
+            "source_column": "实发工资",
+            "target_column": "金额",
+            "transform": "amount_decimal",
+            "required": true
+          },
+          "开户行支行名称": {
+            "source_column": "开户银行",
+            "target_column": "开户行支行名称",
+            "transform": "none",
+            "required": false
+          }
+        },
+        "fixed_values": {
+          "是否农行账户": "否"
+        },
+        "month_type_mapping": {
+          "enabled": true,
+          "target_column": "用途（附言）",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      }
+    },
+    "常州远茂服务外包有限公司": {
+      "template_selector": {
+        "enabled": true,
+        "default_bank": "中国农业银行",
+        "special_template": "templates/农业银行跨行进卡模板.xlsx",
+        "bank_column": "开户银行"
+      },
+      "default": {
+        "template_path": "templates/农业银行模板.csv",
+        "header_row": 0,
+        "start_row": 1,
+        "row_filter": {
+          "exclude_keywords": ["合计"]
+        },
+        "field_mappings": {
+          "姓名": {
+            "source_column": "姓名",
+            "target_column": "C",
+            "transform": "none",
+            "required": true
+          },
+          "工资卡卡号": {
+            "source_column": "工资卡卡号",
+            "target_column": "B",
+            "transform": "card_number",
+            "required": true
+          },
+          "实发工资": {
+            "source_column": "实发工资",
+            "target_column": "D",
+            "transform": "amount_decimal",
+            "required": true
+          }
+        },
+        "auto_number": {
+          "enabled": true,
+          "column_name": "A",
+          "start_from": 1
+        },
+        "month_type_mapping": {
+          "enabled": true,
+          "target_column": "E",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      },
+      "crossbank": {
+        "template_path": "templates/农业银行跨行进卡模板.xlsx",
+        "header_row": 2,
+        "start_row": 3,
+        "row_filter": {
+          "exclude_keywords": ["合计"]
+        },
+        "auto_number": {
+          "enabled": true,
+          "column_name": "编号",
+          "start_from": 1
+        },
+        "field_mappings": {
+          "收款方账号": {
+            "source_column": "工资卡卡号",
+            "target_column": "收款方账号",
+            "transform": "card_number",
+            "required": true
+          },
+          "收款方户名": {
+            "source_column": "姓名",
+            "target_column": "收款方户名",
+            "transform": "none",
+            "required": true
+          },
+          "金额": {
+            "source_column": "实发工资",
+            "target_column": "金额",
+            "transform": "amount_decimal",
+            "required": true
+          },
+          "开户行支行名称": {
+            "source_column": "开户银行",
+            "target_column": "开户行支行名称",
+            "transform": "none",
+            "required": false
+          }
+        },
+        "fixed_values": {
+          "是否农行账户": "否"
+        },
+        "month_type_mapping": {
+          "enabled": true,
+          "target_column": "用途（附言）",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      }
+    },
+    "西安硕博睿达企业管理咨询有限公司": {
+      "template_selector": {
+        "enabled": true,
+        "default_bank": "中国农业银行",
+        "special_template": "templates/农业银行跨行进卡模板.xlsx",
+        "bank_column": "开户银行"
+      },
+      "default": {
+        "template_path": "templates/农业银行模板.csv",
+        "header_row": 0,
+        "start_row": 1,
+        "row_filter": {
+          "exclude_keywords": ["合计"]
+        },
+        "field_mappings": {
+          "姓名": {
+            "source_column": "姓名",
+            "target_column": "C",
+            "transform": "none",
+            "required": true
+          },
+          "工资卡卡号": {
+            "source_column": "工资卡卡号",
+            "target_column": "B",
+            "transform": "card_number",
+            "required": true
+          },
+          "实发工资": {
+            "source_column": "实发工资",
+            "target_column": "D",
+            "transform": "amount_decimal",
+            "required": true
+          }
+        },
+        "auto_number": {
+          "enabled": true,
+          "column_name": "A",
+          "start_from": 1
+        },
+        "month_type_mapping": {
+          "enabled": true,
+          "target_column": "E",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      },
+      "crossbank": {
+        "template_path": "templates/农业银行跨行进卡模板.xlsx",
+        "header_row": 2,
+        "start_row": 3,
+        "row_filter": {
+          "exclude_keywords": ["合计"]
+        },
+        "auto_number": {
+          "enabled": true,
+          "column_name": "编号",
+          "start_from": 1
+        },
+        "field_mappings": {
+          "收款方账号": {
+            "source_column": "工资卡卡号",
+            "target_column": "收款方账号",
+            "transform": "card_number",
+            "required": true
+          },
+          "收款方户名": {
+            "source_column": "姓名",
+            "target_column": "收款方户名",
+            "transform": "none",
+            "required": true
+          },
+          "金额": {
+            "source_column": "实发工资",
+            "target_column": "金额",
+            "transform": "amount_decimal",
+            "required": true
+          },
+          "开户行支行名称": {
+            "source_column": "开户银行",
+            "target_column": "开户行支行名称",
+            "transform": "none",
+            "required": false
+          }
+        },
+        "fixed_values": {
+          "是否农行账户": "否"
+        },
+        "month_type_mapping": {
+          "enabled": true,
+          "target_column": "用途（附言）",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      }
+    },
+    "广州远茂企业服务外包有限公司": {
+      "default": {
+        "template_path": "templates/中国银行混发模版.xls",
+        "header_row": 1,
+        "start_row": 2,
+        "row_filter": {
+          "exclude_keywords": ["合计"]
+        },
+        "field_mappings": {
+          "户名": {
+            "source_column": "姓名",
+            "target_column": "户名",
+            "transform": "none",
+            "required": true
+          },
+          "账号": {
+            "source_column": "工资卡卡号",
+            "target_column": "账号",
+            "transform": "card_number",
+            "required": true
+          },
+          "金额": {
+            "source_column": "实发工资",
+            "target_column": "金额",
+            "transform": "amount_decimal",
+            "required": true
+          }
+        },
+        "fixed_values": {
+          "用途": "工资"
+        },
+        "month_type_mapping": {
+          "enabled": true,
+          "target_column": "附言",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      }
+    },
+    "长沙市悦鸣企业管理有限公司": {
+      "default": {
+        "template_path": "templates/长沙银行混发模版.xlsx",
+        "header_row": 4,
+        "start_row": 5,
+        "row_filter": {
+          "exclude_keywords": ["合计"]
+        },
+        "field_mappings": {
+          "收款户名": {
+            "source_column": "姓名",
+            "target_column": "收款户名",
+            "transform": "none",
+            "required": true
+          },
+          "收款账号": {
+            "source_column": "工资卡卡号",
+            "target_column": "收款账号",
+            "transform": "card_number",
+            "required": true
+          },
+          "金额": {
+            "source_column": "实发工资",
+            "target_column": "金额",
+            "transform": "amount_decimal",
+            "required": true
+          }
+        },
+        "month_type_mapping": {
+          "enabled": true,
+          "target_column": "备注",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      }
     }
   }
 }

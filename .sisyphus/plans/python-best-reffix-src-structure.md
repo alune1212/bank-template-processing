@@ -404,6 +404,16 @@ Critical Path: Task 0 → Task 1 → Task 3 → Task 5 → Task 7 → Task 11 �
   - [ ] __init__.py 文件存在
   - [ ] 包含 __version__ 变量
   - [ ] __version__ 值与 pyproject.toml 中的版本号一致
+  - [ ] 文件内容符合以下格式：
+    ```python
+    """
+    bank_template_processing - Bank card template processing system
+
+    A Python tool for processing bank card Excel templates from OA system workflows.
+    """
+
+    __version__ = "0.1.0"
+    ```
 
   **Manual Execution Verification**:
 
@@ -462,7 +472,7 @@ Critical Path: Task 0 → Task 1 → Task 3 → Task 5 → Task 7 → Task 11 �
   - `src/bank_template_processing/main.py` - 查看现有的导入模式
   - `src/bank_template_processing/config_loader.py` - 查看如何与其他交互
   - `src/bank_template_processing/excel_reader.py` - 查看模块间依赖
-  - `src/bank_template_processing/excel_writer.py` - 查看模块间依赖
+  - `src/bank_template_processing/excel_writer.py` - 查看模块间依赖 (需更新 `from config_loader import ConfigError`)
   - `src/bank_template_processing/transformer.py` - 查看模块间依赖
   - `src/bank_template_processing/validator.py` - 查看模块间依赖
   - `src/bank_template_processing/template_selector.py` - 查看模块间依赖

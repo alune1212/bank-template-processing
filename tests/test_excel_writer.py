@@ -63,6 +63,63 @@ class TestExcelWriter:
 
         wb_result.close()
 
+    def test_amount_written_as_number(self, tmp_path):
+        """测试金额字段以数字类型写入，而不是字符串"""
+        template_path = tmp_path / "template.xlsx"
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.cell(1, 1, "姓名")
+        ws.cell(1, 2, "金额")
+        wb.save(template_path)
+
+        data = [
+            {"姓名": "张三", "金额": 1000.50},
+            {"姓名": "李四", "金额": 2000.75},
+        ]
+
+        field_mappings = {
+            "姓名": {
+                "source_column": "姓名",
+                "target_column": "姓名",
+                "transform": "none",
+            },
+            "金额": {
+                "source_column": "金额",
+                "target_column": "金额",
+                "transform": "amount_decimal",
+                "required": True,
+            },
+        }
+
+        output_path = tmp_path / "output.xlsx"
+        writer = ExcelWriter()
+        writer.write_excel(
+            template_path=str(template_path),
+            data=data,
+            field_mappings=field_mappings,
+            output_path=str(output_path),
+            header_row=1,
+            start_row=2,
+            mapping_mode="column_name",
+        )
+
+        wb_result = openpyxl.load_workbook(output_path)
+        ws_result = wb_result.active
+
+        assert ws_result.cell(2, 1).value == "张三"
+        assert isinstance(ws_result.cell(2, 2).value, (int, float)), (
+            "金额应该是数字类型"
+        )
+        assert ws_result.cell(2, 2).value == 1000.50
+
+        assert ws_result.cell(3, 1).value == "李四"
+        assert isinstance(ws_result.cell(3, 2).value, (int, float)), (
+            "金额应该是数字类型"
+        )
+        assert ws_result.cell(3, 2).value == 2000.75
+
+        wb_result.close()
+
     def test_write_csv_file(self, tmp_path):
         """测试写入.csv文件"""
         # 创建模板文件

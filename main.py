@@ -18,14 +18,14 @@ from template_selector import TemplateSelector
 def get_executable_dir() -> Path:
     """
     获取可执行文件所在目录
-    
+
     在 PyInstaller 打包的应用中，需要获取可执行文件所在目录
     而不是当前工作目录，以确保能找到同目录下的配置文件。
-    
+
     Returns:
         可执行文件所在目录的 Path 对象
     """
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         # PyInstaller 打包后的应用
         return Path(os.path.dirname(sys.executable))
     else:
@@ -36,21 +36,21 @@ def get_executable_dir() -> Path:
 def resolve_path(path: str, base_dir: Path | None = None) -> str:
     """
     解析文件路径，如果是相对路径则相对于可执行文件所在目录
-    
+
     Args:
         path: 文件路径（可以是绝对路径或相对路径）
         base_dir: 基础目录，如果为 None 则使用可执行文件所在目录
-    
+
     Returns:
         解析后的绝对路径字符串
     """
     path_obj = Path(path)
     if path_obj.is_absolute():
         return str(path_obj)
-    
+
     if base_dir is None:
         base_dir = get_executable_dir()
-    
+
     resolved = base_dir / path_obj
     return str(resolved.resolve())
 
@@ -188,13 +188,16 @@ def setup_logging() -> None:
     )
 
 
-def apply_transformations(data: list, transformations: dict) -> list:
+def apply_transformations(
+    data: list, transformations: dict, field_mappings: dict
+) -> list:
     """
     应用转换规则到数据
 
     Args:
         data: 数据列表
-        transformations: 转换配置
+        transformations: 转换配置（定义转换参数，如 decimal_places）
+        field_mappings: 字段映射配置（定义哪些字段需要转换，及转换类型）
 
     Returns:
         转换后的数据列表
@@ -204,22 +207,33 @@ def apply_transformations(data: list, transformations: dict) -> list:
 
     for row in data:
         new_row = row.copy()
-        for field, transform_config in transformations.items():
-            transform_type = transform_config.get("type")
 
-            if transform_type == "date":
-                value = new_row.get(field, "")
-                if value:
-                    new_row[field] = transformer.transform_date(value)
-            elif transform_type == "amount":
-                value = new_row.get(field, "")
-                if value:
-                    decimal_places = transform_config.get("decimal_places", 2)
-                    new_row[field] = transformer.transform_amount(value, decimal_places)
+        # 遍历字段映射，找到需要转换的字段
+        for template_field, mapping_config in field_mappings.items():
+            if isinstance(mapping_config, dict):
+                source_field = mapping_config.get("source_column", template_field)
+                transform_type = mapping_config.get("transform", "none")
+            else:
+                # 旧格式：不支持转换
+                continue
+
+            value = new_row.get(source_field, "")
+            if not value:
+                continue
+
+            # 根据转换类型和配置应用转换
+            if transform_type == "amount_decimal":
+                transform_config = transformations.get("amount_decimal", {})
+                decimal_places = transform_config.get("decimal_places", 2)
+                new_row[source_field] = transformer.transform_amount(
+                    value, decimal_places
+                )
             elif transform_type == "card_number":
-                value = new_row.get(field, "")
-                if value:
-                    new_row[field] = transformer.transform_card_number(value)
+                new_row[source_field] = transformer.transform_card_number(value)
+            elif transform_type == "date_format":
+                transform_config = transformations.get("date_format", {})
+                output_format = transform_config.get("output_format", "YYYY-MM-DD")
+                new_row[source_field] = transformer.transform_date(value, output_format)
 
         result.append(new_row)
 
@@ -300,7 +314,7 @@ def main(argv=None) -> None:
             executable_dir = get_executable_dir()
             config_path = executable_dir / config_path
             logger.info(f"配置文件相对路径已解析为：{config_path}")
-        
+
         logger.info(f"加载配置文件：{config_path}")
         config = load_config(str(config_path))
         validate_config(config)
@@ -366,9 +380,10 @@ def main(argv=None) -> None:
                 logger.info("数据验证通过")
 
             transformations = default_unit_config.get("transformations", {})
+            field_mappings = default_unit_config.get("field_mappings", {})
             if transformations:
                 logger.info("转换数据")
-                data = apply_transformations(data, transformations)
+                data = apply_transformations(data, transformations, field_mappings)
                 logger.info("数据转换完成")
 
             process_group(
@@ -465,9 +480,12 @@ def main(argv=None) -> None:
                     logger.info("数据验证通过")
 
                 transformations = group_config.get("transformations", {})
+                field_mappings = group_config.get("field_mappings", {})
                 if transformations:
                     logger.info("转换数据")
-                    group_data = apply_transformations(group_data, transformations)
+                    group_data = apply_transformations(
+                        group_data, transformations, field_mappings
+                    )
                     logger.info("数据转换完成")
 
                 process_group(

@@ -49,13 +49,22 @@ class TestEndToEndWorkflow:
                 if field_name in row:
                     transform_type = transform_config["type"]
                     if transform_type == "date":
-                        row[field_name] = transformer.transform_date(row[field_name])
-                    elif transform_type == "amount":
+                        output_format = transform_config.get(
+                            "output_format", "YYYY-MM-DD"
+                        )
+                        row[field_name] = transformer.transform_date(
+                            row[field_name], output_format
+                        )
+                    elif transform_type == "amount_decimal":
                         decimal_places = transform_config.get("decimal_places", 2)
                         result = transformer.transform_amount(
                             row[field_name], decimal_places
                         )
                         row[field_name] = float(result)
+                    elif transform_type == "card_number":
+                        row[field_name] = transformer.transform_card_number(
+                            row[field_name]
+                        )
                     elif transform_type == "card_number":
                         row[field_name] = transformer.transform_card_number(
                             row[field_name]

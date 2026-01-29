@@ -436,7 +436,7 @@ class TestApplyTransformations:
         from main import apply_transformations
 
         data = [{"姓名": "张三"}]
-        result = apply_transformations(data, {})
+        result = apply_transformations(data, {}, {})
 
         assert result == data
 
@@ -445,8 +445,9 @@ class TestApplyTransformations:
         from main import apply_transformations
 
         data = [{"日期": "15/01/2024"}]
-        transformations = {"日期": {"type": "date"}}
-        result = apply_transformations(data, transformations)
+        transformations = {"date_format": {"output_format": "YYYY-MM-DD"}}
+        field_mappings = {"日期": {"source_column": "日期", "transform": "date_format"}}
+        result = apply_transformations(data, transformations, field_mappings)
 
         assert result[0]["日期"] == "2024-01-15"
 
@@ -455,8 +456,11 @@ class TestApplyTransformations:
         from main import apply_transformations
 
         data = [{"金额": "1000.456"}]
-        transformations = {"金额": {"type": "amount", "decimal_places": 2}}
-        result = apply_transformations(data, transformations)
+        transformations = {"amount_decimal": {"decimal_places": 2}}
+        field_mappings = {
+            "金额": {"source_column": "金额", "transform": "amount_decimal"}
+        }
+        result = apply_transformations(data, transformations, field_mappings)
 
         assert result[0]["金额"] == 1000.46
 
@@ -465,8 +469,37 @@ class TestApplyTransformations:
         from main import apply_transformations
 
         data = [{"卡号": "6222-0212-3456-7890-128"}]
-        transformations = {"卡号": {"type": "card_number"}}
-        result = apply_transformations(data, transformations)
+        transformations = {
+            "card_number": {"remove_formatting": True, "luhn_validation": True}
+        }
+        field_mappings = {"卡号": {"source_column": "卡号", "transform": "card_number"}}
+        result = apply_transformations(data, transformations, field_mappings)
+
+        assert result[0]["日期"] == "2024-01-15"
+
+    def test_apply_transformations_amount(self):
+        """测试金额转换"""
+        from main import apply_transformations
+
+        data = [{"金额": "1000.456"}]
+        transformations = {"amount_decimal": {"decimal_places": 2}}
+        field_mappings = {
+            "金额": {"source_column": "金额", "transform": "amount_decimal"}
+        }
+        result = apply_transformations(data, transformations, field_mappings)
+
+        assert result[0]["金额"] == 1000.46
+
+    def test_apply_transformations_card_number(self):
+        """测试卡号转换"""
+        from main import apply_transformations
+
+        data = [{"卡号": "6222-0212-3456-7890-128"}]
+        transformations = {
+            "card_number": {"remove_formatting": True, "luhn_validation": True}
+        }
+        field_mappings = {"卡号": {"source_column": "卡号", "transform": "card_number"}}
+        result = apply_transformations(data, transformations, field_mappings)
 
         assert result[0]["卡号"] == "6222021234567890128"
 
@@ -476,10 +509,14 @@ class TestApplyTransformations:
 
         data = [{"日期": "15/01/2024", "金额": "1000.456"}]
         transformations = {
-            "日期": {"type": "date"},
-            "金额": {"type": "amount", "decimal_places": 2},
+            "date_format": {"output_format": "YYYY-MM-DD"},
+            "amount_decimal": {"decimal_places": 2},
         }
-        result = apply_transformations(data, transformations)
+        field_mappings = {
+            "日期": {"source_column": "日期", "transform": "date_format"},
+            "金额": {"source_column": "金额", "transform": "amount_decimal"},
+        }
+        result = apply_transformations(data, transformations, field_mappings)
 
         assert result[0]["日期"] == "2024-01-15"
         assert result[0]["金额"] == 1000.46

@@ -508,10 +508,12 @@ class ExcelWriter:
                     # 新格式
                     source_column = mapping_config.get("source_column")
                     target_column = mapping_config.get("target_column", template_column)
+                    transform_type = mapping_config.get("transform", "none")
                 else:
                     # 旧格式：key是输入列名，value是模板列名
                     source_column = template_column
                     target_column = mapping_config
+                    transform_type = "none"
 
                 # 获取源数据值
                 value = row_data.get(source_column, "")
@@ -525,8 +527,20 @@ class ExcelWriter:
                     logger.warning(f"跳过字段 {template_column}: {e}")
                     continue
 
-                # 写入数据
-                ws.cell(output_row_idx, col_idx, value)
+                # 写入数据：金额字段使用数字类型，其他使用字符串类型
+                if transform_type == "amount_decimal" and value is not None:
+                    # 金额字段：确保以数字类型写入
+                    try:
+                        # 如果是字符串，尝试转换为 float
+                        if isinstance(value, str):
+                            value = float(value)
+                        ws.cell(output_row_idx, col_idx, value)
+                    except (ValueError, TypeError):
+                        # 转换失败，作为字符串写入
+                        ws.cell(output_row_idx, col_idx, value)
+                else:
+                    # 其他字段：作为字符串写入
+                    ws.cell(output_row_idx, col_idx, value)
 
             # 应用固定值
             if fixed_values:
