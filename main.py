@@ -395,7 +395,8 @@ def main(argv=None) -> None:
             )
         else:
             logger.info("启用动态模板选择")
-            selector = TemplateSelector(template_selection_rules)
+            # TemplateSelector 期望接收包含 "template_selector" 键的配置字典
+            selector = TemplateSelector({"template_selector": template_selection_rules})
             default_bank = template_selection_rules.get("default_bank", "")
             bank_column = template_selection_rules.get("bank_column", "开户银行")
 
