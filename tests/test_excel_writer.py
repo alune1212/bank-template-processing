@@ -303,7 +303,7 @@ class TestExcelWriter:
         wb_result.close()
 
     def test_bank_branch_mapping(self, tmp_path):
-        """测试银行支行映射功能"""
+        """测试银行支行映射功能（已废弃，现在使用 field_mappings 替代）"""
         # 创建模板文件
         template_path = tmp_path / "template.xlsx"
         wb = openpyxl.Workbook()
@@ -318,14 +318,10 @@ class TestExcelWriter:
             {"姓名": "李四", "支行": "上海支行"},
         ]
 
-        # 字段映射
-        field_mappings = {"姓名": {"source_column": "姓名"}}
-
-        # 银行支行映射
-        bank_branch_mapping = {
-            "enabled": True,
-            "source_column": "支行",
-            "target_column": "B",
+        # 字段映射（现在直接使用 field_mappings 处理支行）
+        field_mappings = {
+            "姓名": {"source_column": "姓名"},
+            "部门": {"source_column": "支行"},  # 将支行映射到部门列
         }
 
         # 输出路径
@@ -341,10 +337,9 @@ class TestExcelWriter:
             header_row=1,
             start_row=2,
             mapping_mode="column_name",
-            bank_branch_mapping=bank_branch_mapping,
         )
 
-        # 验证银行支行映射
+        # 验证结果
         wb_result = openpyxl.load_workbook(output_path)
         ws_result = wb_result.active
         assert ws_result.cell(2, 1).value == "张三"
