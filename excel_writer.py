@@ -96,6 +96,12 @@ class ExcelWriter:
             logger.error(error_msg)
             raise ConfigError(error_msg)
 
+        # 废弃 bank_branch_mapping 警告
+        if bank_branch_mapping and bank_branch_mapping.get("enabled"):
+            logger.warning(
+                "配置警告: 'bank_branch_mapping' 已废弃，请使用 'field_mappings' 进行配置。"
+            )
+
         # 根据文件扩展名选择写入方式
         ext = Path(template_path).suffix.lower()
 
@@ -460,21 +466,6 @@ class ExcelWriter:
                 except ValueError as e:
                     logger.warning(f"跳过自动编号列 {column}: {e}")
 
-            # 应用银行支行映射
-            if bank_branch_mapping and bank_branch_mapping.get("enabled"):
-                source_column = bank_branch_mapping.get("source_column")
-                target_column = bank_branch_mapping.get("target_column", "B")
-                branch_info = row_data.get(source_column, "")
-                if branch_info:
-                    try:
-                        col_idx = self._resolve_column_index(
-                            target_column, headers, max_columns
-                        )
-                        if 1 <= col_idx <= max_columns:
-                            row_output[col_idx - 1] = str(branch_info)
-                    except ValueError as e:
-                        logger.warning(f"跳过银行支行映射列 {target_column}: {e}")
-
             if month_value is not None and month_type_mapping:
                 target_column = month_type_mapping.get("target_column", "C")
                 try:
@@ -571,19 +562,6 @@ class ExcelWriter:
                 except ValueError as e:
                     logger.warning(f"跳过自动编号列 {column}: {e}")
 
-            if bank_branch_mapping and bank_branch_mapping.get("enabled"):
-                source_column = bank_branch_mapping.get("source_column")
-                target_column = bank_branch_mapping.get("target_column", "B")
-                branch_info = row_data.get(source_column, "")
-                if branch_info:
-                    try:
-                        col_idx = self._resolve_column_index(
-                            target_column, headers, ws.max_column
-                        )
-                        ws.cell(output_row_idx, col_idx, branch_info)
-                    except ValueError as e:
-                        logger.warning(f"跳过银行支行映射列 {target_column}: {e}")
-
             if month_value is not None and month_type_mapping:
                 target_column = month_type_mapping.get("target_column", "C")
                 try:
@@ -675,20 +653,6 @@ class ExcelWriter:
                         current_number += 1
                 except ValueError as e:
                     logger.warning(f"跳过自动编号列 {column}: {e}")
-
-            if bank_branch_mapping and bank_branch_mapping.get("enabled"):
-                source_column = bank_branch_mapping.get("source_column")
-                target_column = bank_branch_mapping.get("target_column", "B")
-                branch_info = row_data.get(source_column, "")
-                if branch_info:
-                    try:
-                        col_idx = self._resolve_column_index(
-                            target_column, headers, max_columns
-                        )
-                        if 1 <= col_idx <= max_columns:
-                            ws.write(output_row_idx - 1, col_idx - 1, branch_info)
-                    except ValueError as e:
-                        logger.warning(f"跳过银行支行映射列 {target_column}: {e}")
 
             if month_value is not None and month_type_mapping:
                 target_column = month_type_mapping.get("target_column", "C")
