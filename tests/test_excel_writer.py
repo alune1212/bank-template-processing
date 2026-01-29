@@ -32,7 +32,11 @@ class TestExcelWriter:
         ]
 
         # 字段映射
-        field_mappings = {"姓名": "姓名", "年龄": "年龄", "金额": "金额"}
+        field_mappings = {
+            "姓名": {"source_column": "姓名"},
+            "年龄": {"source_column": "年龄"},
+            "金额": {"source_column": "金额"},
+        }
 
         # 输出路径
         output_path = tmp_path / "output.xlsx"
@@ -136,7 +140,11 @@ class TestExcelWriter:
         ]
 
         # 字段映射
-        field_mappings = {"姓名": "姓名", "年龄": "年龄", "金额": "金额"}
+        field_mappings = {
+            "姓名": {"source_column": "姓名"},
+            "年龄": {"source_column": "年龄"},
+            "金额": {"source_column": "金额"},
+        }
 
         # 输出路径
         output_path = tmp_path / "output.csv"
@@ -182,7 +190,10 @@ class TestExcelWriter:
         data = [{"姓名": "张三", "年龄": 25}, {"姓名": "李四", "年龄": 30}]
 
         # 字段映射
-        field_mappings = {"姓名": "姓名", "年龄": "年龄"}
+        field_mappings = {
+            "姓名": {"source_column": "姓名"},
+            "年龄": {"source_column": "年龄"},
+        }
 
         # 输出路径
         output_path = tmp_path / "output.xls"
@@ -216,7 +227,7 @@ class TestExcelWriter:
         data = [{"姓名": "张三"}, {"姓名": "李四"}]
 
         # 字段映射
-        field_mappings = {"姓名": "姓名"}
+        field_mappings = {"姓名": {"source_column": "姓名"}}
 
         # 固定值
         fixed_values = {"B": "财务部"}
@@ -261,7 +272,7 @@ class TestExcelWriter:
         data = [{"姓名": "张三"}, {"姓名": "李四"}, {"姓名": "王五"}]
 
         # 字段映射
-        field_mappings = {"姓名": "姓名"}
+        field_mappings = {"姓名": {"source_column": "姓名"}}
 
         # 自动编号
         auto_number = {"enabled": True, "column": "A", "start_from": 1}
@@ -308,7 +319,7 @@ class TestExcelWriter:
         ]
 
         # 字段映射
-        field_mappings = {"姓名": "姓名"}
+        field_mappings = {"姓名": {"source_column": "姓名"}}
 
         # 银行支行映射
         bank_branch_mapping = {
@@ -357,7 +368,7 @@ class TestExcelWriter:
         data = [{"姓名": "张三"}, {"姓名": "李四"}]
 
         # 字段映射
-        field_mappings = {"姓名": "姓名"}
+        field_mappings = {"姓名": {"source_column": "姓名"}}
 
         # 月类型映射
         month_type_mapping = {"enabled": True, "target_column": "B"}
@@ -403,7 +414,7 @@ class TestExcelWriter:
         data = [{"姓名": "张三"}]
 
         # 字段映射
-        field_mappings = {"姓名": "姓名"}
+        field_mappings = {"姓名": {"source_column": "姓名"}}
 
         # 月类型映射
         month_type_mapping = {
@@ -451,7 +462,10 @@ class TestExcelWriter:
         data = [{"name": "张三", "age": 25}, {"name": "李四", "age": 30}]
 
         # 字段映射（使用列索引）
-        field_mappings = {"name": "A", "age": "B"}
+        field_mappings = {
+            "name": {"source_column": "name", "target_column": "A"},
+            "age": {"source_column": "age", "target_column": "B"},
+        }
 
         # 输出路径
         output_path = tmp_path / "output.xlsx"
@@ -494,7 +508,7 @@ class TestExcelWriter:
         data = [{"姓名": "新数据1"}, {"姓名": "新数据2"}]
 
         # 字段映射
-        field_mappings = {"姓名": "姓名"}
+        field_mappings = {"姓名": {"source_column": "姓名"}}
 
         # 输出路径
         output_path = tmp_path / "output.xlsx"
@@ -534,7 +548,7 @@ class TestExcelWriter:
         data = [{"姓名": "张三"}]
 
         # 字段映射
-        field_mappings = {"姓名": "姓名"}
+        field_mappings = {"姓名": {"source_column": "姓名"}}
 
         # 输出路径
         output_path = tmp_path / "output.xlsx"
@@ -562,7 +576,7 @@ class TestExcelWriter:
         data = [{"姓名": "张三"}]
 
         # 字段映射
-        field_mappings = {"姓名": "姓名"}
+        field_mappings = {"姓名": {"source_column": "姓名"}}
 
         # 输出路径
         output_path = tmp_path / "output.txt"
@@ -586,7 +600,7 @@ class TestExcelWriter:
         data = [{"姓名": "张三"}]
 
         # 字段映射
-        field_mappings = {"姓名": "姓名"}
+        field_mappings = {"姓名": {"source_column": "姓名"}}
 
         # 输出路径
         output_path = tmp_path / "output.xlsx"
@@ -625,7 +639,10 @@ class TestExcelWriter:
         data = [{"姓名": "张三", "年龄": 25}]
 
         # 字段映射
-        field_mappings = {"姓名": "姓名", "年龄": "年龄"}
+        field_mappings = {
+            "姓名": {"source_column": "姓名"},
+            "年龄": {"source_column": "年龄"},
+        }
 
         # 输出路径
         output_path = tmp_path / "output.xlsx"

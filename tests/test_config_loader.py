@@ -24,7 +24,7 @@ class TestLoadConfig:
                     "template_path": "templates/test.xlsx",
                     "header_row": 1,
                     "start_row": 2,
-                    "field_mappings": {"姓名": "name"},
+                    "field_mappings": {"姓名": {"source_column": "name"}},
                     "transformations": {},
                 }
             },
@@ -61,7 +61,7 @@ class TestValidateConfig:
                     "template_path": "templates/test.xlsx",
                     "header_row": 1,
                     "start_row": 2,
-                    "field_mappings": {"姓名": "name"},
+                    "field_mappings": {"姓名": {"source_column": "name"}},
                     "transformations": {},
                 }
             },
@@ -76,7 +76,7 @@ class TestValidateConfig:
                     "template_path": "templates/test.xlsx",
                     "header_row": 1,
                     "start_row": 2,
-                    "field_mappings": {"姓名": "name"},
+                    "field_mappings": {"姓名": {"source_column": "name"}},
                     "transformations": {},
                 }
             }
@@ -98,7 +98,7 @@ class TestValidateConfig:
                 "test_unit": {
                     "header_row": 1,
                     "start_row": 2,
-                    "field_mappings": {"姓名": "name"},
+                    "field_mappings": {"姓名": {"source_column": "name"}},
                     "transformations": {},
                 }
             },
@@ -114,7 +114,7 @@ class TestValidateConfig:
                 "test_unit": {
                     "template_path": "templates/test.xlsx",
                     "start_row": 2,
-                    "field_mappings": {"姓名": "name"},
+                    "field_mappings": {"姓名": {"source_column": "name"}},
                     "transformations": {},
                 }
             },
@@ -147,7 +147,7 @@ class TestValidateConfig:
                     "template_path": "templates/test.xlsx",
                     "header_row": 1,
                     "start_row": 2,
-                    "field_mappings": {"姓名": "name"},
+                    "field_mappings": {"姓名": {"source_column": "name"}},
                 }
             },
         }
@@ -163,7 +163,7 @@ class TestValidateConfig:
                     "template_path": "templates/test.xlsx",
                     "header_row": 0,
                     "start_row": 1,
-                    "field_mappings": {"姓名": "name"},
+                    "field_mappings": {"姓名": {"source_column": "name"}},
                     "transformations": {},
                 }
             },
@@ -180,7 +180,7 @@ class TestValidateConfig:
                     "template_path": "templates/test/test.xlsx",
                     "header_row": -1,
                     "start_row": 0,
-                    "field_mappings": {"姓名": "name"},
+                    "field_mappings": {"姓名": {"source_column": "name"}},
                     "transformations": {},
                 }
             },
@@ -197,7 +197,7 @@ class TestValidateConfig:
                     "template_path": "templates/test.xlsx",
                     "header_row": 1,
                     "start_row": 1,
-                    "field_mappings": {"姓名": "name"},
+                    "field_mappings": {"姓名": {"source_column": "name"}},
                     "transformations": {},
                 }
             },
@@ -214,7 +214,7 @@ class TestValidateConfig:
                     "template_path": "templates/test.xlsx",
                     "header_row": 5,
                     "start_row": 3,
-                    "field_mappings": {"姓名": "name"},
+                    "field_mappings": {"姓名": {"source_column": "name"}},
                     "transformations": {},
                 }
             },
@@ -247,7 +247,7 @@ class TestValidateConfig:
                 "test_unit": {
                     "template_path": "templates/test.xlsx",
                     "header_row": 3,
-                    "field_mappings": {"姓名": "name"},
+                    "field_mappings": {"姓名": {"source_column": "name"}},
                     "transformations": {},
                 }
             },
@@ -265,13 +265,13 @@ class TestValidateConfig:
                     "template_path": "templates/unit1.xlsx",
                     "header_row": 1,
                     "start_row": 2,
-                    "field_mappings": {"姓名": "name"},
+                    "field_mappings": {"姓名": {"source_column": "name"}},
                     "transformations": {},
                 },
                 "unit2": {
                     "template_path": "templates/unit2.xlsx",
                     "header_row": 2,
-                    "field_mappings": {"卡号": "card"},
+                    "field_mappings": {"卡号": {"source_column": "card"}},
                     "transformations": {},
                 },
             },

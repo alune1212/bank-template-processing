@@ -7,19 +7,19 @@
       "start_row": 4,
       "field_mappings": {
         "姓名": {
-          "column_name": "姓名"
+          "source_column": "姓名"
         },
         "银行卡号": {
-          "column_name": "银行卡号"
+          "source_column": "银行卡号"
         },
         "开户支行": {
-          "column_name": "开户支行"
+          "source_column": "开户支行"
         },
         "金额": {
-          "column_name": "金额"
+          "source_column": "金额"
         },
         "日期": {
-          "column_name": "日期"
+          "source_column": "日期"
         }
       },
       "fixed_values": {

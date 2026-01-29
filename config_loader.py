@@ -235,6 +235,17 @@ def _validate_legacy_unit_config(unit_name: str, unit_config: dict) -> None:
     if not isinstance(unit_config["field_mappings"], dict):
         raise ConfigError(f"单位 '{unit_name}' 的 field_mappings 必须是字典")
 
+    # 验证field_mappings的每一项必须是字典（新格式）
+    for field_name, field_config in unit_config["field_mappings"].items():
+        if not isinstance(field_config, dict):
+            raise ConfigError(
+                f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 的配置必须是字典"
+            )
+        if "source_column" not in field_config:
+            raise ConfigError(
+                f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 缺少 source_column"
+            )
+
     # 验证transformations是字典
     if not isinstance(unit_config["transformations"], dict):
         raise ConfigError(f"单位 '{unit_name}' 的 transformations 必须是字典")
@@ -308,6 +319,17 @@ def _validate_rule_group_config(
         raise ConfigError(
             f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 field_mappings 必须须是字典"
         )
+
+    # 验证field_mappings的每一项必须是字典（新格式）
+    for field_name, field_config in rule_config["field_mappings"].items():
+        if not isinstance(field_config, dict):
+            raise ConfigError(
+                f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 field_mappings 中 '{field_name}' 的配置必须是字典"
+            )
+        if "source_column" not in field_config:
+            raise ConfigError(
+                f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 field_mappings 中 '{field_name}' 缺少 source_column"
+            )
 
     # 验证transformations是字典
     if not isinstance(rule_config["transformations"], dict):

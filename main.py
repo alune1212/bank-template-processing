@@ -210,12 +210,9 @@ def apply_transformations(
 
         # 遍历字段映射，找到需要转换的字段
         for template_field, mapping_config in field_mappings.items():
-            if isinstance(mapping_config, dict):
-                source_field = mapping_config.get("source_column", template_field)
-                transform_type = mapping_config.get("transform", "none")
-            else:
-                # 旧格式：不支持转换
-                continue
+            # 仅支持新格式
+            source_field = mapping_config.get("source_column", template_field)
+            transform_type = mapping_config.get("transform", "none")
 
             value = new_row.get(source_field, "")
             if not value:

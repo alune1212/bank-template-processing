@@ -72,14 +72,11 @@ class TestEndToEndWorkflow:
 
         writer = ExcelWriter()
 
-        simple_field_mappings = {
-            k: v["column_name"] for k, v in unit_config["field_mappings"].items()
-        }
-
+        # field_mappings 已经是符合要求的字典格式
         writer.write_excel(
             template_path=template_path,
             data=data,
-            field_mappings=simple_field_mappings,
+            field_mappings=unit_config["field_mappings"],
             output_path=str(output_path),
             header_row=unit_config["header_row"],
             start_row=unit_config["start_row"],
@@ -127,7 +124,7 @@ class TestErrorHandling:
             writer.write_excel(
                 template_path="tests/fixtures/nonexistent.xlsx",
                 data=[],
-                field_mappings={"姓名": {"column_name": "姓名"}},
+                field_mappings={"姓名": {"source_column": "姓名"}},
                 output_path=str(output_path),
                 header_row=3,
                 start_row=4,
@@ -142,7 +139,7 @@ class TestErrorHandling:
                 "测试单位": {
                     "header_row": 3,
                     "start_row": 4,
-                    "field_mappings": {"姓名": {"column_name": "姓名"}},
+                    "field_mappings": {"姓名": {"source_column": "姓名"}},
                     "transformations": {},
                 }
             },
@@ -341,15 +338,11 @@ class TestDynamicTemplateSelection:
             )
             output_path = tmp_path / filename
 
-            simple_field_mappings = {
-                k: v["column_name"] for k, v in unit_config["field_mappings"].items()
-            }
-
             writer = ExcelWriter()
             writer.write_excel(
                 template_path=template_path,
                 data=group_data,
-                field_mappings=simple_field_mappings,
+                field_mappings=unit_config["field_mappings"],
                 output_path=str(output_path),
                 header_row=unit_config["header_row"],
                 start_row=unit_config["start_row"],
