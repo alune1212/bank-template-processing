@@ -170,12 +170,12 @@ class TemplateSelector:
             "default": {
                 "data": default_data,
                 "template": default_template,
-                "group_name": self._extract_group_name(default_template),
+                "group_name": "default",  # 使用预定义的组名
             },
             "special": {
                 "data": special_data,
                 "template": special_template,
-                "group_name": self._extract_group_name(special_template),
+                "group_name": "special",  # 使用预定义的组名
             },
         }
 

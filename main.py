@@ -162,21 +162,23 @@ def generate_output_filename(
     Args:
         unit_name: 单位名称
         month: 月份参数
-        template_name: 模板名称（可选）
+        template_name: 模板名称（可选，如果为None则从template_path提取）
         timestamp: 时间戳字符串
-        template_path: 模板文件路径（用于获取文件扩展名）
+        template_path: 模板文件路径（用于获取文件扩展名和模板名称）
 
     Returns:
         输出文件名（包含与模板相同的扩展名）
     """
     from pathlib import Path
 
-    template_ext = Path(template_path).suffix
+    template_path_obj = Path(template_path)
+    template_ext = template_path_obj.suffix
 
-    if template_name:
-        return f"{unit_name}_{template_name}_{month}_{timestamp}{template_ext}"
-    else:
-        return f"{unit_name}_{month}_{timestamp}{template_ext}"
+    # 如果未显式提供template_name，则从template_path中提取模板名称
+    if template_name is None:
+        template_name = template_path_obj.stem  # 获取不含扩展名的文件名
+
+    return f"{unit_name}_{template_name}_{month}_{timestamp}{template_ext}"
 
 
 def setup_logging() -> None:
