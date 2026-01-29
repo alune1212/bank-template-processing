@@ -47,12 +47,6 @@
             "target_column": "F",
             "transform": "none",
             "required": false
-          },
-          "开户支行字段": {
-            "source_column": "开户银行",
-            "target_column": "G",
-            "transform": "none",
-            "required": false
           }
         },
         "fixed_values": {
@@ -134,12 +128,6 @@
           "开户银行字段": {
             "source_column": "开户银行",
             "target_column": "F",
-            "transform": "none",
-            "required": false
-          },
-          "开户支行字段": {
-            "source_column": "开户银行",
-            "target_column": "G",
             "transform": "none",
             "required": false
           }
