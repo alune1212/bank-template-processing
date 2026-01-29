@@ -133,17 +133,17 @@ class TestGenerateOutputFilename:
     """测试输出文件名生成"""
 
     def test_generate_output_filename_without_template_name(self):
-        """测试生成输出文件名（不含模板名）"""
+        """测试生成输出文件名（template_name为None时提取模板名）"""
         from main import generate_output_filename
 
         filename = generate_output_filename(
             "unit1", "01", None, "20250127_120000", "template.xlsx"
         )
 
-        assert filename == "unit1_01_20250127_120000.xlsx"
+        assert filename == "unit1_template_01_20250127_120000.xlsx"
 
     def test_generate_output_filename_with_template_name(self):
-        """测试生成输出文件名（含模板名）"""
+        """测试生成输出文件名（显式提供template_name）"""
         from main import generate_output_filename
 
         filename = generate_output_filename(
@@ -160,7 +160,7 @@ class TestGenerateOutputFilename:
             "unit1", "01", None, "20250127_120000", "template.csv"
         )
 
-        assert filename == "unit1_01_20250127_120000.csv"
+        assert filename == "unit1_template_01_20250127_120000.csv"
 
     def test_generate_output_filename_xls_extension(self):
         """测试XLS模板生成XLS扩展名"""
@@ -170,7 +170,7 @@ class TestGenerateOutputFilename:
             "unit1", "01", None, "20250127_120000", "template.xls"
         )
 
-        assert filename == "unit1_01_20250127_120000.xls"
+        assert filename == "unit1_template_01_20250127_120000.xls"
 
 
 class TestMainWorkflow:

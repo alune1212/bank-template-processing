@@ -54,6 +54,8 @@
     "default_bank": "农业银行",
     "default_template": "tests/fixtures/integration_template.xlsx",
     "special_template": "tests/fixtures/integration_special_template.xlsx",
-    "bank_column": "开户银行"
+    "bank_column": "开户银行",
+    "default_group_name": "integration_template",
+    "special_group_name": "integration_special_template"
   }
 }

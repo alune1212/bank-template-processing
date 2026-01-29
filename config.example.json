@@ -6,7 +6,9 @@
         "enabled": false,
         "default_bank": "中国农业银行",
         "special_template": "templates/example_special_template.xlsx",
-        "bank_column": "开户银行"
+        "bank_column": "开户银行",
+        "default_group_name": "工商银行",
+        "special_group_name": "跨行进卡"
       },
       "default": {
         "template_path": "templates/example_template.xlsx",

@@ -1015,7 +1015,9 @@
         "enabled": true,
         "default_bank": "中国工商银行",
         "special_template": "templates/北京远达跨行进卡模版.xlsx",
-        "bank_column": "开户银行"
+        "bank_column": "开户银行",
+        "default_group_name": "工商银行",
+        "special_group_name": "跨行进卡"
       },
       "default": {
         "template_path": "templates/北京远达工商银行模版.xlsx",

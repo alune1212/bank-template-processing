@@ -69,6 +69,8 @@ class TestGroupData:
                 "default_bank": "农业银行",
                 "default_template": "templates/农业银行.xlsx",
                 "special_template": "templates/农业银行-特殊.xlsx",
+                "default_group_name": "农业银行",
+                "special_group_name": "农业银行-特殊",
             }
         }
         selector = TemplateSelector(config)
@@ -85,14 +87,12 @@ class TestGroupData:
         assert "default" in result
         assert "special" in result
 
-        # 默认组应该有 2 条数据
         assert len(result["default"]["data"]) == 2
         assert result["default"]["data"][0]["姓名"] == "张三"
         assert result["default"]["data"][1]["姓名"] == "王五"
         assert result["default"]["template"] == "templates/农业银行.xlsx"
         assert result["default"]["group_name"] == "农业银行"
 
-        # 特殊组应该有 2 条数据
         assert len(result["special"]["data"]) == 2
         assert result["special"]["data"][0]["姓名"] == "李四"
         assert result["special"]["data"][1]["姓名"] == "赵六"

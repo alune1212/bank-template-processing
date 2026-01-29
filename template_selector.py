@@ -66,14 +66,18 @@ class TemplateSelector:
                 "default": {
                     "data": [...],
                     "template": template_path,
-                    "group_name": "农业银行"
+                    "group_name": "default_group_name"
                 },
                 "special": {
                     "data": [...],
                     "template": special_template,
-                    "group_name": "农业银行-特殊"
+                    "group_name": "special_group_name"
                 }
             }
+
+            其中 default_group_name 和 special_group_name 从配置中的
+            "template_selector.default_group_name" 和 "template_selector.special_group_name" 读取，
+            如果未配置则分别使用默认值 "default" 和 "special"。
 
         Raises:
             ValidationError: 当缺少银行列或银行值为空时抛出
@@ -166,16 +170,19 @@ class TemplateSelector:
         default_template = self.selector_config.get("default_template", "")
         special_template = self.selector_config.get("special_template", "")
 
+        default_group_name = self.selector_config.get("default_group_name", "default")
+        special_group_name = self.selector_config.get("special_group_name", "special")
+
         return {
             "default": {
                 "data": default_data,
                 "template": default_template,
-                "group_name": "default",  # 使用预定义的组名
+                "group_name": default_group_name,
             },
             "special": {
                 "data": special_data,
                 "template": special_template,
-                "group_name": "special",  # 使用预定义的组名
+                "group_name": special_group_name,
             },
         }
 
