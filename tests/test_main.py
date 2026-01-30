@@ -102,19 +102,6 @@ class TestArgumentParser:
         assert args.output_filename_template == "{unit_name}_{month}_{timestamp}"
 
 
-class TestGenerateTimestamp:
-    """测试时间戳生成"""
-
-    def test_generate_timestamp_format(self):
-        """测试时间戳格式"""
-        from bank_template_processing.main import generate_timestamp
-        import re
-
-        timestamp = generate_timestamp()
-        pattern = r"^\d{8}_\d{6}$"
-        assert re.match(pattern, timestamp)
-
-
 class TestGenerateOutputFilename:
     """测试输出文件名生成"""
 
@@ -122,33 +109,33 @@ class TestGenerateOutputFilename:
         """测试生成输出文件名（template_name为None时提取模板名）"""
         from bank_template_processing.main import generate_output_filename
 
-        filename = generate_output_filename("unit1", "01", None, "20250127_120000", "template.xlsx")
+        filename = generate_output_filename("unit1", "01", None, "template.xlsx", 10, 1000.50)
 
-        assert filename == "unit1_template_01_20250127_120000.xlsx"
+        assert filename == "unit1_template_10人_金额1000.50元.xlsx"
 
     def test_generate_output_filename_with_template_name(self):
         """测试生成输出文件名（显式提供template_name）"""
         from bank_template_processing.main import generate_output_filename
 
-        filename = generate_output_filename("unit1", "年终奖", "工商银行", "20250127_120000", "template.xlsx")
+        filename = generate_output_filename("unit1", "年终奖", "工商银行", "template.xlsx", 5, 500.00)
 
-        assert filename == "unit1_工商银行_年终奖_20250127_120000.xlsx"
+        assert filename == "unit1_工商银行_5人_金额500.00元.xlsx"
 
     def test_generate_output_filename_csv_extension(self):
         """测试CSV模板生成CSV扩展名"""
         from bank_template_processing.main import generate_output_filename
 
-        filename = generate_output_filename("unit1", "01", None, "20250127_120000", "template.csv")
+        filename = generate_output_filename("unit1", "01", None, "template.csv", 10, 1000.00)
 
-        assert filename == "unit1_template_01_20250127_120000.csv"
+        assert filename == "unit1_template_10人_金额1000.00元.csv"
 
     def test_generate_output_filename_xls_extension(self):
         """测试XLS模板生成XLS扩展名"""
         from bank_template_processing.main import generate_output_filename
 
-        filename = generate_output_filename("unit1", "01", None, "20250127_120000", "template.xls")
+        filename = generate_output_filename("unit1", "01", None, "template.xls", 10, 1000.00)
 
-        assert filename == "unit1_template_01_20250127_120000.xls"
+        assert filename == "unit1_template_10人_金额1000.00元.xls"
 
 
 class TestMainWorkflow:
