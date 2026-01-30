@@ -1,7 +1,7 @@
 # TESTS KNOWLEDGE BASE
 
 ## OVERVIEW
-Comprehensive test suite using `pytest` and `pytest-cov`, covering all application modules with 3k+ lines of test code. Features class-based organization and extensive compatibility testing.
+Comprehensive test suite using `pytest` and `pytest-cov`, covering all application modules. Features class-based organization and extensive compatibility testing.
 
 ## STRUCTURE
 ```
@@ -22,26 +22,23 @@ tests/
 | **Fixtures** | `fixtures/` | Excel/JSON files for testing |
 
 ## CONVENTIONS
-- **Class-Based**: All tests grouped in `Test*` classes (e.g., `class TestLoadConfig:`).
+- **Class-Based**: All tests grouped in `Test*` classes.
 - **Naming**: Descriptive snake_case (e.g., `test_load_valid_config`).
-- **Fixtures**: Heavy use of built-in `tmp_path`. No custom fixtures in `conftest.py`.
-- **Docs**: Bilingual strategy. Module docs in Chinese; Bug tests in English.
-- **Mocking**: Use `unittest.mock` (patch, MagicMock) directly, not pytest-mock.
-- **Coverage**: Always run with `term-missing` report enabled.
+- **Fixtures**: Use built-in `tmp_path`. No custom fixtures in `conftest.py`.
+- **Docs**: Bilingual strategy. Module docs in Chinese.
+- **Mocking**: Use `unittest.mock` directly.
+- **Imports**: Uses installed package (src layout).
 
 ## ANTI-PATTERNS
-- **Do NOT** use `src/` layout imports (imports are direct from root).
+- **Do NOT** use flat layout imports (e.g. `import main` is wrong; use `from bank_template_processing import main`).
 - **Do NOT** add custom markers (use file structure for organization).
-- **Do NOT** rely on `pytest.ini` exclusively (check `pyproject.toml` for duplicates).
+- **Do NOT** rely on `pytest.ini` (use `pyproject.toml`).
 
 ## COMMANDS
 ```bash
 # Run all tests
 uv run pytest tests/ -v
 
-# Run specific module
-uv run pytest tests/test_excel_writer.py -v
-
 # Run with HTML coverage report
-uv run pytest --cov=. --cov-report=html
+uv run pytest --cov=src --cov-report=html
 ```
