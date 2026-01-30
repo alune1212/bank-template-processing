@@ -6,7 +6,7 @@
 
 import logging
 from typing import List, Dict, Any
-from validator import ValidationError
+from .validator import ValidationError
 
 
 # 配置日志
@@ -110,9 +110,7 @@ class TemplateSelector:
             bank_value = row[bank_column]
 
             # 验证银行值非空
-            if bank_value is None or (
-                isinstance(bank_value, str) and not bank_value.strip()
-            ):
+            if bank_value is None or (isinstance(bank_value, str) and not bank_value.strip()):
                 error_msg = f"第{index}行的'{bank_column}'字段为空"
                 logger.error(error_msg)
                 raise ValidationError(error_msg)
@@ -123,9 +121,7 @@ class TemplateSelector:
             else:
                 special_data.append(row)
 
-        logger.info(
-            f"分组完成: 默认组 {len(default_data)} 条, 特殊组 {len(special_data)} 条"
-        )
+        logger.info(f"分组完成: 默认组 {len(default_data)} 条, 特殊组 {len(special_data)} 条")
 
         # 构建结果
         return self._build_result(default_data, special_data)
@@ -141,22 +137,16 @@ class TemplateSelector:
             "default": {
                 "data": [],
                 "template": self.selector_config.get("default_template", ""),
-                "group_name": self._extract_group_name(
-                    self.selector_config.get("default_template", "")
-                ),
+                "group_name": self._extract_group_name(self.selector_config.get("default_template", "")),
             },
             "special": {
                 "data": [],
                 "template": self.selector_config.get("special_template", ""),
-                "group_name": self._extract_group_name(
-                    self.selector_config.get("special_template", "")
-                ),
+                "group_name": self._extract_group_name(self.selector_config.get("special_template", "")),
             },
         }
 
-    def _build_result(
-        self, default_data: List[Dict], special_data: List[Dict]
-    ) -> Dict[str, Any]:
+    def _build_result(self, default_data: List[Dict], special_data: List[Dict]) -> Dict[str, Any]:
         """
         构建分组结果
 

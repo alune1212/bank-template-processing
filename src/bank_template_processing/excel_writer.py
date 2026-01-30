@@ -30,7 +30,7 @@ try:
 except ImportError:
     xl_copy = None
 
-from config_loader import ConfigError
+from .config_loader import ConfigError
 
 
 logger = logging.getLogger(__name__)
@@ -90,17 +90,13 @@ class ExcelWriter:
 
         # 验证配置
         if start_row <= header_row:
-            error_msg = (
-                f"配置错误: start_row ({start_row}) 必须大于 header_row ({header_row})"
-            )
+            error_msg = f"配置错误: start_row ({start_row}) 必须大于 header_row ({header_row})"
             logger.error(error_msg)
             raise ConfigError(error_msg)
 
         # 废弃 bank_branch_mapping 警告
         if bank_branch_mapping and bank_branch_mapping.get("enabled"):
-            logger.warning(
-                "配置警告: 'bank_branch_mapping' 已废弃，请使用 'field_mappings' 进行配置。"
-            )
+            logger.warning("配置警告: 'bank_branch_mapping' 已废弃，请使用 'field_mappings' 进行配置。")
 
         # 根据文件扩展名选择写入方式
         ext = Path(template_path).suffix.lower()
@@ -346,9 +342,7 @@ class ExcelWriter:
         headers = {}
         if header_row > 0:
             for col_idx in range(ws_template.ncols):
-                cell_value = ws_template.cell_value(
-                    header_row - 1, col_idx
-                )  # xlrd使用0-index
+                cell_value = ws_template.cell_value(header_row - 1, col_idx)  # xlrd使用0-index
                 if cell_value:
                     headers[str(cell_value).strip()] = col_idx + 1
             logger.debug(f"读取到 {len(headers)} 个表头字段")
@@ -432,9 +426,7 @@ class ExcelWriter:
 
                 # 智能解析目标列索引
                 try:
-                    col_idx = self._resolve_column_index(
-                        target_column, headers, max_columns
-                    )
+                    col_idx = self._resolve_column_index(target_column, headers, max_columns)
                 except ValueError as e:
                     logger.warning(f"跳过字段 {template_column}: {e}")
                     continue
@@ -447,9 +439,7 @@ class ExcelWriter:
             if fixed_values:
                 for column, value in fixed_values.items():
                     try:
-                        col_idx = self._resolve_column_index(
-                            column, headers, max_columns
-                        )
+                        col_idx = self._resolve_column_index(column, headers, max_columns)
                         if 1 <= col_idx <= max_columns:
                             row_output[col_idx - 1] = str(value)
                     except ValueError as e:
@@ -469,9 +459,7 @@ class ExcelWriter:
             if month_value is not None and month_type_mapping:
                 target_column = month_type_mapping.get("target_column", "C")
                 try:
-                    col_idx = self._resolve_column_index(
-                        target_column, headers, max_columns
-                    )
+                    col_idx = self._resolve_column_index(target_column, headers, max_columns)
                     if 1 <= col_idx <= max_columns:
                         row_output[col_idx - 1] = str(month_value)
                 except ValueError as e:
@@ -519,9 +507,7 @@ class ExcelWriter:
 
                 # 智能解析目标列索引
                 try:
-                    col_idx = self._resolve_column_index(
-                        target_column, headers, ws.max_column
-                    )
+                    col_idx = self._resolve_column_index(target_column, headers, ws.max_column)
                 except ValueError as e:
                     logger.warning(f"跳过字段 {template_column}: {e}")
                     continue
@@ -545,9 +531,7 @@ class ExcelWriter:
             if fixed_values:
                 for column, value in fixed_values.items():
                     try:
-                        col_idx = self._resolve_column_index(
-                            column, headers, ws.max_column
-                        )
+                        col_idx = self._resolve_column_index(column, headers, ws.max_column)
                         ws.cell(output_row_idx, col_idx, value)
                     except ValueError as e:
                         logger.warning(f"跳过固定值列 {column}: {e}")
@@ -565,9 +549,7 @@ class ExcelWriter:
             if month_value is not None and month_type_mapping:
                 target_column = month_type_mapping.get("target_column", "C")
                 try:
-                    col_idx = self._resolve_column_index(
-                        target_column, headers, ws.max_column
-                    )
+                    col_idx = self._resolve_column_index(target_column, headers, ws.max_column)
                     ws.cell(output_row_idx, col_idx, month_value)
                 except ValueError as e:
                     logger.warning(f"跳过月类型映射列 {target_column}: {e}")
@@ -620,9 +602,7 @@ class ExcelWriter:
 
                 # 智能解析目标列索引
                 try:
-                    col_idx = self._resolve_column_index(
-                        target_column, headers, max_columns
-                    )
+                    col_idx = self._resolve_column_index(target_column, headers, max_columns)
                 except ValueError as e:
                     logger.warning(f"跳过字段 {template_column}: {e}")
                     continue
@@ -635,9 +615,7 @@ class ExcelWriter:
             if fixed_values:
                 for column, value in fixed_values.items():
                     try:
-                        col_idx = self._resolve_column_index(
-                            column, headers, max_columns
-                        )
+                        col_idx = self._resolve_column_index(column, headers, max_columns)
                         if 1 <= col_idx <= max_columns:
                             ws.write(output_row_idx - 1, col_idx - 1, value)
                     except ValueError as e:
@@ -657,9 +635,7 @@ class ExcelWriter:
             if month_value is not None and month_type_mapping:
                 target_column = month_type_mapping.get("target_column", "C")
                 try:
-                    col_idx = self._resolve_column_index(
-                        target_column, headers, max_columns
-                    )
+                    col_idx = self._resolve_column_index(target_column, headers, max_columns)
                     if 1 <= col_idx <= max_columns:
                         ws.write(output_row_idx - 1, col_idx - 1, month_value)
                 except ValueError as e:
@@ -667,9 +643,7 @@ class ExcelWriter:
 
         logger.debug(f"已写入 {len(data)} 行数据到xls工作表")
 
-    def _calculate_month_value(
-        self, month_param: Optional[str], month_type_mapping: dict
-    ) -> Optional[str]:
+    def _calculate_month_value(self, month_param: Optional[str], month_type_mapping: dict) -> Optional[str]:
         """
         计算month类型映射的值
 
@@ -749,9 +723,7 @@ class ExcelWriter:
         if headers and isinstance(column_spec, str) and column_spec in headers:
             col_idx = headers[column_spec]
             if strict_bounds and max_columns and col_idx > max_columns:
-                raise ValueError(
-                    f"列名 '{column_spec}' 对应的索引 {col_idx} 超出最大列数 {max_columns}"
-                )
+                raise ValueError(f"列名 '{column_spec}' 对应的索引 {col_idx} 超出最大列数 {max_columns}")
             return col_idx
 
         # 尝试作为整数索引
@@ -773,16 +745,10 @@ class ExcelWriter:
                 raise ValueError(f"列索引必须 >= 1，当前值: {column_spec}")
 
             # 尝试作为Excel列标识（A, B, C...）- 必须只包含A-Z
-            if column_spec.isalpha() and all(
-                c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" for c in column_spec.upper()
-            ):
+            if column_spec.isalpha() and all(c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" for c in column_spec.upper()):
                 col_idx = self._column_letter_to_index(column_spec.upper())
                 if strict_bounds and max_columns and col_idx > max_columns:
-                    raise ValueError(
-                        f"Excel列标识 '{column_spec}' 对应的索引 {col_idx} 超出最大列数 {max_columns}"
-                    )
+                    raise ValueError(f"Excel列标识 '{column_spec}' 对应的索引 {col_idx} 超出最大列数 {max_columns}")
                 return col_idx
 
-        raise ValueError(
-            f"无法解析列标识: {column_spec} (支持的格式: 列名、Excel列标识A-Z、数字索引)"
-        )
+        raise ValueError(f"无法解析列标识: {column_spec} (支持的格式: 列名、Excel列标识A-Z、数字索引)")

@@ -7,12 +7,12 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from config_loader import load_config, validate_config, ConfigError, get_unit_config
-from excel_reader import ExcelReader, ExcelError
-from validator import Validator, ValidationError
-from transformer import Transformer, TransformError
-from excel_writer import ExcelWriter
-from template_selector import TemplateSelector
+from .config_loader import load_config, validate_config, ConfigError, get_unit_config
+from .excel_reader import ExcelReader, ExcelError
+from .validator import Validator, ValidationError
+from .transformer import Transformer, TransformError
+from .excel_writer import ExcelWriter
+from .template_selector import TemplateSelector
 
 
 def get_executable_dir() -> Path:
@@ -29,8 +29,12 @@ def get_executable_dir() -> Path:
         # PyInstaller 打包后的应用
         return Path(os.path.dirname(sys.executable))
     else:
-        # 开发环境：使用脚本所在目录
-        return Path(__file__).parent.resolve()
+        # 开发环境：返回项目根目录（从 src/bank_template_processing/main.py 向上两级）
+        # __file__ = .../src/bank_template_processing/main.py
+        # parents[0] = .../src/bank_template_processing
+        # parents[1] = .../src
+        # parents[2] = .../ (project root)
+        return Path(__file__).parents[2].resolve()
 
 
 def resolve_path(path: str, base_dir: Path | None = None) -> str:
@@ -114,21 +118,15 @@ def parse_args(argv=None) -> argparse.Namespace:
         """,
     )
 
-    parser.add_argument(
-        "excel_path", help="输入Excel文件路径（支持.xlsx, .csv, .xls格式）"
-    )
+    parser.add_argument("excel_path", help="输入Excel文件路径（支持.xlsx, .csv, .xls格式）")
 
     parser.add_argument("unit_name", help="组织单位名称（必须在配置文件中定义）")
 
     parser.add_argument("month", help="月份参数（1-12、01-09、'年终奖'或'补偿金'）")
 
-    parser.add_argument(
-        "--output-dir", default="output/", help="输出目录（默认：output/）"
-    )
+    parser.add_argument("--output-dir", default="output/", help="输出目录（默认：output/）")
 
-    parser.add_argument(
-        "--config", default="config.json", help="配置文件路径（默认：config.json）"
-    )
+    parser.add_argument("--config", default="config.json", help="配置文件路径（默认：config.json）")
 
     parser.add_argument(
         "--output-filename-template",
@@ -190,9 +188,7 @@ def setup_logging() -> None:
     )
 
 
-def apply_transformations(
-    data: list, transformations: dict, field_mappings: dict
-) -> list:
+def apply_transformations(data: list, transformations: dict, field_mappings: dict) -> list:
     """
     应用转换规则到数据
 
@@ -224,9 +220,7 @@ def apply_transformations(
             if transform_type == "amount_decimal":
                 transform_config = transformations.get("amount_decimal", {})
                 decimal_places = transform_config.get("decimal_places", 2)
-                new_row[source_field] = transformer.transform_amount(
-                    value, decimal_places
-                )
+                new_row[source_field] = transformer.transform_amount(value, decimal_places)
             elif transform_type == "card_number":
                 new_row[source_field] = transformer.transform_card_number(value)
             elif transform_type == "date_format":
@@ -299,9 +293,7 @@ def main(argv=None) -> None:
         logger = logging.getLogger(__name__)
 
         args = parse_args(argv)
-        logger.info(
-            f"开始处理：{args.excel_path}，单位：{args.unit_name}，月份：{args.month}"
-        )
+        logger.info(f"开始处理：{args.excel_path}，单位：{args.unit_name}，月份：{args.month}")
 
         validated_month = validate_month(args.month)
         logger.info(f"月份参数验证通过：{validated_month}")
@@ -326,9 +318,7 @@ def main(argv=None) -> None:
 
         # 获取原始配置以检查模板选择器设置
         raw_unit_config = config["organization_units"][args.unit_name]
-        template_selection_rules = raw_unit_config.get(
-            "template_selector", config.get("template_selection_rules", {})
-        )
+        template_selection_rules = raw_unit_config.get("template_selector", config.get("template_selection_rules", {}))
         selector_enabled = template_selection_rules.get("enabled", False)
 
         # 获取默认配置用于单模板模式或作为基础配置
@@ -364,17 +354,11 @@ def main(argv=None) -> None:
 
                 for row in data:
                     if "required_fields" in validation_rules:
-                        Validator.validate_required(
-                            row, validation_rules["required_fields"]
-                        )
+                        Validator.validate_required(row, validation_rules["required_fields"])
                     if "type_rules" in validation_rules:
-                        Validator.validate_data_types(
-                            row, validation_rules["type_rules"]
-                        )
+                        Validator.validate_data_types(row, validation_rules["type_rules"])
                     if "range_rules" in validation_rules:
-                        Validator.validate_value_ranges(
-                            row, validation_rules["range_rules"]
-                        )
+                        Validator.validate_value_ranges(row, validation_rules["range_rules"])
 
                 logger.info("数据验证通过")
 
@@ -425,9 +409,7 @@ def main(argv=None) -> None:
                 )
                 output_path = output_dir / output_filename
 
-                logger.info(
-                    f"处理组：{group_key}，模板：{template_name}，数据行数：{len(group_data)}"
-                )
+                logger.info(f"处理组：{group_key}，模板：{template_name}，数据行数：{len(group_data)}")
 
                 rule_group = "crossbank" if group_key == "special" else group_key
 
@@ -465,17 +447,11 @@ def main(argv=None) -> None:
 
                     for row in group_data:
                         if "required_fields" in validation_rules:
-                            Validator.validate_required(
-                                row, validation_rules["required_fields"]
-                            )
+                            Validator.validate_required(row, validation_rules["required_fields"])
                         if "type_rules" in validation_rules:
-                            Validator.validate_data_types(
-                                row, validation_rules["type_rules"]
-                            )
+                            Validator.validate_data_types(row, validation_rules["type_rules"])
                         if "range_rules" in validation_rules:
-                            Validator.validate_value_ranges(
-                                row, validation_rules["range_rules"]
-                            )
+                            Validator.validate_value_ranges(row, validation_rules["range_rules"])
 
                     logger.info("数据验证通过")
 
@@ -483,9 +459,7 @@ def main(argv=None) -> None:
                 field_mappings = group_config.get("field_mappings", {})
                 if transformations:
                     logger.info("转换数据")
-                    group_data = apply_transformations(
-                        group_data, transformations, field_mappings
-                    )
+                    group_data = apply_transformations(group_data, transformations, field_mappings)
                     logger.info("数据转换完成")
 
                 process_group(
