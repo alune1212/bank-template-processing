@@ -6,7 +6,9 @@
         "enabled": true,
         "default_bank": "中国农业银行",
         "special_template": "templates/农业银行跨行进卡模板.xlsx",
-        "bank_column": "开户银行"
+        "bank_column": "开户银行",
+        "default_group_name": "农业银行",
+        "special_group_name": "农行跨行"
       },
       "default": {
         "template_path": "templates/农业银行模板.csv",
@@ -153,7 +155,9 @@
         "enabled": true,
         "default_bank": "中国农业银行",
         "special_template": "templates/农业银行跨行进卡模板.xlsx",
-        "bank_column": "开户银行"
+        "bank_column": "开户银行",
+        "default_group_name": "农业银行",
+        "special_group_name": "农行跨行"
       },
       "default": {
         "template_path": "templates/农业银行模板.csv",
@@ -300,7 +304,9 @@
         "enabled": true,
         "default_bank": "中国农业银行",
         "special_template": "templates/农业银行跨行进卡模板.xlsx",
-        "bank_column": "开户银行"
+        "bank_column": "开户银行",
+        "default_group_name": "农业银行",
+        "special_group_name": "农行跨行"
       },
       "default": {
         "template_path": "templates/农业银行模板.csv",
@@ -447,7 +453,9 @@
         "enabled": true,
         "default_bank": "中国农业银行",
         "special_template": "templates/农业银行跨行进卡模板.xlsx",
-        "bank_column": "开户银行"
+        "bank_column": "开户银行",
+        "default_group_name": "农业银行",
+        "special_group_name": "农行跨行"
       },
       "default": {
         "template_path": "templates/农业银行模板.csv",
@@ -594,7 +602,9 @@
         "enabled": true,
         "default_bank": "中国农业银行",
         "special_template": "templates/农业银行跨行进卡模板.xlsx",
-        "bank_column": "开户银行"
+        "bank_column": "开户银行",
+        "default_group_name": "农业银行",
+        "special_group_name": "农行跨行"
       },
       "default": {
         "template_path": "templates/农业银行模板.csv",
@@ -741,7 +751,9 @@
         "enabled": true,
         "default_bank": "中国农业银行",
         "special_template": "templates/农业银行跨行进卡模板.xlsx",
-        "bank_column": "开户银行"
+        "bank_column": "开户银行",
+        "default_group_name": "农业银行",
+        "special_group_name": "农行跨行"
       },
       "default": {
         "template_path": "templates/农业银行模板.csv",
