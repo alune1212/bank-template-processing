@@ -1,7 +1,7 @@
 """Test for Chinese column name bug fix"""
 
 import pytest
-from excel_writer import ExcelWriter
+from bank_template_processing.excel_writer import ExcelWriter
 
 
 def test_chinese_column_name_not_treated_as_excel_letter():
@@ -17,9 +17,7 @@ def test_chinese_column_name_not_treated_as_excel_letter():
         ("AB", 28),
     ]:
         result = writer._resolve_column_index(col_letter)
-        assert result == expected_idx, (
-            f"{col_letter} should be {expected_idx}, got {result}"
-        )
+        assert result == expected_idx, f"{col_letter} should be {expected_idx}, got {result}"
 
     # Test case 2: Chinese column names should NOT be treated as Excel letters
     # They should raise ValueError if not in headers
@@ -42,9 +40,7 @@ def test_chinese_column_name_not_treated_as_excel_letter():
     }
     for chinese_col, expected_idx in headers.items():
         result = writer._resolve_column_index(chinese_col, headers=headers)
-        assert result == expected_idx, (
-            f"{chinese_col} should be {expected_idx}, got {result}"
-        )
+        assert result == expected_idx, f"{chinese_col} should be {expected_idx}, got {result}"
 
     # Test case 5: Numeric strings should still work
     for num_str, expected_idx in [("1", 1), ("10", 10), ("100", 100)]:
@@ -105,21 +101,13 @@ def test_resolve_column_index_with_max_columns_validation():
 
     # Headers within bounds should work
     headers = {"姓名": 1, "金额": 10}
-    assert (
-        writer._resolve_column_index("姓名", headers=headers, max_columns=max_columns)
-        == 1
-    )
-    assert (
-        writer._resolve_column_index("金额", headers=headers, max_columns=max_columns)
-        == 10
-    )
+    assert writer._resolve_column_index("姓名", headers=headers, max_columns=max_columns) == 1
+    assert writer._resolve_column_index("金额", headers=headers, max_columns=max_columns) == 10
 
     # Headers exceeding bounds should fail
     headers_invalid = {"超限": 11}
     with pytest.raises(ValueError, match="超出最大列数"):
-        writer._resolve_column_index(
-            "超限", headers=headers_invalid, max_columns=max_columns
-        )
+        writer._resolve_column_index("超限", headers=headers_invalid, max_columns=max_columns)
 
 
 if __name__ == "__main__":

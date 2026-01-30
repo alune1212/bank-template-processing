@@ -15,14 +15,14 @@ class TestMonthValidation:
 
     def test_validate_month_numeric_1_to_12(self):
         """测试数字格式月份：1-12"""
-        from main import validate_month
+        from bank_template_processing.main import validate_month
 
         for month in range(1, 13):
             assert validate_month(str(month)) == str(month)
 
     def test_validate_month_numeric_with_leading(self):
         """测试数字格式月份：01-09"""
-        from main import validate_month
+        from bank_template_processing.main import validate_month
 
         for month in range(1, 10):
             month_str = f"0{month}"
@@ -30,47 +30,37 @@ class TestMonthValidation:
 
     def test_validate_month_keyword_bonus(self):
         """测试关键字格式：年终奖"""
-        from main import validate_month
+        from bank_template_processing.main import validate_month
 
         assert validate_month("年终奖") == "年终奖"
 
     def test_validate_month_keyword_compensation(self):
         """测试关键字格式：补偿金"""
-        from main import validate_month
+        from bank_template_processing.main import validate_month
 
         assert validate_month("补偿金") == "补偿金"
 
     def test_validate_month_invalid_numeric(self):
         """测试无效的数字月份"""
-        from main import validate_month
+        from bank_template_processing.main import validate_month
 
-        with pytest.raises(
-            ValueError, match="月份参数必须是1-12的数字、01-09格式、'年终奖'或'补偿金'"
-        ):
+        with pytest.raises(ValueError, match="月份参数必须是1-12的数字、01-09格式、'年终奖'或'补偿金'"):
             validate_month("0")
 
-        with pytest.raises(
-            ValueError, match="月份参数必须是1-12的数字、01-09格式、'年终奖'或'补偿金'"
-        ):
+        with pytest.raises(ValueError, match="月份参数必须是1-12的数字、01-09格式、'年终奖'或'补偿金'"):
             validate_month("13")
 
-        with pytest.raises(
-            ValueError, match="月份参数必须是1-12的数字、01-09格式、'年终奖'或'补偿金'"
-        ):
+        with pytest.raises(ValueError, match="月份参数必须是1-12的数字、01-09格式、'年终奖'或'补偿金'"):
             validate_month("00")
 
     def test_validate_month_invalid_string(self):
         """测试无效的字符串月份"""
-        from main import validate_month
+        from bank_template_processing.main import validate_month
 
-        with pytest.raises(
-            ValueError, match="月份参数必须是1-12的数字、01-09格式、'年终奖'或'补偿金'"
-        ):
+        with pytest.raises(ValueError, match="月份参数必须是1-12的数字、01-09格式、'年终奖'或'补偿金'"):
             validate_month("1月")
 
-        with pytest.raises(
-            ValueError, match="月份参数必须是1-12的数字、01-09格式、'年终奖'或'补偿金'"
-        ):
+        with pytest.raises(ValueError, match="月份参数必须是1-12的数字、01-09格式、'年终奖'或'补偿金'"):
             validate_month("January")
 
 
@@ -79,7 +69,7 @@ class TestArgumentParser:
 
     def test_parse_args_with_defaults(self):
         """测试使用默认值的参数解析"""
-        from main import parse_args
+        from bank_template_processing.main import parse_args
 
         args = parse_args(["input.xlsx", "unit1", "01"])
 
@@ -92,7 +82,7 @@ class TestArgumentParser:
 
     def test_parse_args_with_custom_values(self):
         """测试使用自定义值的参数解析"""
-        from main import parse_args
+        from bank_template_processing.main import parse_args
 
         args = parse_args(
             [
@@ -121,7 +111,7 @@ class TestGenerateTimestamp:
 
     def test_generate_timestamp_format(self):
         """测试时间戳格式"""
-        from main import generate_timestamp
+        from bank_template_processing.main import generate_timestamp
         import re
 
         timestamp = generate_timestamp()
@@ -134,41 +124,33 @@ class TestGenerateOutputFilename:
 
     def test_generate_output_filename_without_template_name(self):
         """测试生成输出文件名（template_name为None时提取模板名）"""
-        from main import generate_output_filename
+        from bank_template_processing.main import generate_output_filename
 
-        filename = generate_output_filename(
-            "unit1", "01", None, "20250127_120000", "template.xlsx"
-        )
+        filename = generate_output_filename("unit1", "01", None, "20250127_120000", "template.xlsx")
 
         assert filename == "unit1_template_01_20250127_120000.xlsx"
 
     def test_generate_output_filename_with_template_name(self):
         """测试生成输出文件名（显式提供template_name）"""
-        from main import generate_output_filename
+        from bank_template_processing.main import generate_output_filename
 
-        filename = generate_output_filename(
-            "unit1", "年终奖", "工商银行", "20250127_120000", "template.xlsx"
-        )
+        filename = generate_output_filename("unit1", "年终奖", "工商银行", "20250127_120000", "template.xlsx")
 
         assert filename == "unit1_工商银行_年终奖_20250127_120000.xlsx"
 
     def test_generate_output_filename_csv_extension(self):
         """测试CSV模板生成CSV扩展名"""
-        from main import generate_output_filename
+        from bank_template_processing.main import generate_output_filename
 
-        filename = generate_output_filename(
-            "unit1", "01", None, "20250127_120000", "template.csv"
-        )
+        filename = generate_output_filename("unit1", "01", None, "20250127_120000", "template.csv")
 
         assert filename == "unit1_template_01_20250127_120000.csv"
 
     def test_generate_output_filename_xls_extension(self):
         """测试XLS模板生成XLS扩展名"""
-        from main import generate_output_filename
+        from bank_template_processing.main import generate_output_filename
 
-        filename = generate_output_filename(
-            "unit1", "01", None, "20250127_120000", "template.xls"
-        )
+        filename = generate_output_filename("unit1", "01", None, "20250127_120000", "template.xls")
 
         assert filename == "unit1_template_01_20250127_120000.xls"
 
@@ -230,13 +212,11 @@ class TestMainWorkflow:
         wb.save(template_path)
         return template_path
 
-    @patch("main.ExcelReader")
-    @patch("main.ExcelWriter")
-    def test_main_without_template_selection(
-        self, mock_writer_class, mock_reader_class, tmp_path, caplog
-    ):
+    @patch("bank_template_processing.main.ExcelReader")
+    @patch("bank_template_processing.main.ExcelWriter")
+    def test_main_without_template_selection(self, mock_writer_class, mock_reader_class, tmp_path, caplog):
         """测试主流程：不启用模板选择"""
-        from main import main
+        from bank_template_processing.main import main
 
         input_excel = self.create_test_excel(tmp_path, "input.xlsx")
         template_excel = self.create_template_excel(tmp_path, "template.xlsx")
@@ -274,9 +254,9 @@ class TestMainWorkflow:
         mock_reader_instance.read_excel.assert_called_once()
         mock_writer_class.assert_called_once()
 
-    @patch("main.ExcelReader")
-    @patch("main.TemplateSelector")
-    @patch("main.ExcelWriter")
+    @patch("bank_template_processing.main.ExcelReader")
+    @patch("bank_template_processing.main.TemplateSelector")
+    @patch("bank_template_processing.main.ExcelWriter")
     def test_main_with_template_selection(
         self,
         mock_writer_class,
@@ -286,7 +266,7 @@ class TestMainWorkflow:
         caplog,
     ):
         """测试主流程：启用模板选择"""
-        from main import main
+        from bank_template_processing.main import main
 
         input_excel = self.create_test_excel(tmp_path, "input.xlsx")
         template_excel = self.create_template_excel(tmp_path, "template.xlsx")
@@ -383,7 +363,7 @@ class TestMainWorkflow:
 
     def test_main_file_not_found(self, tmp_path, caplog):
         """测试主流程：输入文件不存在"""
-        from main import main
+        from bank_template_processing.main import main
 
         config = {
             "version": "1.0",
@@ -433,7 +413,7 @@ class TestApplyTransformations:
 
     def test_apply_transformations_empty(self):
         """测试空转换配置"""
-        from main import apply_transformations
+        from bank_template_processing.main import apply_transformations
 
         data = [{"姓名": "张三"}]
         result = apply_transformations(data, {}, {})
@@ -442,7 +422,7 @@ class TestApplyTransformations:
 
     def test_apply_transformations_date(self):
         """测试日期转换"""
-        from main import apply_transformations
+        from bank_template_processing.main import apply_transformations
 
         data = [{"日期": "15/01/2024"}]
         transformations = {"date_format": {"output_format": "YYYY-MM-DD"}}
@@ -453,25 +433,21 @@ class TestApplyTransformations:
 
     def test_apply_transformations_amount(self):
         """测试金额转换"""
-        from main import apply_transformations
+        from bank_template_processing.main import apply_transformations
 
         data = [{"金额": "1000.456"}]
         transformations = {"amount_decimal": {"decimal_places": 2}}
-        field_mappings = {
-            "金额": {"source_column": "金额", "transform": "amount_decimal"}
-        }
+        field_mappings = {"金额": {"source_column": "金额", "transform": "amount_decimal"}}
         result = apply_transformations(data, transformations, field_mappings)
 
         assert result[0]["金额"] == 1000.46
 
     def test_apply_transformations_card_number(self):
         """测试卡号转换"""
-        from main import apply_transformations
+        from bank_template_processing.main import apply_transformations
 
         data = [{"卡号": "6222-0212-3456-7890-128"}]
-        transformations = {
-            "card_number": {"remove_formatting": True, "luhn_validation": True}
-        }
+        transformations = {"card_number": {"remove_formatting": True, "luhn_validation": True}}
         field_mappings = {"卡号": {"source_column": "卡号", "transform": "card_number"}}
         result = apply_transformations(data, transformations, field_mappings)
 
@@ -479,25 +455,21 @@ class TestApplyTransformations:
 
     def test_apply_transformations_amount(self):
         """测试金额转换"""
-        from main import apply_transformations
+        from bank_template_processing.main import apply_transformations
 
         data = [{"金额": "1000.456"}]
         transformations = {"amount_decimal": {"decimal_places": 2}}
-        field_mappings = {
-            "金额": {"source_column": "金额", "transform": "amount_decimal"}
-        }
+        field_mappings = {"金额": {"source_column": "金额", "transform": "amount_decimal"}}
         result = apply_transformations(data, transformations, field_mappings)
 
         assert result[0]["金额"] == 1000.46
 
     def test_apply_transformations_card_number(self):
         """测试卡号转换"""
-        from main import apply_transformations
+        from bank_template_processing.main import apply_transformations
 
         data = [{"卡号": "6222-0212-3456-7890-128"}]
-        transformations = {
-            "card_number": {"remove_formatting": True, "luhn_validation": True}
-        }
+        transformations = {"card_number": {"remove_formatting": True, "luhn_validation": True}}
         field_mappings = {"卡号": {"source_column": "卡号", "transform": "card_number"}}
         result = apply_transformations(data, transformations, field_mappings)
 
@@ -505,7 +477,7 @@ class TestApplyTransformations:
 
     def test_apply_transformations_mixed(self):
         """测试混合转换"""
-        from main import apply_transformations
+        from bank_template_processing.main import apply_transformations
 
         data = [{"日期": "15/01/2024", "金额": "1000.456"}]
         transformations = {

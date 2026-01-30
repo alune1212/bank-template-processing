@@ -15,12 +15,12 @@ from openpyxl import load_workbook
 # 添加项目根目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config_loader import ConfigError, load_config, validate_config
-from excel_reader import ExcelReader, ExcelError
-from excel_writer import ExcelWriter
-from template_selector import TemplateSelector, ValidationError
-from transformer import Transformer, TransformError
-from validator import Validator
+from bank_template_processing.config_loader import ConfigError, load_config, validate_config
+from bank_template_processing.excel_reader import ExcelReader, ExcelError
+from bank_template_processing.excel_writer import ExcelWriter
+from bank_template_processing.template_selector import TemplateSelector, ValidationError
+from bank_template_processing.transformer import Transformer, TransformError
+from bank_template_processing.validator import Validator
 
 
 class TestEndToEndWorkflow:
@@ -49,26 +49,16 @@ class TestEndToEndWorkflow:
                 if field_name in row:
                     transform_type = transform_config["type"]
                     if transform_type == "date":
-                        output_format = transform_config.get(
-                            "output_format", "YYYY-MM-DD"
-                        )
-                        row[field_name] = transformer.transform_date(
-                            row[field_name], output_format
-                        )
+                        output_format = transform_config.get("output_format", "YYYY-MM-DD")
+                        row[field_name] = transformer.transform_date(row[field_name], output_format)
                     elif transform_type == "amount_decimal":
                         decimal_places = transform_config.get("decimal_places", 2)
-                        result = transformer.transform_amount(
-                            row[field_name], decimal_places
-                        )
+                        result = transformer.transform_amount(row[field_name], decimal_places)
                         row[field_name] = float(result)
                     elif transform_type == "card_number":
-                        row[field_name] = transformer.transform_card_number(
-                            row[field_name]
-                        )
+                        row[field_name] = transformer.transform_card_number(row[field_name])
                     elif transform_type == "card_number":
-                        row[field_name] = transformer.transform_card_number(
-                            row[field_name]
-                        )
+                        row[field_name] = transformer.transform_card_number(row[field_name])
 
         writer = ExcelWriter()
 
@@ -198,12 +188,10 @@ class TestUniqueFilenameGeneration:
 
     def test_filename_with_template_name(self):
         """测试带模板名的文件名生成"""
-        from main import generate_output_filename, generate_timestamp
+        from bank_template_processing.main import generate_output_filename, generate_timestamp
 
         timestamp = generate_timestamp()
-        filename = generate_output_filename(
-            "测试单位", "01", "农业银行", timestamp, "template.xlsx"
-        )
+        filename = generate_output_filename("测试单位", "01", "农业银行", timestamp, "template.xlsx")
 
         assert "测试单位" in filename
         assert "农业银行" in filename
@@ -213,12 +201,10 @@ class TestUniqueFilenameGeneration:
 
     def test_filename_without_template_name(self):
         """测试不带模板名的文件名生成"""
-        from main import generate_output_filename, generate_timestamp
+        from bank_template_processing.main import generate_output_filename, generate_timestamp
 
         timestamp = generate_timestamp()
-        filename = generate_output_filename(
-            "测试单位", "01", None, timestamp, "template.xlsx"
-        )
+        filename = generate_output_filename("测试单位", "01", None, timestamp, "template.xlsx")
 
         assert "测试单位" in filename
         assert "01" in filename
@@ -228,7 +214,7 @@ class TestUniqueFilenameGeneration:
 
     def test_timestamp_uniqueness(self):
         """测试时间戳唯一性"""
-        from main import generate_timestamp
+        from bank_template_processing.main import generate_timestamp
         import time
 
         timestamp1 = generate_timestamp()
@@ -288,15 +274,11 @@ class TestDynamicTemplateSelection:
 
         selector = TemplateSelector(config)
         if selector.is_enabled():
-            groups = selector.group_data(
-                data, default_bank=template_rules.get("default_bank")
-            )
+            groups = selector.group_data(data, default_bank=template_rules.get("default_bank"))
         else:
-            groups = {
-                "default": {"data": data, "template": unit_config["template_path"]}
-            }
+            groups = {"default": {"data": data, "template": unit_config["template_path"]}}
 
-        from main import generate_timestamp
+        from bank_template_processing.main import generate_timestamp
 
         timestamp = generate_timestamp()
         output_files = []
@@ -312,30 +294,20 @@ class TestDynamicTemplateSelection:
 
             transformer = Transformer()
             for row in group_data:
-                for field_name, transform_config in unit_config[
-                    "transformations"
-                ].items():
+                for field_name, transform_config in unit_config["transformations"].items():
                     if field_name in row:
                         transform_type = transform_config["type"]
                         if transform_type == "date":
-                            row[field_name] = transformer.transform_date(
-                                row[field_name]
-                            )
+                            row[field_name] = transformer.transform_date(row[field_name])
                         elif transform_type == "amount":
                             decimal_places = transform_config.get("decimal_places", 2)
-                            row[field_name] = transformer.transform_amount(
-                                row[field_name], decimal_places
-                            )
+                            row[field_name] = transformer.transform_amount(row[field_name], decimal_places)
                         elif transform_type == "card_number":
-                            row[field_name] = transformer.transform_card_number(
-                                row[field_name]
-                            )
+                            row[field_name] = transformer.transform_card_number(row[field_name])
 
-            from main import generate_output_filename
+            from bank_template_processing.main import generate_output_filename
 
-            filename = generate_output_filename(
-                "测试单位", "01", group_name, timestamp, template_path
-            )
+            filename = generate_output_filename("测试单位", "01", group_name, timestamp, template_path)
             output_path = tmp_path / filename
 
             writer = ExcelWriter()
@@ -358,11 +330,7 @@ class TestDynamicTemplateSelection:
 
         assert len(output_files) == 2
 
-        default_file = [
-            f
-            for f in output_files
-            if "integration_template" in f.name and "special" not in f.name
-        ][0]
+        default_file = [f for f in output_files if "integration_template" in f.name and "special" not in f.name][0]
         special_file = [f for f in output_files if "special" in f.name][0]
 
         wb_default = load_workbook(default_file)

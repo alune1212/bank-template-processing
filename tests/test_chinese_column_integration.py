@@ -6,7 +6,7 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from excel_writer import ExcelWriter
+from bank_template_processing.excel_writer import ExcelWriter
 
 
 def test_chinese_column_name_with_xlsx_save_integration():
@@ -157,9 +157,7 @@ def test_chinese_column_name_with_xlsx_save_integration():
 
         wb_result.close()
 
-        print(
-            "✓ Integration test passed: Chinese column names work correctly with xlsx save"
-        )
+        print("✓ Integration test passed: Chinese column names work correctly with xlsx save")
 
 
 if __name__ == "__main__":

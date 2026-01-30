@@ -19,15 +19,15 @@ dev = [
 ]
 
 [project.scripts]
-bank-process = "main:main"
+bank-process = "bank_template_processing.main:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --cov=. --cov-report=term-missing"
-pythonpath = "."
+addopts = "-v --cov=src --cov-report=term-missing"
+pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 120
@@ -39,7 +39,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "ty>=0.1.0",
+    "ty>=0.0.14",
     "pre-commit>=4.5.1",
     "pyinstaller>=6.18.0",
     "ruff>=0.14.14",

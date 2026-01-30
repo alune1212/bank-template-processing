@@ -7,7 +7,7 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from excel_writer import ExcelError, ExcelWriter
+from bank_template_processing.excel_writer import ExcelError, ExcelWriter
 
 
 class TestExcelWriter:
@@ -111,15 +111,11 @@ class TestExcelWriter:
         ws_result = wb_result.active
 
         assert ws_result.cell(2, 1).value == "张三"
-        assert isinstance(ws_result.cell(2, 2).value, (int, float)), (
-            "金额应该是数字类型"
-        )
+        assert isinstance(ws_result.cell(2, 2).value, (int, float)), "金额应该是数字类型"
         assert ws_result.cell(2, 2).value == 1000.50
 
         assert ws_result.cell(3, 1).value == "李四"
-        assert isinstance(ws_result.cell(3, 2).value, (int, float)), (
-            "金额应该是数字类型"
-        )
+        assert isinstance(ws_result.cell(3, 2).value, (int, float)), "金额应该是数字类型"
         assert ws_result.cell(3, 2).value == 2000.75
 
         wb_result.close()

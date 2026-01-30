@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from excel_reader import ExcelReader, ExcelError
+from bank_template_processing.excel_reader import ExcelReader, ExcelError
 
 
 class TestExcelReader:
@@ -102,9 +102,7 @@ class TestExcelReader:
 
         # 创建一个无效的xlsx文件（只是文本文件）
         invalid_path = "tests/fixtures/invalid.xlsx"
-        Path(invalid_path).write_text(
-            "This is not a valid Excel file", encoding="utf-8"
-        )
+        Path(invalid_path).write_text("This is not a valid Excel file", encoding="utf-8")
 
         try:
             with pytest.raises(ExcelError):

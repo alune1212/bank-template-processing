@@ -4,7 +4,7 @@
 
 import pytest
 from datetime import datetime
-from validator import Validator, ValidationError
+from bank_template_processing.validator import Validator, ValidationError
 
 
 class TestValidateRequired:
@@ -134,9 +134,7 @@ class TestValidateDataTypes:
         with pytest.raises(ValidationError) as exc_info:
             Validator.validate_data_types(row, type_rules)
 
-        assert "字段 'created_at' 的类型应为 datetime，实际为 dict" in str(
-            exc_info.value
-        )
+        assert "字段 'created_at' 的类型应为 datetime，实际为 dict" in str(exc_info.value)
 
     def test_field_not_in_row_skip_validation(self):
         """字段不存在 → 跳过验证（不抛出异常）"""
