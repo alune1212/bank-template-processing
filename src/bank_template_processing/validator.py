@@ -119,9 +119,7 @@ class Validator:
         logger.info("数据类型验证通过")
 
     @staticmethod
-    def validate_value_ranges(
-        row: Dict[str, Any], range_rules: Dict[str, Dict[str, Any]]
-    ) -> None:
+    def validate_value_ranges(row: Dict[str, Any], range_rules: Dict[str, Dict[str, Any]]) -> None:
         """
         验证值范围
 
@@ -170,9 +168,7 @@ class Validator:
             if "min_length" in rules:
                 min_len = rules["min_length"]
                 if len(value) < min_len:
-                    error_msg = (
-                        f"字段 '{field}' 的长度 {len(value)} 小于最小长度 {min_len}"
-                    )
+                    error_msg = f"字段 '{field}' 的长度 {len(value)} 小于最小长度 {min_len}"
                     logger.error(error_msg)
                     raise ValidationError(error_msg)
 
@@ -180,9 +176,7 @@ class Validator:
             if "max_length" in rules:
                 max_len = rules["max_length"]
                 if len(value) > max_len:
-                    error_msg = (
-                        f"字段 '{field}' 的长度 {len(value)} 大于最大长度 {max_len}"
-                    )
+                    error_msg = f"字段 '{field}' 的长度 {len(value)} 大于最大长度 {max_len}"
                     logger.error(error_msg)
                     raise ValidationError(error_msg)
 
@@ -190,9 +184,7 @@ class Validator:
             if "allowed_values" in rules:
                 allowed = rules["allowed_values"]
                 if value not in allowed:
-                    error_msg = (
-                        f"字段 '{field}' 的值 {value} 不在允许的值列表中: {allowed}"
-                    )
+                    error_msg = f"字段 '{field}' 的值 {value} 不在允许的值列表中: {allowed}"
                     logger.error(error_msg)
                     raise ValidationError(error_msg)
 

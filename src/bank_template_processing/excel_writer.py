@@ -6,7 +6,7 @@
 import csv
 import logging
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional
 
 try:
     import openpyxl

@@ -97,7 +97,7 @@ Sequential execution required due to massive file moves and inter-dependencies.
 
 ## TODOs
 
-- [ ] 1. **Update Configuration (pyproject.toml)**
+- [x] 1. **Update Configuration (pyproject.toml)**
   
   **What to do**:
   - Remove `mypy`, add `ty`.
@@ -116,7 +116,7 @@ Sequential execution required due to massive file moves and inter-dependencies.
   # Expected: output contains hatchling or setuptools
   ```
 
-- [ ] 2. **Refactor to src/ Layout (Git Move)**
+- [x] 2. **Refactor to src/ Layout (Git Move)**
   
   **What to do**:
   - Create `src/bank_template_processing/__init__.py`.
@@ -140,7 +140,7 @@ Sequential execution required due to massive file moves and inter-dependencies.
   # Expected: file exists
   ```
 
-- [ ] 3. **Fix Imports and Path Logic (Source Code)**
+- [x] 3. **Fix Imports and Path Logic (Source Code)**
   
   **What to do**:
   - Update `src/bank_template_processing/main.py`:
@@ -161,7 +161,7 @@ Sequential execution required due to massive file moves and inter-dependencies.
   grep "from \." src/bank_template_processing/*.py
   ```
 
-- [ ] 4. **Fix Test Imports**
+- [x] 4. **Fix Test Imports**
   
   **What to do**:
   - Update `tests/*.py` imports.
@@ -178,7 +178,7 @@ Sequential execution required due to massive file moves and inter-dependencies.
   # Expected: Tests pass (or at least imports succeed)
   ```
 
-- [ ] 5. **Update Build Spec (PyInstaller)**
+- [x] 5. **Update Build Spec (PyInstaller)**
   
   **What to do**:
   - Update `bank_template_processing.spec`:
@@ -197,7 +197,7 @@ Sequential execution required due to massive file moves and inter-dependencies.
   # Expected: File exists
   ```
 
-- [ ] 6. **Run Standardization Checks (Ruff & Ty)**
+- [x] 6. **Run Standardization Checks (Ruff & Ty)**
   
   **What to do**:
   - Run `uv run ruff format .`

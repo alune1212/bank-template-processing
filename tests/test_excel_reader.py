@@ -97,7 +97,6 @@ class TestExcelReader:
 
     def test_invalid_file_format(self):
         """测试无效文件格式"""
-        file_path = "tests/fixtures/test_input.xlsx"
         reader = ExcelReader()
 
         # 创建一个无效的xlsx文件（只是文本文件）

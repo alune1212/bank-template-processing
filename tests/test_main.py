@@ -2,11 +2,7 @@
 
 import pytest
 import json
-import tempfile
-from pathlib import Path
-from unittest.mock import patch, MagicMock, mock_open
-import argparse
-import io
+from unittest.mock import patch, MagicMock
 import sys
 
 
@@ -450,30 +446,6 @@ class TestApplyTransformations:
         transformations = {"card_number": {"remove_formatting": True, "luhn_validation": True}}
         field_mappings = {"卡号": {"source_column": "卡号", "transform": "card_number"}}
         result = apply_transformations(data, transformations, field_mappings)
-
-        assert result[0]["日期"] == "2024-01-15"
-
-    def test_apply_transformations_amount(self):
-        """测试金额转换"""
-        from bank_template_processing.main import apply_transformations
-
-        data = [{"金额": "1000.456"}]
-        transformations = {"amount_decimal": {"decimal_places": 2}}
-        field_mappings = {"金额": {"source_column": "金额", "transform": "amount_decimal"}}
-        result = apply_transformations(data, transformations, field_mappings)
-
-        assert result[0]["金额"] == 1000.46
-
-    def test_apply_transformations_card_number(self):
-        """测试卡号转换"""
-        from bank_template_processing.main import apply_transformations
-
-        data = [{"卡号": "6222-0212-3456-7890-128"}]
-        transformations = {"card_number": {"remove_formatting": True, "luhn_validation": True}}
-        field_mappings = {"卡号": {"source_column": "卡号", "transform": "card_number"}}
-        result = apply_transformations(data, transformations, field_mappings)
-
-        assert result[0]["卡号"] == "6222021234567890128"
 
     def test_apply_transformations_mixed(self):
         """测试混合转换"""

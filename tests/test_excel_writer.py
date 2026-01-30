@@ -1,8 +1,6 @@
 """测试Excel写入器模块"""
 
 import csv
-import os
-from pathlib import Path
 
 import openpyxl
 import pytest
