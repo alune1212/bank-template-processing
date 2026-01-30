@@ -11,8 +11,8 @@ from pathlib import Path
 project_root = Path(SPECPATH)
 
 a = Analysis(
-    ['main.py'],
-    pathex=[str(project_root)],
+    ['run_for_pyinstaller.py'],
+    pathex=[str(project_root), str(project_root / 'src')],
     binaries=[],
     datas=[
         # 包含配置示例文件
@@ -22,6 +22,9 @@ a = Analysis(
         ('配置文件说明.md', '.'),
     ],
     hiddenimports=[
+        # Package imports
+        'bank_template_processing',
+        'bank_template_processing.main',
         # openpyxl 相关
         'openpyxl',
         'openpyxl.cell',
