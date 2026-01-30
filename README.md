@@ -12,7 +12,7 @@
 - **动态模板选择**：根据"开户银行"字段自动选择默认模板或特殊模板
 - **高级功能**：
   - 自动编号
-  - 固固定值填写
+  - 固定值填写
   - 银行支行映射
   - 月份类型映射（月收入、年终奖、补偿金）
 
@@ -42,7 +42,7 @@ bank-template-processing/
 
 ### 方式二：从源码安装（开发者）
 
-本项目使用 `uv` 作为包管理器：
+本项目使用 `uv` 作为包管理器，并采用标准的 `src` 目录结构。
 
 ```bash
 # 克隆仓库
@@ -52,8 +52,9 @@ cd bank-template-processing
 # 安装依赖
 uv sync
 
-# 或使用 pip 安装（如果需要）
-pip install openpyxl xlrd xlwt pytest pytest-cov
+# 激活虚拟环境 (可选，uv run 会自动处理)
+# source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate     # Windows
 ```
 
 ## 使用示例
@@ -79,21 +80,19 @@ bank-template-processing.exe input.xlsx 单位名称 01 --config custom_config.j
 
 ### Python 源码用法
 
+推荐使用 `uv run` 或 `python -m` 方式运行：
+
 ```bash
 # 处理1月份数据
-python main.py input.xlsx 单位名称 01
+uv run python -m bank_template_processing input.xlsx 单位名称 01
+# 或者如果安装了项目脚本：
+# uv run bank-process input.xlsx 单位名称 01
 
 # 处理年终奖数据
-python main.py input.xlsx 单位名称 年终奖
-
-# 处理补偿金数据
-python main.py input.xlsx 单位名称 补偿金
+uv run python -m bank_template_processing input.xlsx 单位名称 年终奖
 
 # 自定义输出目录
-python main.py input.xlsx 单位名称 01 --output-dir custom_output/
-
-# 使用自定义配置文件
-python main.py input.xlsx 单位名称 01 --config custom_config.json
+uv run python -m bank_template_processing input.xlsx 单位名称 01 --output-dir custom_output/
 ```
 
 ## 配置文件说明
@@ -278,19 +277,35 @@ python main.py input.xlsx 单位名称 01 --config custom_config.json
 | `FileNotFoundError` | 文件未找到 | 记录错误消息，退出 |
 | `ValueError` | 参数值错误 | 记录错误消息，退出 |
 
-## 测试
+## 开发指南
 
-运行测试：
+### 代码规范
+本项目采用现代化工具链：
+- **包管理**: `uv`
+- **代码格式/检查**: `ruff`
+- **类型检查**: `ty` (Astral) 或 `mypy`
+
+### 运行测试
 
 ```bash
 # 运行所有测试
-uv run pytest tests/ -v
+uv run pytest
 
 # 运行测试并生成覆盖率报告
-uv run pytest --cov=. --cov-report=html
+uv run pytest --cov=src --cov-report=html
+```
 
-# 查看覆盖率报告
-open htmlcov/index.html
+### 代码检查
+
+```bash
+# 格式化代码
+uv run ruff format .
+
+# 静态检查
+uv run ruff check . --fix
+
+# 类型检查
+uv run ty check
 ```
 
 ## Windows 打包（开发者）
@@ -301,7 +316,7 @@ open htmlcov/index.html
 
 - Windows 操作系统
 - Python 3.13+
-- PyInstaller (`pip install pyinstaller`)
+- `uv` 包管理器
 
 ### 构建步骤
 
@@ -312,21 +327,14 @@ open htmlcov/index.html
 .\scripts\build_windows.ps1
 ```
 
-**方式二：使用批处理脚本**
+**方式二：手动执行 PyInstaller**
 
-```cmd
-# 双击运行或在命令行执行
-scripts\build_windows.bat
-```
+```bash
+# 安装依赖
+uv sync
 
-**方式三：手动执行 PyInstaller**
-
-```cmd
-# 安装 PyInstaller
-pip install pyinstaller
-
-# 执行打包
-pyinstaller bank_template_processing.spec --noconfirm
+# 执行打包（使用 uv 环境）
+uv run pyinstaller bank_template_processing.spec --noconfirm
 
 # 打包结果在 dist\bank-template-processing\ 目录
 ```
@@ -335,12 +343,6 @@ pyinstaller bank_template_processing.spec --noconfirm
 
 - `dist/bank-template-processing/` - 可分发目录
 - `dist/bank-template-processing-win.zip` - 压缩包（可直接分发）
-
-### 注意事项
-
-- 必须在 Windows 环境下构建，才能生成 Windows 可执行文件
-- 构建完成后，将模板文件放入 `dist/bank-template-processing/templates/` 目录
-- 用户收到压缩包后，需要自行创建 `config.json` 配置文件
 
 ## 日志
 
@@ -356,20 +358,24 @@ pyinstaller bank_template_processing.spec --noconfirm
 
 ```
 bank-template-processing/
-├── main.py                       # 命令行入口
-├── config_loader.py              # 配置加载器
-├── excel_reader.py               # Excel读取器
-├── excel_writer.py               # Excel写入器
-├── transformer.py                # 数据转换器
-├── validator.py                  # 数据验证器
-├── template_selector.py          # 模板选择器
+├── src/                          # 源代码目录
+│   └── bank_template_processing/ # Python 包
+│       ├── __init__.py
+│       ├── __main__.py           # 模块入口
+│       ├── main.py               # 命令行入口逻辑
+│       ├── config_loader.py      # 配置加载器
+│       ├── excel_reader.py       # Excel读取器
+│       ├── excel_writer.py       # Excel写入器
+│       ├── transformer.py        # 数据转换器
+│       ├── validator.py          # 数据验证器
+│       └── template_selector.py  # 模板选择器
 ├── config.json                   # 配置文件（用户创建）
 ├── config.example.json           # 配置文件示例
 ├── README.md                     # 项目文档
 ├── 配置文件说明.md               # 配置说明（中文）
-├── pyproject.toml                # 项目配置
-├── pytest.ini                    # pytest配置
+├── pyproject.toml                # 项目配置 (依赖, 构建, 工具配置)
 ├── bank_template_processing.spec # PyInstaller 打包规格
+├── run_for_pyinstaller.py        # PyInstaller 入口脚本
 ├── scripts/                      # 构建脚本
 │   ├── build_windows.ps1         # PowerShell 打包脚本
 │   └── build_windows.bat         # 批处理打包脚本
@@ -377,9 +383,6 @@ bank-template-processing/
 │   ├── __init__.py
 │   ├── test_*.py                 # 测试文件
 │   └── fixtures/                 # 测试fixtures
-│       ├── test_*.xlsx           # 测试Excel文件
-│       ├── test_*.csv            # 测试CSV文件
-│       └── test_*.xls            # 测试XLS文件
 └── templates/                    # 模板文件目录（用户创建）
     └── ...                       # 银行模板文件
 ```
