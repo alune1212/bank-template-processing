@@ -137,22 +137,13 @@ def parse_args(argv=None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def generate_timestamp() -> str:
-    """
-    生成紧凑格式的时间戳
-
-    Returns:
-        时间戳字符串，格式：YYYYMMDD_HHMMSS
-    """
-    return datetime.now().strftime("%Y%m%d_%H%M%S")
-
-
 def generate_output_filename(
     unit_name: str,
     month: str,
     template_name: str | None,
-    timestamp: str,
     template_path: str,
+    count: int,
+    amount: float,
 ) -> str:
     """
     生成输出文件名
@@ -161,8 +152,9 @@ def generate_output_filename(
         unit_name: 单位名称
         month: 月份参数
         template_name: 模板名称（可选，如果为None则从template_path提取）
-        timestamp: 时间戳字符串
         template_path: 模板文件路径（用于获取文件扩展名和模板名称）
+        count: 行数
+        amount: 总金额
 
     Returns:
         输出文件名（包含与模板相同的扩展名）
@@ -176,7 +168,44 @@ def generate_output_filename(
     if template_name is None:
         template_name = template_path_obj.stem  # 获取不含扩展名的文件名
 
-    return f"{unit_name}_{template_name}_{month}_{timestamp}{template_ext}"
+    return f"{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{template_ext}"
+
+
+def _calculate_stats(data: list, field_mappings: dict, transformations: dict) -> tuple[int, float]:
+    """
+    计算统计数据：行数和总金额
+
+    Args:
+        data: 数据列表
+        field_mappings: 字段映射配置
+        transformations: 转换配置
+
+    Returns:
+        (行数, 总金额) 的元组
+    """
+    count = len(data)
+    total_amount = 0.0
+
+    # 查找金额列
+    amount_column = None
+    for _, mapping in field_mappings.items():
+        if mapping.get("transform") == "amount_decimal":
+            amount_column = mapping.get("source_column")
+            break
+
+    if amount_column:
+        for row in data:
+            val = row.get(amount_column)
+            # 处理已转换的浮点数或原始字符串
+            if isinstance(val, (int, float)):
+                total_amount += float(val)
+            elif isinstance(val, str) and val.strip():
+                try:
+                    total_amount += float(val)
+                except (ValueError, TypeError):
+                    pass
+
+    return count, total_amount
 
 
 def setup_logging() -> None:
@@ -338,15 +367,6 @@ def main(argv=None) -> None:
             template_path = resolve_path(template_path)
             if template_path != original_template_path:
                 logger.info(f"模板路径相对路径已解析为：{template_path}")
-            output_filename = generate_output_filename(
-                args.unit_name,
-                validated_month,
-                None,
-                generate_timestamp(),
-                template_path,
-            )
-            output_path = Path(args.output_dir) / output_filename
-            Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
             validation_rules = default_unit_config.get("validation_rules", {})
             if validation_rules:
@@ -368,6 +388,18 @@ def main(argv=None) -> None:
                 logger.info("转换数据")
                 data = apply_transformations(data, transformations, field_mappings)
                 logger.info("数据转换完成")
+
+            count, amount = _calculate_stats(data, field_mappings, transformations)
+            output_filename = generate_output_filename(
+                args.unit_name,
+                validated_month,
+                None,
+                template_path,
+                count,
+                amount,
+            )
+            output_path = Path(args.output_dir) / output_filename
+            Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
             process_group(
                 data,
@@ -400,15 +432,6 @@ def main(argv=None) -> None:
                 template_path = group_info["template"]
                 template_name = group_info["group_name"]
 
-                output_filename = generate_output_filename(
-                    args.unit_name,
-                    validated_month,
-                    template_name,
-                    generate_timestamp(),
-                    template_path,
-                )
-                output_path = output_dir / output_filename
-
                 logger.info(f"处理组：{group_key}，模板：{template_name}，数据行数：{len(group_data)}")
 
                 rule_group = "crossbank" if group_key == "special" else group_key
@@ -425,14 +448,6 @@ def main(argv=None) -> None:
                     template_path = resolve_path(template_path)
                     if template_path != original_template_path:
                         logger.info(f"模板路径相对路径已解析为：{template_path}")
-                    output_filename = generate_output_filename(
-                        args.unit_name,
-                        validated_month,
-                        template_name,
-                        generate_timestamp(),
-                        template_path,
-                    )
-                    output_path = output_dir / output_filename
                     logger.info(f"使用规则组配置中的模板路径：{template_path}")
                 else:
                     # 处理模板路径：如果是相对路径，则相对于可执行文件所在目录
@@ -461,6 +476,17 @@ def main(argv=None) -> None:
                     logger.info("转换数据")
                     group_data = apply_transformations(group_data, transformations, field_mappings)
                     logger.info("数据转换完成")
+
+                count, amount = _calculate_stats(group_data, field_mappings, transformations)
+                output_filename = generate_output_filename(
+                    args.unit_name,
+                    validated_month,
+                    template_name,
+                    template_path,
+                    count,
+                    amount,
+                )
+                output_path = output_dir / output_filename
 
                 process_group(
                     group_data,

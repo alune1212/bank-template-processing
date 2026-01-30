@@ -183,40 +183,27 @@ class TestUniqueFilenameGeneration:
 
     def test_filename_with_template_name(self):
         """测试带模板名的文件名生成"""
-        from bank_template_processing.main import generate_output_filename, generate_timestamp
+        from bank_template_processing.main import generate_output_filename
 
-        timestamp = generate_timestamp()
-        filename = generate_output_filename("测试单位", "01", "农业银行", timestamp, "template.xlsx")
+        filename = generate_output_filename("测试单位", "01", "农业银行", "template.xlsx", 10, 5000.00)
 
         assert "测试单位" in filename
         assert "农业银行" in filename
-        assert "01" in filename
-        assert timestamp in filename
+        assert "10人" in filename
+        assert "金额5000.00元" in filename
         assert filename.endswith(".xlsx")
 
     def test_filename_without_template_name(self):
         """测试不带模板名的文件名生成"""
-        from bank_template_processing.main import generate_output_filename, generate_timestamp
+        from bank_template_processing.main import generate_output_filename
 
-        timestamp = generate_timestamp()
-        filename = generate_output_filename("测试单位", "01", None, timestamp, "template.xlsx")
+        filename = generate_output_filename("测试单位", "01", None, "template.xlsx", 5, 1000.50)
 
         assert "测试单位" in filename
-        assert "01" in filename
-        assert timestamp in filename
+        assert "5人" in filename
+        assert "金额1000.50元" in filename
         assert filename.endswith(".xlsx")
         assert "农业银行" not in filename
-
-    def test_timestamp_uniqueness(self):
-        """测试时间戳唯一性"""
-        from bank_template_processing.main import generate_timestamp
-        import time
-
-        timestamp1 = generate_timestamp()
-        time.sleep(1)
-        timestamp2 = generate_timestamp()
-
-        assert timestamp1 != timestamp2
 
 
 class TestLuhnValidation:
@@ -273,9 +260,6 @@ class TestDynamicTemplateSelection:
         else:
             groups = {"default": {"data": data, "template": unit_config["template_path"]}}
 
-        from bank_template_processing.main import generate_timestamp
-
-        timestamp = generate_timestamp()
         output_files = []
 
         for group_key in ["default", "special"]:
@@ -300,9 +284,19 @@ class TestDynamicTemplateSelection:
                         elif transform_type == "card_number":
                             row[field_name] = transformer.transform_card_number(row[field_name])
 
+            count = len(group_data)
+            amount = 0.0
+            for row in group_data:
+                val = row.get("金额")
+                if val:
+                    try:
+                        amount += float(val)
+                    except (ValueError, TypeError):
+                        pass
+
             from bank_template_processing.main import generate_output_filename
 
-            filename = generate_output_filename("测试单位", "01", group_name, timestamp, template_path)
+            filename = generate_output_filename("测试单位", "01", group_name, template_path, count, amount)
             output_path = tmp_path / filename
 
             writer = ExcelWriter()
