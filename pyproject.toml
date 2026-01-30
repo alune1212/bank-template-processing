@@ -18,16 +18,28 @@ dev = [
     "pytest-cov>=4.0.0",
 ]
 
+[project.scripts]
+bank-process = "main:main"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --cov=. --cov-report=term-missing"
+pythonpath = "."
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "mypy>=1.19.1",
+    "ty>=0.1.0",
     "pre-commit>=4.5.1",
     "pyinstaller>=6.18.0",
     "ruff>=0.14.14",
