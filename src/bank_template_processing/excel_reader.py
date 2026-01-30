@@ -77,9 +77,7 @@ class ExcelReader:
             logger.error(f"读取文件失败: {file_path}, 错误: {e}")
             raise ExcelError(f"文件格式无效: {file_path}") from e
 
-    def _should_skip_row(
-        self, row_values: List[str], headers: Optional[List[str]]
-    ) -> bool:
+    def _should_skip_row(self, row_values: List[str], headers: Optional[List[str]]) -> bool:
         """检查是否应该跳过该行
 
         Args:

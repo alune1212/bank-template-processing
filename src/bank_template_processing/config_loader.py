@@ -76,9 +76,7 @@ def validate_config(config: dict) -> None:
     logger.info("配置验证成功")
 
 
-def get_unit_config(
-    config: dict, unit_name: str, template_key: str | None = None
-) -> dict:
+def get_unit_config(config: dict, unit_name: str, template_key: str | None = None) -> dict:
     """
     获取单位配置，支持多规则组结构
 
@@ -143,9 +141,7 @@ def get_unit_config(
             if template_key in unit_config:
                 return unit_config[template_key]
             else:
-                logger.warning(
-                    f"单位 '{unit_name}' 中未找到规则组 '{template_key}'，使用默认规则组"
-                )
+                logger.warning(f"单位 '{unit_name}' 中未找到规则组 '{template_key}'，使用默认规则组")
                 return unit_config["default"]
     else:
         # 旧结构（向后兼容）
@@ -210,9 +206,7 @@ def _validate_legacy_unit_config(unit_name: str, unit_config: dict) -> None:
         raise ConfigError(f"单位 '{unit_name}' 的 header_row 必须是整数")
 
     if header_row < 0:
-        raise ConfigError(
-            f"单位 '{unit_name}' 的 header_row 必须大于或等于 0，当前值: {header_row}"
-        )
+        raise ConfigError(f"单位 '{unit_name}' 的 header_row 必须大于或等于 0，当前值: {header_row}")
 
     # 验证start_row（如果指定）
     if "start_row" in unit_config:
@@ -221,15 +215,11 @@ def _validate_legacy_unit_config(unit_name: str, unit_config: dict) -> None:
             raise ConfigError(f"单位 '{unit_name}' 的 start_row 必须是整数")
 
         if start_row <= header_row:
-            raise ConfigError(
-                f"单位 '{unit_name}' 的 start_row ({start_row}) 必须大于 header_row ({header_row})"
-            )
+            raise ConfigError(f"单位 '{unit_name}' 的 start_row ({start_row}) 必须大于 header_row ({header_row})")
     else:
         # 设置默认值：start_row = max(1, header_row + 1)
         unit_config["start_row"] = max(1, header_row + 1)
-        logger.debug(
-            f"单位 '{unit_name}' 使用默认 start_row: {unit_config['start_row']}"
-        )
+        logger.debug(f"单位 '{unit_name}' 使用默认 start_row: {unit_config['start_row']}")
 
     # 验证field_mappings是字典
     if not isinstance(unit_config["field_mappings"], dict):
@@ -238,22 +228,16 @@ def _validate_legacy_unit_config(unit_name: str, unit_config: dict) -> None:
     # 验证field_mappings的每一项必须是字典（新格式）
     for field_name, field_config in unit_config["field_mappings"].items():
         if not isinstance(field_config, dict):
-            raise ConfigError(
-                f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 的配置必须是字典"
-            )
+            raise ConfigError(f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 的配置必须是字典")
         if "source_column" not in field_config:
-            raise ConfigError(
-                f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 缺少 source_column"
-            )
+            raise ConfigError(f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 缺少 source_column")
 
     # 验证transformations是字典
     if not isinstance(unit_config["transformations"], dict):
         raise ConfigError(f"单位 '{unit_name}' 的 transformations 必须是字典")
 
 
-def _validate_rule_group_config(
-    unit_name: str, rule_name: str, rule_config: dict
-) -> None:
+def _validate_rule_group_config(unit_name: str, rule_name: str, rule_config: dict) -> None:
     """
     验证规则组配置
 
@@ -273,22 +257,16 @@ def _validate_rule_group_config(
     ]
     for field in required_fields:
         if field not in rule_config:
-            raise ConfigError(
-                f"单位 '{unit_name}' 的规则组 '{rule_name}' 缺少必填字段: {field}"
-            )
+            raise ConfigError(f"单位 '{unit_name}' 的规则组 '{rule_name}' 缺少必填字段: {field}")
 
     # 验证template_path是字符串
     if not isinstance(rule_config["template_path"], str):
-        raise ConfigError(
-            f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 template_path 必须须是字符串"
-        )
+        raise ConfigError(f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 template_path 必须须是字符串")
 
     # 验证header_row是整数且≥0
     header_row = rule_config["header_row"]
     if not isinstance(header_row, int):
-        raise ConfigError(
-            f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 header_row 必须须是整数"
-        )
+        raise ConfigError(f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 header_row 必须须是整数")
 
     if header_row < 0:
         raise ConfigError(
@@ -299,9 +277,7 @@ def _validate_rule_group_config(
     if "start_row" in rule_config:
         start_row = rule_config["start_row"]
         if not isinstance(start_row, int):
-            raise ConfigError(
-                f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 start_row 必须须是整数"
-            )
+            raise ConfigError(f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 start_row 必须须是整数")
 
         if start_row <= header_row:
             raise ConfigError(
@@ -310,15 +286,11 @@ def _validate_rule_group_config(
     else:
         # 设置默认值：start_row = max(1, header_row + 1)
         rule_config["start_row"] = max(1, header_row + 1)
-        logger.debug(
-            f"单位 '{unit_name}' 的规则组 '{rule_name}' 使用默认 start_row: {rule_config['start_row']}"
-        )
+        logger.debug(f"单位 '{unit_name}' 的规则组 '{rule_name}' 使用默认 start_row: {rule_config['start_row']}")
 
     # 验证field_mappings是字典
     if not isinstance(rule_config["field_mappings"], dict):
-        raise ConfigError(
-            f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 field_mappings 必须须是字典"
-        )
+        raise ConfigError(f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 field_mappings 必须须是字典")
 
     # 验证field_mappings的每一项必须是字典（新格式）
     for field_name, field_config in rule_config["field_mappings"].items():
@@ -333,6 +305,4 @@ def _validate_rule_group_config(
 
     # 验证transformations是字典
     if not isinstance(rule_config["transformations"], dict):
-        raise ConfigError(
-            f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 transformations 必须须是字典"
-        )
+        raise ConfigError(f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 transformations 必须须是字典")

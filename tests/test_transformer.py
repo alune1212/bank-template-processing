@@ -5,7 +5,7 @@
 """
 
 import pytest
-from transformer import Transformer, TransformError
+from bank_template_processing.transformer import Transformer, TransformError
 
 
 class TestTransformDate:
@@ -211,9 +211,7 @@ class TestLuhnAlgorithm:
             "1234567890123456",  # 完全无效
         ]
         for card in invalid_cards:
-            assert not transformer._luhn_check(card), (
-                f"卡号 {card} 不应该通过 Luhn 验证"
-            )
+            assert not transformer._luhn_check(card), f"卡号 {card} 不应该通过 Luhn 验证"
 
 
 class TestTransformerIntegration:

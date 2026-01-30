@@ -3,13 +3,10 @@
 """
 
 import json
-import os
-import tempfile
-from pathlib import Path
 
 import pytest
 
-from config_loader import ConfigError, load_config, validate_config
+from bank_template_processing.config_loader import ConfigError, load_config, validate_config
 
 
 class TestLoadConfig:

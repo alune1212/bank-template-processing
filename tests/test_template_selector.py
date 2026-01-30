@@ -3,7 +3,7 @@
 """
 
 import pytest
-from template_selector import TemplateSelector, ValidationError
+from bank_template_processing.template_selector import TemplateSelector, ValidationError
 
 
 class TestIsEnabled:
@@ -311,9 +311,7 @@ class TestGroupData:
             {"银行名称": "工商银行", "姓名": "李四", "金额": 2000},
         ]
 
-        result = selector.group_data(
-            data, default_bank="农业银行", bank_column="银行名称"
-        )
+        result = selector.group_data(data, default_bank="农业银行", bank_column="银行名称")
 
         assert len(result["default"]["data"]) == 1
         assert len(result["special"]["data"]) == 1

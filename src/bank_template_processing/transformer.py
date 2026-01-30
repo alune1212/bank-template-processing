@@ -117,9 +117,7 @@ class Transformer:
             decimal_value = Decimal(str(value))
 
             # 使用四舍五入
-            rounded_value = decimal_value.quantize(
-                Decimal(f"1.{'0' * decimal_places}"), rounding=ROUND_HALF_UP
-            )
+            rounded_value = decimal_value.quantize(Decimal(f"1.{'0' * decimal_places}"), rounding=ROUND_HALF_UP)
 
             result = float(rounded_value)
             logger.debug(f"金额转换成功: {value} -> {result}")
