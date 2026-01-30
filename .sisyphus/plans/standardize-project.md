@@ -214,7 +214,7 @@ Sequential execution required due to massive file moves and inter-dependencies.
   # Expected: No errors
   ```
 
-- [ ] 7. **Cleanup**
+- [x] 7. **Cleanup**
   
   **What to do**:
   - Remove `pytest.ini` (content moved).
