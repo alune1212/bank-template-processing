@@ -12,23 +12,23 @@ try:
     import openpyxl
     from openpyxl.utils.exceptions import InvalidFileException
 except ImportError:
-    openpyxl = None
-    InvalidFileException = type("InvalidFileException", (Exception,), {})
+    openpyxl = None  # type: ignore
+    InvalidFileException = type("InvalidFileException", (Exception,), {})  # type: ignore
 
 try:
     import xlrd
 except ImportError:
-    xlrd = None
+    xlrd = None  # type: ignore
 
 try:
     import xlwt
 except ImportError:
-    xlwt = None
+    xlwt = None  # type: ignore
 
 try:
     from xlutils.copy import copy as xl_copy
 except ImportError:
-    xl_copy = None
+    xl_copy = None  # type: ignore
 
 from .config_loader import ConfigError
 
@@ -193,6 +193,9 @@ class ExcelWriter:
             ws = wb.worksheets[0]
         else:
             ws = wb.active
+
+        if ws is None:
+            raise ExcelError("模板文件没有工作表")
 
         # 读取表头（用于字段映射）
         headers = {}

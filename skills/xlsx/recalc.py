@@ -10,6 +10,7 @@ import subprocess
 import os
 import platform
 from pathlib import Path
+from typing import Dict, Any
 from openpyxl import load_workbook
 
 
@@ -123,7 +124,7 @@ def recalc(filename, timeout=30):
         wb.close()
 
         # Build result summary
-        result = {
+        summary: Dict[str, Any] = {
             "status": "success" if total_errors == 0 else "errors_found",
             "total_errors": total_errors,
             "error_summary": {},
@@ -132,7 +133,7 @@ def recalc(filename, timeout=30):
         # Add non-empty error categories
         for err_type, locations in error_details.items():
             if locations:
-                result["error_summary"][err_type] = {
+                summary["error_summary"][err_type] = {
                     "count": len(locations),
                     "locations": locations[:20],  # Show up to 20 locations
                 }
@@ -148,9 +149,9 @@ def recalc(filename, timeout=30):
                         formula_count += 1
         wb_formulas.close()
 
-        result["total_formulas"] = formula_count
+        summary["total_formulas"] = formula_count
 
-        return result
+        return summary
 
     except Exception as e:
         return {"error": str(e)}

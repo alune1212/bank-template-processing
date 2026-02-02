@@ -174,6 +174,7 @@ class TestMainWorkflow:
         excel_path = tmp_path / filename
         wb = openpyxl.Workbook()
         ws = wb.active
+        assert ws is not None
 
         ws.append(["姓名", "卡号", "金额"])
         ws.append(["张三", "6222021234567890128", "1000.00"])
@@ -188,6 +189,7 @@ class TestMainWorkflow:
         template_path = tmp_path / filename
         wb = openpyxl.Workbook()
         ws = wb.active
+        assert ws is not None
 
         ws.append(["姓名", "卡号", "金额"])
         ws.append(["示例姓名", "示例卡号", "100.00"])
@@ -433,6 +435,7 @@ class TestApplyTransformations:
         transformations = {"card_number": {"remove_formatting": True, "luhn_validation": True}}
         field_mappings = {"卡号": {"source_column": "卡号", "transform": "card_number"}}
         result = apply_transformations(data, transformations, field_mappings)
+        assert result[0]["卡号"] == "6222021234567890128"
 
     def test_apply_transformations_mixed(self):
         """测试混合转换"""

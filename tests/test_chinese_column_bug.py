@@ -91,13 +91,13 @@ def test_resolve_column_index_with_max_columns_validation():
 
     # Invalid: exceed bounds
     with pytest.raises(ValueError, match="超出最大列数"):
-        writer._resolve_column_index("K", max_columns=max_columns)  # Column 11
+        writer._resolve_column_index("K", max_columns=max_columns, strict_bounds=True)  # Column 11
 
     with pytest.raises(ValueError, match="超出最大列数"):
-        writer._resolve_column_index(15, max_columns=max_columns)
+        writer._resolve_column_index(15, max_columns=max_columns, strict_bounds=True)
 
     with pytest.raises(ValueError, match="超出最大列数"):
-        writer._resolve_column_index("20", max_columns=max_columns)
+        writer._resolve_column_index("20", max_columns=max_columns, strict_bounds=True)
 
     # Headers within bounds should work
     headers = {"姓名": 1, "金额": 10}
@@ -107,7 +107,7 @@ def test_resolve_column_index_with_max_columns_validation():
     # Headers exceeding bounds should fail
     headers_invalid = {"超限": 11}
     with pytest.raises(ValueError, match="超出最大列数"):
-        writer._resolve_column_index("超限", headers=headers_invalid, max_columns=max_columns)
+        writer._resolve_column_index("超限", headers=headers_invalid, max_columns=max_columns, strict_bounds=True)
 
 
 if __name__ == "__main__":

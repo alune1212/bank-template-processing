@@ -77,6 +77,7 @@ class TestEndToEndWorkflow:
 
         wb = load_workbook(output_path)
         ws = wb.active
+        assert ws is not None
 
         assert ws.max_row == 9
 
@@ -268,8 +269,8 @@ class TestDynamicTemplateSelection:
             if not group_data:
                 continue
 
-            template_path = group["template"]
-            group_name = group.get("group_name", "")
+            template_path = str(group["template"])
+            group_name = str(group.get("group_name", ""))
 
             transformer = Transformer()
             for row in group_data:
@@ -324,10 +325,12 @@ class TestDynamicTemplateSelection:
 
         wb_default = load_workbook(default_file)
         ws_default = wb_default.active
+        assert ws_default is not None
         assert ws_default.max_row == 6
 
         wb_special = load_workbook(special_file)
         ws_special = wb_special.active
+        assert ws_special is not None
         assert ws_special.max_row == 6
 
     def test_all_default_bank_generates_one_file(self, tmp_path):

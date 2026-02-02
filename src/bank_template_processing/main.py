@@ -4,7 +4,6 @@ import argparse
 import logging
 import os
 import sys
-from datetime import datetime
 from pathlib import Path
 
 from .config_loader import load_config, validate_config, ConfigError, get_unit_config

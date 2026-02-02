@@ -3,6 +3,7 @@
 """
 
 import json
+from typing import Any, Dict
 
 import pytest
 
@@ -153,7 +154,7 @@ class TestValidateConfig:
 
     def test_validate_valid_header_row_zero(self):
         """测试header_row为0（模板无表头，使用列标识符）"""
-        config = {
+        config: Dict[str, Any] = {
             "version": "1.0",
             "organization_units": {
                 "test_unit": {
@@ -238,7 +239,7 @@ class TestValidateConfig:
 
     def test_validate_default_start_row(self):
         """测试start_row默认值（未指定时为header_row+1）"""
-        config = {
+        config: Dict[str, Any] = {
             "version": "1.0",
             "organization_units": {
                 "test_unit": {
@@ -255,7 +256,7 @@ class TestValidateConfig:
 
     def test_validate_multiple_units(self):
         """测试多个单位的配置验证"""
-        config = {
+        config: Dict[str, Any] = {
             "version": "1.0",
             "organization_units": {
                 "unit1": {

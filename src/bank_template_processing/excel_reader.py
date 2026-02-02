@@ -36,7 +36,7 @@ class ExcelReader:
         logger.debug("初始化ExcelReader")
         self.row_filter = row_filter or {}
 
-    def read_excel(self, file_path: str) -> List[Dict[str, str]]:
+    def read_excel(self, file_path: str) -> List[Dict[str, Any]]:
         """读取Excel文件并返回字典列表
 
         Args:
@@ -109,7 +109,7 @@ class ExcelReader:
 
         return False
 
-    def _read_xlsx(self, file_path: str) -> List[Dict[str, str]]:
+    def _read_xlsx(self, file_path: str) -> List[Dict[str, Any]]:
         """读取.xlsx文件
 
         Args:
@@ -123,6 +123,8 @@ class ExcelReader:
         try:
             workbook = openpyxl.load_workbook(file_path, read_only=True)
             sheet = workbook.active  # 使用第一个工作表
+            if sheet is None:
+                raise ExcelError("Excel文件没有工作表")
 
             # 读取表头（第1行）
             headers = None
@@ -165,7 +167,7 @@ class ExcelReader:
             logger.error(f"读取.xlsx文件失败: {e}")
             raise ExcelError(f"无法读取.xlsx文件: {file_path}") from e
 
-    def _read_csv(self, file_path: str) -> List[Dict[str, str]]:
+    def _read_csv(self, file_path: str) -> List[Dict[str, Any]]:
         """读取.csv文件
 
         Args:
@@ -217,7 +219,7 @@ class ExcelReader:
             logger.error(f"读取.csv文件失败: {e}")
             raise ExcelError(f"无法读取.csv文件: {file_path}") from e
 
-    def _read_xls(self, file_path: str) -> List[Dict[str, str]]:
+    def _read_xls(self, file_path: str) -> List[Dict[str, Any]]:
         """读取.xls文件
 
         Args:

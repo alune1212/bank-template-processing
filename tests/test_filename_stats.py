@@ -1,4 +1,3 @@
-import pytest
 from bank_template_processing.main import generate_output_filename, _calculate_stats
 
 
