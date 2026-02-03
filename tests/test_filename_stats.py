@@ -44,3 +44,33 @@ def test_generate_output_filename_fallback_template_name():
 
     expected = "TestUnit_fallback_5人_金额500.00元.xlsx"
     assert filename == expected
+
+
+def test_generate_output_filename_with_custom_template_and_auto_ext():
+    filename = generate_output_filename(
+        unit_name="TestUnit",
+        month="01",
+        template_name="TemplateA",
+        template_path="templates/template.xlsx",
+        count=10,
+        amount=1234.56,
+        output_template="{unit_name}_{month}",
+    )
+
+    expected = "TestUnit_01.xlsx"
+    assert filename == expected
+
+
+def test_generate_output_filename_with_custom_template_ext_placeholder():
+    filename = generate_output_filename(
+        unit_name="TestUnit",
+        month="01",
+        template_name="TemplateA",
+        template_path="templates/template.xlsx",
+        count=10,
+        amount=1234.56,
+        output_template="{unit_name}_{template_name}{ext}",
+    )
+
+    expected = "TestUnit_TemplateA.xlsx"
+    assert filename == expected

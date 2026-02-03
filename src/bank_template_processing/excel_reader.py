@@ -77,6 +77,49 @@ class ExcelReader:
             logger.error(f"读取文件失败: {file_path}, 错误: {e}")
             raise ExcelError(f"文件格式无效: {file_path}") from e
 
+    def _is_empty_cell(self, value: Any) -> bool:
+        """判断单元格是否为空"""
+        if value is None:
+            return True
+        if isinstance(value, str):
+            return not value.strip()
+        return False
+
+    def _convert_xls_cell(self, cell, datemode: int) -> Any:
+        """将 .xls 单元格值转换为更合适的 Python 类型"""
+        try:
+            cell_type = cell.ctype
+        except Exception:
+            return cell.value
+
+        # 空单元格
+        empty_types = [getattr(xlrd, "XL_CELL_EMPTY", -1), getattr(xlrd, "XL_CELL_BLANK", -1)]
+        if cell_type in empty_types:
+            return None
+
+        # 日期单元格
+        if cell_type == getattr(xlrd, "XL_CELL_DATE", -1):
+            try:
+                return xlrd.xldate_as_datetime(cell.value, datemode)
+            except Exception:
+                return cell.value
+
+        # 数字单元格
+        if cell_type == getattr(xlrd, "XL_CELL_NUMBER", -1):
+            try:
+                if float(cell.value).is_integer():
+                    return int(cell.value)
+            except Exception:
+                pass
+            return cell.value
+
+        # 布尔单元格
+        if cell_type == getattr(xlrd, "XL_CELL_BOOLEAN", -1):
+            return bool(cell.value)
+
+        # 其他类型（文本、错误等）
+        return cell.value
+
     def _should_skip_row(self, row_values: List[str], headers: Optional[List[str]]) -> bool:
         """检查是否应该跳过该行
 
@@ -99,7 +142,7 @@ class ExcelReader:
         if headers:
             for i, value in enumerate(row_values):
                 if i < len(headers):
-                    row_dict[headers[i]] = value
+                    row_dict[headers[i]] = "" if value is None else str(value)
 
         # 检查是否包含排除关键字
         for keyword in exclude_keywords:
@@ -137,11 +180,10 @@ class ExcelReader:
                     logger.debug(f"提取表头: {headers}")
                 else:
                     # 数据行
-                    # 将单元格值转换为字符串
-                    row_values = [str(cell) if cell is not None else "" for cell in row]
+                    row_values = list(row)
 
                     # 检查是否为空行（所有单元格都为空）
-                    if not row_values or all(not cell.strip() for cell in row_values):
+                    if not row_values or all(self._is_empty_cell(cell) for cell in row_values):
                         logger.debug(f"跳过空行: 第{row_idx}行")
                         continue
 
@@ -179,7 +221,7 @@ class ExcelReader:
         logger.debug(f"使用csv模块读取.csv文件: {file_path}")
 
         try:
-            with open(file_path, "r", encoding="utf-8", newline="") as f:
+            with open(file_path, "r", encoding="utf-8-sig", newline="") as f:
                 reader = csv.reader(f)
                 rows = list(reader)
 
@@ -195,7 +237,7 @@ class ExcelReader:
             # 从第二行开始读取数据
             for row_idx, row in enumerate(rows[1:], start=2):
                 # 检查是否为空行（所有单元格都为空）
-                if not row or all(not cell.strip() for cell in row):
+                if not row or all(self._is_empty_cell(cell) for cell in row):
                     logger.debug(f"跳过空行: 第{row_idx}行")
                     continue
 
@@ -238,7 +280,7 @@ class ExcelReader:
             headers = []
             for col_idx in range(sheet.ncols):
                 cell_value = sheet.cell_value(0, col_idx)
-                headers.append(str(cell_value) if cell_value else "")
+                headers.append(str(cell_value) if cell_value is not None else "")
             logger.debug(f"提取表头: {headers}")
 
             data_rows = []
@@ -246,11 +288,12 @@ class ExcelReader:
             for row_idx in range(1, sheet.nrows):
                 row_values = []
                 for col_idx in range(sheet.ncols):
-                    cell_value = sheet.cell_value(row_idx, col_idx)
-                    row_values.append(str(cell_value) if cell_value else "")
+                    cell = sheet.cell(row_idx, col_idx)
+                    cell_value = self._convert_xls_cell(cell, workbook.datemode)
+                    row_values.append(cell_value)
 
                 # 检查是否为空行（所有单元格都为空）
-                if not row_values or all(not cell.strip() for cell in row_values):
+                if not row_values or all(self._is_empty_cell(cell) for cell in row_values):
                     logger.debug(f"跳过空行: 第{row_idx + 1}行")
                     continue
 

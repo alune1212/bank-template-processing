@@ -17,7 +17,7 @@ class TestExcelReader:
 
         assert len(result) == 3  # 跳过空行后应该有3行数据
         assert result[0]["姓名"] == "张三"
-        assert result[0]["年龄"] == "25"
+        assert str(result[0]["年龄"]) == "25"
         assert result[1]["姓名"] == "李四"
         assert result[2]["姓名"] == "王五"
 
@@ -41,7 +41,7 @@ class TestExcelReader:
 
         assert len(result) == 3  # 跳过空行后应该有3行数据
         assert result[0]["姓名"] == "张三"
-        assert result[0]["电话"] == "13800138001"
+        assert str(result[0]["电话"]) == "13800138001"
         assert result[1]["姓名"] == "李四"
         assert result[2]["姓名"] == "王五"
 

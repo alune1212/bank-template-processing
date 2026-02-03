@@ -6,7 +6,7 @@
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
 
@@ -72,6 +72,12 @@ class Transformer:
             error_msg = f"不支持的输出格式: {output_format}"
             logger.error(error_msg)
             raise TransformError(error_msg)
+
+        # 支持 datetime/date 直接格式化
+        if isinstance(value, (datetime, date)):
+            result = value.strftime(python_output_format)
+            logger.debug(f"日期转换成功: {value} -> {result} (datetime/date)")
+            return result
 
         # 尝试各种输入格式
         for fmt in self.DATE_INPUT_FORMATS:
@@ -191,8 +197,24 @@ class Transformer:
             logger.error(error_msg)
             raise TransformError(error_msg)
 
+        # 预处理数值类型，避免科学计数法
+        if isinstance(value, Decimal):
+            if value == value.to_integral_value():
+                value_str = format(value, "f").split(".")[0]
+            else:
+                value_str = format(value, "f")
+        elif isinstance(value, int):
+            value_str = str(value)
+        elif isinstance(value, float):
+            if value.is_integer():
+                value_str = format(value, ".0f")
+            else:
+                value_str = str(value)
+        else:
+            value_str = str(value)
+
         # 移除所有非数字字符
-        cleaned = re.sub(r"[^\d]", "", str(value))
+        cleaned = re.sub(r"[^\d]", "", value_str)
 
         if not cleaned:
             error_msg = f"卡号不包含任何数字: {value}"

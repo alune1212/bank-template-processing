@@ -74,7 +74,10 @@ class TestArgumentParser:
         assert args.month == "01"
         assert args.output_dir == "output/"
         assert args.config == "config.json"
-        assert args.output_filename_template == "{unit_name}_{month}"
+        assert (
+            args.output_filename_template
+            == "{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}"
+        )
 
     def test_parse_args_with_custom_values(self):
         """测试使用自定义值的参数解析"""
@@ -426,6 +429,17 @@ class TestApplyTransformations:
         result = apply_transformations(data, transformations, field_mappings)
 
         assert result[0]["金额"] == 1000.46
+
+    def test_apply_transformations_amount_zero(self):
+        """测试金额为0时仍进行转换"""
+        from bank_template_processing.main import apply_transformations
+
+        data = [{"金额": 0}]
+        transformations = {"amount_decimal": {"decimal_places": 2}}
+        field_mappings = {"金额": {"source_column": "金额", "transform": "amount_decimal"}}
+        result = apply_transformations(data, transformations, field_mappings)
+
+        assert result[0]["金额"] == 0.0
 
     def test_apply_transformations_card_number(self):
         """测试卡号转换"""

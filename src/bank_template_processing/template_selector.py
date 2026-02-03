@@ -190,8 +190,9 @@ class TemplateSelector:
             return ""
 
         # 获取文件名（去除扩展名）
-        filename = template_path.split("/")[-1]
-        group_name = filename.split(".")[0]
+        from pathlib import Path
+
+        group_name = Path(template_path).stem
 
         logger.debug(f"从模板路径 '{template_path}' 提取组名: '{group_name}'")
         return group_name

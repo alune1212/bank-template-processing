@@ -129,8 +129,8 @@ def parse_args(argv=None) -> argparse.Namespace:
 
     parser.add_argument(
         "--output-filename-template",
-        default="{unit_name}_{month}",
-        help="输出文件名模板（默认：{unit_name}_{month}）",
+        default="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
+        help="输出文件名模板（默认：{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}）",
     )
 
     return parser.parse_args(argv)
@@ -143,6 +143,7 @@ def generate_output_filename(
     template_path: str,
     count: int,
     amount: float,
+    output_template: str | None = None,
 ) -> str:
     """
     生成输出文件名
@@ -166,6 +167,24 @@ def generate_output_filename(
     # 如果未显式提供template_name，则从template_path中提取模板名称
     if template_name is None:
         template_name = template_path_obj.stem  # 获取不含扩展名的文件名
+
+    if output_template:
+        try:
+            filename = output_template.format(
+                unit_name=unit_name,
+                month=month,
+                template_name=template_name,
+                count=count,
+                amount=amount,
+                ext=template_ext,
+            )
+        except KeyError as e:
+            raise ValueError(f"输出文件名模板缺少变量: {e}") from e
+
+        # 如果模板未显式包含扩展名且结果未带扩展名，则自动追加
+        if "{ext" not in output_template and not filename.endswith(template_ext):
+            filename = f"{filename}{template_ext}"
+        return filename
 
     return f"{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{template_ext}"
 
@@ -237,11 +256,15 @@ def apply_transformations(data: list, transformations: dict, field_mappings: dic
         # 遍历字段映射，找到需要转换的字段
         for template_field, mapping_config in field_mappings.items():
             # 仅支持新格式
+            if not isinstance(mapping_config, dict):
+                continue
             source_field = mapping_config.get("source_column", template_field)
             transform_type = mapping_config.get("transform", "none")
 
             value = new_row.get(source_field, "")
-            if not value:
+            if value is None:
+                continue
+            if isinstance(value, str) and not value.strip():
                 continue
 
             # 根据转换类型和配置应用转换
@@ -259,6 +282,21 @@ def apply_transformations(data: list, transformations: dict, field_mappings: dic
         result.append(new_row)
 
     return result
+
+
+def _needs_transformations(field_mappings: dict) -> bool:
+    """
+    判断是否需要进行数据转换
+
+    只要 field_mappings 中存在 transform != "none" 的字段即返回 True
+    """
+    for mapping in field_mappings.values():
+        if not isinstance(mapping, dict):
+            continue
+        transform_type = mapping.get("transform", "none")
+        if transform_type and transform_type != "none":
+            return True
+    return False
 
 
 def process_group(
@@ -383,7 +421,7 @@ def main(argv=None) -> None:
 
             transformations = default_unit_config.get("transformations", {})
             field_mappings = default_unit_config.get("field_mappings", {})
-            if transformations:
+            if _needs_transformations(field_mappings):
                 logger.info("转换数据")
                 data = apply_transformations(data, transformations, field_mappings)
                 logger.info("数据转换完成")
@@ -396,6 +434,7 @@ def main(argv=None) -> None:
                 template_path,
                 count,
                 amount,
+                args.output_filename_template,
             )
             output_path = Path(args.output_dir) / output_filename
             Path(args.output_dir).mkdir(parents=True, exist_ok=True)
@@ -471,7 +510,7 @@ def main(argv=None) -> None:
 
                 transformations = group_config.get("transformations", {})
                 field_mappings = group_config.get("field_mappings", {})
-                if transformations:
+                if _needs_transformations(field_mappings):
                     logger.info("转换数据")
                     group_data = apply_transformations(group_data, transformations, field_mappings)
                     logger.info("数据转换完成")
@@ -484,6 +523,7 @@ def main(argv=None) -> None:
                     template_path,
                     count,
                     amount,
+                    args.output_filename_template,
                 )
                 output_path = output_dir / output_filename
 

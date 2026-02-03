@@ -211,8 +211,8 @@ class ExcelWriter:
         # 清除从start_row开始的所有行（保留header_row）
         logger.debug(f"清除从第 {start_row} 行开始的数据")
         max_row = ws.max_row
-        for row_idx in range(max_row, start_row - 1, -1):
-            ws.delete_rows(row_idx)
+        if max_row >= start_row:
+            ws.delete_rows(start_row, max_row - start_row + 1)
 
         # 应用字段映射并写入数据
         self._write_data_to_worksheet(
@@ -252,7 +252,7 @@ class ExcelWriter:
         logger.debug(f"使用csv模块写入csv文件: {template_path}")
 
         # 读取模板文件
-        with open(template_path, "r", encoding="utf-8") as f:
+        with open(template_path, "r", encoding="utf-8-sig") as f:
             reader = csv.reader(f)
             rows = list(reader)
 
@@ -429,7 +429,7 @@ class ExcelWriter:
 
                 # 智能解析目标列索引
                 try:
-                    col_idx = self._resolve_column_index(target_column, headers, max_columns)
+                    col_idx = self._resolve_column_index_by_mode(target_column, headers, max_columns, mapping_mode)
                 except ValueError as e:
                     logger.warning(f"跳过字段 {template_column}: {e}")
                     continue
@@ -442,7 +442,7 @@ class ExcelWriter:
             if fixed_values:
                 for column, value in fixed_values.items():
                     try:
-                        col_idx = self._resolve_column_index(column, headers, max_columns)
+                        col_idx = self._resolve_column_index_by_mode(column, headers, max_columns, mapping_mode)
                         if 1 <= col_idx <= max_columns:
                             row_output[col_idx - 1] = str(value)
                     except ValueError as e:
@@ -451,7 +451,7 @@ class ExcelWriter:
             if auto_number and auto_number.get("enabled"):
                 column = auto_number.get("column", auto_number.get("column_name", "A"))
                 try:
-                    col_idx = self._resolve_column_index(column, headers, max_columns)
+                    col_idx = self._resolve_column_index_by_mode(column, headers, max_columns, mapping_mode)
                     if 1 <= col_idx <= max_columns:
                         row_output[col_idx - 1] = str(current_number)
                     if current_number is not None:
@@ -462,7 +462,7 @@ class ExcelWriter:
             if month_value is not None and month_type_mapping:
                 target_column = month_type_mapping.get("target_column", "C")
                 try:
-                    col_idx = self._resolve_column_index(target_column, headers, max_columns)
+                    col_idx = self._resolve_column_index_by_mode(target_column, headers, max_columns, mapping_mode)
                     if 1 <= col_idx <= max_columns:
                         row_output[col_idx - 1] = str(month_value)
                 except ValueError as e:
@@ -510,7 +510,7 @@ class ExcelWriter:
 
                 # 智能解析目标列索引
                 try:
-                    col_idx = self._resolve_column_index(target_column, headers, ws.max_column)
+                    col_idx = self._resolve_column_index_by_mode(target_column, headers, ws.max_column, mapping_mode)
                 except ValueError as e:
                     logger.warning(f"跳过字段 {template_column}: {e}")
                     continue
@@ -534,7 +534,7 @@ class ExcelWriter:
             if fixed_values:
                 for column, value in fixed_values.items():
                     try:
-                        col_idx = self._resolve_column_index(column, headers, ws.max_column)
+                        col_idx = self._resolve_column_index_by_mode(column, headers, ws.max_column, mapping_mode)
                         ws.cell(output_row_idx, col_idx, value)
                     except ValueError as e:
                         logger.warning(f"跳过固定值列 {column}: {e}")
@@ -542,7 +542,7 @@ class ExcelWriter:
             if auto_number and auto_number.get("enabled"):
                 column = auto_number.get("column", auto_number.get("column_name", "A"))
                 try:
-                    col_idx = self._resolve_column_index(column, headers, ws.max_column)
+                    col_idx = self._resolve_column_index_by_mode(column, headers, ws.max_column, mapping_mode)
                     ws.cell(output_row_idx, col_idx, current_number)
                     if current_number is not None:
                         current_number += 1
@@ -552,7 +552,7 @@ class ExcelWriter:
             if month_value is not None and month_type_mapping:
                 target_column = month_type_mapping.get("target_column", "C")
                 try:
-                    col_idx = self._resolve_column_index(target_column, headers, ws.max_column)
+                    col_idx = self._resolve_column_index_by_mode(target_column, headers, ws.max_column, mapping_mode)
                     ws.cell(output_row_idx, col_idx, month_value)
                 except ValueError as e:
                     logger.warning(f"跳过月类型映射列 {target_column}: {e}")
@@ -605,7 +605,7 @@ class ExcelWriter:
 
                 # 智能解析目标列索引
                 try:
-                    col_idx = self._resolve_column_index(target_column, headers, max_columns)
+                    col_idx = self._resolve_column_index_by_mode(target_column, headers, max_columns, mapping_mode)
                 except ValueError as e:
                     logger.warning(f"跳过字段 {template_column}: {e}")
                     continue
@@ -618,7 +618,7 @@ class ExcelWriter:
             if fixed_values:
                 for column, value in fixed_values.items():
                     try:
-                        col_idx = self._resolve_column_index(column, headers, max_columns)
+                        col_idx = self._resolve_column_index_by_mode(column, headers, max_columns, mapping_mode)
                         if 1 <= col_idx <= max_columns:
                             ws.write(output_row_idx - 1, col_idx - 1, value)
                     except ValueError as e:
@@ -627,7 +627,7 @@ class ExcelWriter:
             if auto_number and auto_number.get("enabled"):
                 column = auto_number.get("column", auto_number.get("column_name", "A"))
                 try:
-                    col_idx = self._resolve_column_index(column, headers, max_columns)
+                    col_idx = self._resolve_column_index_by_mode(column, headers, max_columns, mapping_mode)
                     if 1 <= col_idx <= max_columns:
                         ws.write(output_row_idx - 1, col_idx - 1, current_number)
                     if current_number is not None:
@@ -638,7 +638,7 @@ class ExcelWriter:
             if month_value is not None and month_type_mapping:
                 target_column = month_type_mapping.get("target_column", "C")
                 try:
-                    col_idx = self._resolve_column_index(target_column, headers, max_columns)
+                    col_idx = self._resolve_column_index_by_mode(target_column, headers, max_columns, mapping_mode)
                     if 1 <= col_idx <= max_columns:
                         ws.write(output_row_idx - 1, col_idx - 1, month_value)
                 except ValueError as e:
@@ -755,3 +755,28 @@ class ExcelWriter:
                 return col_idx
 
         raise ValueError(f"无法解析列标识: {column_spec} (支持的格式: 列名、Excel列标识A-Z、数字索引)")
+
+    def _resolve_column_index_by_mode(
+        self,
+        column_spec,
+        headers: Optional[dict],
+        max_columns: Optional[int],
+        mapping_mode: str,
+    ) -> int:
+        """
+        按 mapping_mode 解析列标识
+
+        - column_name: 优先使用表头映射
+        - column_index: 优先按列标识/索引解析，失败时回退到表头映射
+        """
+        if mapping_mode == "column_index":
+            try:
+                return self._resolve_column_index(column_spec, headers=None, max_columns=max_columns)
+            except ValueError as e:
+                if headers:
+                    logger.warning(f"column_index模式解析失败，回退按表头解析: {e}")
+                    return self._resolve_column_index(column_spec, headers=headers, max_columns=max_columns)
+                raise
+
+        # 默认 column_name
+        return self._resolve_column_index(column_spec, headers=headers, max_columns=max_columns)

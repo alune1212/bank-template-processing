@@ -5,6 +5,7 @@
 """
 
 import pytest
+from datetime import datetime, date
 from bank_template_processing.transformer import Transformer, TransformError
 
 
@@ -40,6 +41,14 @@ class TestTransformDate:
         transformer = Transformer()
         result = transformer.transform_date("2024-1-5")
         assert result == "2024-01-05"
+
+    def test_transform_date_datetime_input(self):
+        """测试 datetime/date 输入转换"""
+        transformer = Transformer()
+        result_dt = transformer.transform_date(datetime(2024, 1, 15))
+        result_date = transformer.transform_date(date(2024, 1, 15))
+        assert result_dt == "2024-01-15"
+        assert result_date == "2024-01-15"
 
     def test_transform_date_empty_value(self):
         """测试空值转换失败"""
@@ -153,6 +162,12 @@ class TestTransformCardNumber:
         transformer = Transformer()
         # 这个卡号是有效的，通过了 Luhn 算法验证
         result = transformer.transform_card_number(self.VALID_CARD_ICBC)
+        assert result == self.VALID_CARD_ICBC
+
+    def test_transform_card_number_int_input(self):
+        """测试整数卡号输入"""
+        transformer = Transformer()
+        result = transformer.transform_card_number(int(self.VALID_CARD_ICBC))
         assert result == self.VALID_CARD_ICBC
 
     def test_transform_card_number_invalid_luhn(self):
