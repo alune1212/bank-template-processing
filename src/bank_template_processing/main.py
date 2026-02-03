@@ -207,6 +207,8 @@ def _calculate_stats(data: list, field_mappings: dict, transformations: dict) ->
     # 查找金额列
     amount_column = None
     for _, mapping in field_mappings.items():
+        if not isinstance(mapping, dict):
+            continue
         if mapping.get("transform") == "amount_decimal":
             amount_column = mapping.get("source_column")
             break
@@ -248,6 +250,8 @@ def apply_transformations(data: list, transformations: dict, field_mappings: dic
         转换后的数据列表
     """
     transformer = Transformer()
+    logger = logging.getLogger(__name__)
+    warned_old_format = False
     result = []
 
     for row in data:
@@ -257,6 +261,9 @@ def apply_transformations(data: list, transformations: dict, field_mappings: dic
         for template_field, mapping_config in field_mappings.items():
             # 仅支持新格式
             if not isinstance(mapping_config, dict):
+                if transformations and not warned_old_format:
+                    logger.warning("检测到旧格式 field_mappings，转换规则将被忽略，请迁移到字典格式")
+                    warned_old_format = True
                 continue
             source_field = mapping_config.get("source_column", template_field)
             transform_type = mapping_config.get("transform", "none")
@@ -391,7 +398,15 @@ def main(argv=None) -> None:
         default_unit_config = get_unit_config(config, args.unit_name, "default")
         row_filter = default_unit_config.get("row_filter", {})
 
-        reader = ExcelReader(row_filter=row_filter)
+        reader_options = default_unit_config.get("reader_options", {})
+        if not isinstance(reader_options, dict):
+            logger.warning("reader_options 配置无效，已忽略")
+            reader_options = {}
+
+        reader = ExcelReader(
+            row_filter=row_filter,
+            data_only=bool(reader_options.get("data_only", False)),
+        )
         data = reader.read_excel(args.excel_path)
         logger.info(f"读取到 {len(data)} 行数据")
 

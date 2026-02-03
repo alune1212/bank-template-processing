@@ -130,6 +130,7 @@ uv run python -m bank_template_processing input.xlsx 单位名称 01 --output-di
 | `auto_number` | 自动编号配置 | 可选 |
 | `bank_branch_mapping` | 银行支行映射 | 可选 |
 | `month_type_mapping` | 月份类型映射 | 可选 |
+| `reader_options` | 读取器选项 | 可选 |
 | `template_selector` | 动态模板选择 | 可选 |
 
 ### 字段映射配置
@@ -191,6 +192,20 @@ uv run python -m bank_template_processing input.xlsx 单位名称 01 --output-di
   "compensation_value": "补偿金"
 }
 ```
+
+### 读取器选项（reader_options）
+
+用于控制读取 Excel 时的策略。
+
+```json
+"reader_options": {
+  "data_only": true
+}
+```
+
+说明：
+- `data_only`: 当为 `true` 时，读取公式单元格的**缓存结果**；为 `false` 时读取公式文本。
+  - 注意：`openpyxl` 不会计算公式，只有在 Excel 中保存过计算结果时才有缓存值。
 
 ### 动态模板选择配置
 

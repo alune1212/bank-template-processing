@@ -225,16 +225,25 @@ def _validate_legacy_unit_config(unit_name: str, unit_config: dict) -> None:
     if not isinstance(unit_config["field_mappings"], dict):
         raise ConfigError(f"单位 '{unit_name}' 的 field_mappings 必须是字典")
 
-    # 验证field_mappings的每一项必须是字典（新格式）
+    # 验证field_mappings的每一项允许新旧格式
     for field_name, field_config in unit_config["field_mappings"].items():
-        if not isinstance(field_config, dict):
-            raise ConfigError(f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 的配置必须是字典")
-        if "source_column" not in field_config:
-            raise ConfigError(f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 缺少 source_column")
+        if isinstance(field_config, dict):
+            if "source_column" not in field_config:
+                raise ConfigError(f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 缺少 source_column")
+        elif isinstance(field_config, (str, int)):
+            logger.warning(
+                f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 使用旧格式，建议迁移为字典配置"
+            )
+        else:
+            raise ConfigError(
+                f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 的配置必须是字典或字符串"
+            )
 
     # 验证transformations是字典
     if not isinstance(unit_config["transformations"], dict):
         raise ConfigError(f"单位 '{unit_name}' 的 transformations 必须是字典")
+
+    _validate_reader_options(unit_name, unit_config)
 
 
 def _validate_rule_group_config(unit_name: str, rule_name: str, rule_config: dict) -> None:
@@ -292,17 +301,41 @@ def _validate_rule_group_config(unit_name: str, rule_name: str, rule_config: dic
     if not isinstance(rule_config["field_mappings"], dict):
         raise ConfigError(f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 field_mappings 必须须是字典")
 
-    # 验证field_mappings的每一项必须是字典（新格式）
+    # 验证field_mappings的每一项允许新旧格式
     for field_name, field_config in rule_config["field_mappings"].items():
-        if not isinstance(field_config, dict):
-            raise ConfigError(
-                f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 field_mappings 中 '{field_name}' 的配置必须是字典"
+        if isinstance(field_config, dict):
+            if "source_column" not in field_config:
+                raise ConfigError(
+                    f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 field_mappings 中 '{field_name}' 缺少 source_column"
+                )
+        elif isinstance(field_config, (str, int)):
+            logger.warning(
+                f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 field_mappings 中 '{field_name}' 使用旧格式，建议迁移为字典配置"
             )
-        if "source_column" not in field_config:
+        else:
             raise ConfigError(
-                f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 field_mappings 中 '{field_name}' 缺少 source_column"
+                f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 field_mappings 中 '{field_name}' 的配置必须是字典或字符串"
             )
 
     # 验证transformations是字典
     if not isinstance(rule_config["transformations"], dict):
         raise ConfigError(f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 transformations 必须须是字典")
+
+    _validate_reader_options(unit_name, rule_config, rule_name=rule_name)
+
+
+def _validate_reader_options(unit_name: str, config: dict, rule_name: str | None = None) -> None:
+    """验证 reader_options 配置"""
+    if "reader_options" not in config:
+        return
+
+    options = config["reader_options"]
+    prefix = f"单位 '{unit_name}'"
+    if rule_name:
+        prefix = f"单位 '{unit_name}' 的规则组 '{rule_name}'"
+
+    if not isinstance(options, dict):
+        raise ConfigError(f"{prefix} 的 reader_options 必须是字典")
+
+    if "data_only" in options and not isinstance(options["data_only"], bool):
+        raise ConfigError(f"{prefix} 的 reader_options.data_only 必须是布尔值")

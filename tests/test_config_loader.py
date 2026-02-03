@@ -237,6 +237,40 @@ class TestValidateConfig:
         with pytest.raises(ConfigError, match="field_mappings.*必须是字典"):
             validate_config(config)
 
+    def test_validate_field_mappings_old_format(self, caplog):
+        """测试field_mappings旧格式（字符串映射）允许通过并记录警告"""
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "test_unit": {
+                    "template_path": "templates/test.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {"name": "姓名", "age": "年龄"},
+                    "transformations": {},
+                }
+            },
+        }
+        validate_config(config)
+        assert any("旧格式" in record.message for record in caplog.records)
+
+    def test_validate_field_mappings_invalid_value(self):
+        """测试field_mappings值类型不合法"""
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "test_unit": {
+                    "template_path": "templates/test.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {"name": ["姓名"]},
+                    "transformations": {},
+                }
+            },
+        }
+        with pytest.raises(ConfigError, match="field_mappings.*必须是字典或字符串"):
+            validate_config(config)
+
     def test_validate_default_start_row(self):
         """测试start_row默认值（未指定时为header_row+1）"""
         config: Dict[str, Any] = {
@@ -277,6 +311,59 @@ class TestValidateConfig:
         validate_config(config)  # 不应抛出异常
         # 验证unit2的start_row默认值
         assert config["organization_units"]["unit2"]["start_row"] == 3
+
+    def test_validate_reader_options_valid(self):
+        """测试reader_options合法配置"""
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "test_unit": {
+                    "template_path": "templates/test.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {"姓名": {"source_column": "name"}},
+                    "transformations": {},
+                    "reader_options": {"data_only": True},
+                }
+            },
+        }
+        validate_config(config)
+
+    def test_validate_reader_options_invalid_type(self):
+        """测试reader_options类型非法"""
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "test_unit": {
+                    "template_path": "templates/test.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {"姓名": {"source_column": "name"}},
+                    "transformations": {},
+                    "reader_options": "invalid",
+                }
+            },
+        }
+        with pytest.raises(ConfigError, match="reader_options 必须是字典"):
+            validate_config(config)
+
+    def test_validate_reader_options_invalid_data_only(self):
+        """测试reader_options.data_only类型非法"""
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "test_unit": {
+                    "template_path": "templates/test.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {"姓名": {"source_column": "name"}},
+                    "transformations": {},
+                    "reader_options": {"data_only": "yes"},
+                }
+            },
+        }
+        with pytest.raises(ConfigError, match="reader_options.data_only 必须是布尔值"):
+            validate_config(config)
 
     def test_validate_empty_organization_units(self):
         """测试空的organization_units"""

@@ -500,10 +500,17 @@ class ExcelWriter:
 
             # 应用字段映射
             for template_column, mapping_config in field_mappings.items():
-                # 仅支持新格式：{ "模板列名": { "source_column": "输入列名", ... } }
-                source_column = mapping_config.get("source_column")
-                target_column = mapping_config.get("target_column", template_column)
-                transform_type = mapping_config.get("transform", "none")
+                # 兼容两种配置格式：
+                # 1. 新格式：{ "模板列名": { "source_column": "输入列名", ... } }
+                # 2. 旧格式：{ "输入列名": "模板列名" }
+                if isinstance(mapping_config, dict):
+                    source_column = mapping_config.get("source_column")
+                    target_column = mapping_config.get("target_column", template_column)
+                    transform_type = mapping_config.get("transform", "none")
+                else:
+                    source_column = template_column
+                    target_column = mapping_config
+                    transform_type = "none"
 
                 # 获取源数据值
                 value = row_data.get(source_column, "")

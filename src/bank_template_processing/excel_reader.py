@@ -27,14 +27,16 @@ class ExcelReader:
     支持读取多种格式的Excel文件，并转换为字典列表。
     """
 
-    def __init__(self, row_filter: Optional[Dict[str, Any]] = None):
+    def __init__(self, row_filter: Optional[Dict[str, Any]] = None, data_only: bool = False):
         """初始化ExcelReader
 
         Args:
             row_filter: 行过滤配置，用于排除特定行
+            data_only: 读取公式单元格的缓存值（需要Excel保存过结果）
         """
         logger.debug("初始化ExcelReader")
         self.row_filter = row_filter or {}
+        self.data_only = data_only
 
     def read_excel(self, file_path: str) -> List[Dict[str, Any]]:
         """读取Excel文件并返回字典列表
@@ -164,7 +166,7 @@ class ExcelReader:
         logger.debug(f"使用openpyxl读取.xlsx文件: {file_path}")
 
         try:
-            workbook = openpyxl.load_workbook(file_path, read_only=True)
+            workbook = openpyxl.load_workbook(file_path, read_only=True, data_only=self.data_only)
             sheet = workbook.active  # 使用第一个工作表
             if sheet is None:
                 raise ExcelError("Excel文件没有工作表")

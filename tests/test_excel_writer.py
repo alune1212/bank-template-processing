@@ -481,6 +481,40 @@ class TestExcelWriter:
 
         wb_result.close()
 
+    def test_old_format_field_mappings_xlsx(self, tmp_path):
+        """测试旧格式field_mappings在xlsx中可用"""
+        template_path = tmp_path / "template.xlsx"
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.cell(1, 1, "姓名")
+        ws.cell(1, 2, "年龄")
+        wb.save(template_path)
+
+        data = [{"name": "张三", "age": 25}, {"name": "李四", "age": 30}]
+
+        # 旧格式：输入列名 -> 模板列名
+        field_mappings = {"name": "姓名", "age": "年龄"}
+
+        output_path = tmp_path / "output.xlsx"
+        writer = ExcelWriter()
+        writer.write_excel(
+            template_path=str(template_path),
+            data=data,
+            field_mappings=field_mappings,
+            output_path=str(output_path),
+            header_row=1,
+            start_row=2,
+            mapping_mode="column_name",
+        )
+
+        wb_result = openpyxl.load_workbook(output_path)
+        ws_result = wb_result.active
+        assert ws_result.cell(2, 1).value == "张三"
+        assert ws_result.cell(2, 2).value == 25
+        assert ws_result.cell(3, 1).value == "李四"
+        assert ws_result.cell(3, 2).value == 30
+        wb_result.close()
+
     def test_clear_existing_data(self, tmp_path):
         """测试清除现有数据"""
         # 创建包含现有数据的模板文件
