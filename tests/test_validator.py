@@ -245,6 +245,36 @@ class TestValidateValueRanges:
 
         assert "字段 'status' 的值 pending 不在允许的值列表中" in str(exc_info.value)
 
+    def test_allowed_values_numeric_normalization(self):
+        """allowed_values 数值归一化"""
+        row = {"amount": "100.00"}
+        range_rules = {"amount": {"allowed_values": [100, 200]}}
+        Validator.validate_value_ranges(row, range_rules)
+
+    def test_allowed_values_date_normalization(self):
+        """allowed_values 日期归一化"""
+        row = {"date": "2024-01-05"}
+        range_rules = {"date": {"allowed_values": ["2024-01-05", "2024-02-01"]}}
+        Validator.validate_value_ranges(row, range_rules)
+
+    def test_allowed_values_date_objects(self):
+        """allowed_values 支持日期对象"""
+        from datetime import datetime
+
+        row = {"date": "2024-01-05"}
+        range_rules = {
+            "date": {
+                "allowed_values": [datetime(2024, 1, 5), datetime(2024, 2, 1)],
+            }
+        }
+        Validator.validate_value_ranges(row, range_rules)
+
+    def test_allowed_values_parse_fail_fallback(self):
+        """allowed_values 解析失败时回退原值比较"""
+        row = {"code": "ABC"}
+        range_rules = {"code": {"allowed_values": ["ABC", "DEF"]}}
+        Validator.validate_value_ranges(row, range_rules)
+
     def test_list_length_validation(self):
         """列表长度验证 → 通过"""
         row = {"tags": ["tag1", "tag2", "tag3"]}

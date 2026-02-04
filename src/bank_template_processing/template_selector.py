@@ -16,6 +16,23 @@ logger = logging.getLogger(__name__)
 class TemplateSelector:
     """模板选择器类"""
 
+    @staticmethod
+    def _to_half_width(text: str) -> str:
+        result = []
+        for char in text:
+            code = ord(char)
+            if code == 0x3000:  # 全角空格
+                result.append(" ")
+            elif 0xFF01 <= code <= 0xFF5E:  # 全角字符范围
+                result.append(chr(code - 0xFEE0))
+            else:
+                result.append(char)
+        return "".join(result)
+
+    @classmethod
+    def _normalize_bank_name(cls, value: Any) -> str:
+        return cls._to_half_width(str(value)).strip()
+
     def __init__(self, config: Dict[str, Any]):
         """
         初始化模板选择器
@@ -115,8 +132,11 @@ class TemplateSelector:
                 logger.error(error_msg)
                 raise ValidationError(error_msg)
 
+            normalized_value = self._normalize_bank_name(bank_value)
+            normalized_default = self._normalize_bank_name(default_bank)
+
             # 根据银行值分组
-            if bank_value == default_bank:
+            if normalized_value == normalized_default:
                 default_data.append(row)
             else:
                 special_data.append(row)

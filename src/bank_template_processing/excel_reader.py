@@ -27,16 +27,18 @@ class ExcelReader:
     支持读取多种格式的Excel文件，并转换为字典列表。
     """
 
-    def __init__(self, row_filter: Optional[Dict[str, Any]] = None, data_only: bool = False):
+    def __init__(self, row_filter: Optional[Dict[str, Any]] = None, data_only: bool = False, header_row: int = 1):
         """初始化ExcelReader
 
         Args:
             row_filter: 行过滤配置，用于排除特定行
             data_only: 读取公式单元格的缓存值（需要Excel保存过结果）
+            header_row: 表头行号（从1开始）
         """
         logger.debug("初始化ExcelReader")
         self.row_filter = row_filter or {}
         self.data_only = data_only
+        self.header_row = header_row
 
     def read_excel(self, file_path: str) -> List[Dict[str, Any]]:
         """读取Excel文件并返回字典列表
@@ -171,13 +173,16 @@ class ExcelReader:
             if sheet is None:
                 raise ExcelError("Excel文件没有工作表")
 
-            # 读取表头（第1行）
+            # 读取表头（指定行）
             headers = None
             data_rows = []
 
             for row_idx, row in enumerate(sheet.iter_rows(values_only=True), start=1):
-                if row_idx == 1:
-                    # 第一行是表头
+                if row_idx < self.header_row:
+                    # 跳过表头之前的行
+                    continue
+                if row_idx == self.header_row:
+                    # 表头行
                     headers = [str(cell) if cell is not None else "" for cell in row]
                     logger.debug(f"提取表头: {headers}")
                 else:
@@ -231,13 +236,18 @@ class ExcelReader:
                 logger.warning("CSV文件为空")
                 return []
 
-            # 第一行是表头
-            headers = rows[0]
+            if self.header_row < 1:
+                raise ExcelError("header_row 必须大于等于 1")
+            if len(rows) < self.header_row:
+                raise ExcelError(f"CSV文件行数不足，无法读取表头行: {self.header_row}")
+
+            # 指定行是表头
+            headers = rows[self.header_row - 1]
             logger.debug(f"提取表头: {headers}")
 
             data_rows = []
-            # 从第二行开始读取数据
-            for row_idx, row in enumerate(rows[1:], start=2):
+            # 从表头行的下一行开始读取数据
+            for row_idx, row in enumerate(rows[self.header_row :], start=self.header_row + 1):
                 # 检查是否为空行（所有单元格都为空）
                 if not row or all(self._is_empty_cell(cell) for cell in row):
                     logger.debug(f"跳过空行: 第{row_idx}行")
@@ -278,16 +288,22 @@ class ExcelReader:
             workbook = xlrd.open_workbook(file_path)
             sheet = workbook.sheet_by_index(0)  # 使用第一个工作表
 
-            # 读取表头（第1行）
+            if self.header_row < 1:
+                raise ExcelError("header_row 必须大于等于 1")
+
+            # 读取表头（指定行）
             headers = []
+            header_row_idx = self.header_row - 1
+            if sheet.nrows <= header_row_idx:
+                raise ExcelError(f"XLS文件行数不足，无法读取表头行: {self.header_row}")
             for col_idx in range(sheet.ncols):
-                cell_value = sheet.cell_value(0, col_idx)
+                cell_value = sheet.cell_value(header_row_idx, col_idx)
                 headers.append(str(cell_value) if cell_value is not None else "")
             logger.debug(f"提取表头: {headers}")
 
             data_rows = []
-            # 从第2行开始读取数据
-            for row_idx in range(1, sheet.nrows):
+            # 从表头行的下一行开始读取数据
+            for row_idx in range(header_row_idx + 1, sheet.nrows):
                 row_values = []
                 for col_idx in range(sheet.ncols):
                     cell = sheet.cell(row_idx, col_idx)

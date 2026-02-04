@@ -63,6 +63,7 @@ class ExcelWriter:
         bank_branch_mapping: Optional[dict] = None,
         month_type_mapping: Optional[dict] = None,
         month_param: Optional[str] = None,
+        clear_rows: Optional[dict] = None,
     ) -> None:
         """
         将数据写入Excel文件（支持.xlsx、.csv、.xls三种格式）
@@ -80,6 +81,7 @@ class ExcelWriter:
             bank_branch_mapping: 银行支行映射（例如：{"enabled": True, "source_column": "支行", "target_column": "B"}）
             month_type_mapping: 月类型映射（例如：{"enabled": True, "target_column": "C", "bonus_value": "年终奖", "compensation_value": "补偿金"}）
             month_param: 月参数（例如："1"或"01"或"年终奖"或"补偿金"）
+            clear_rows: 数据清理范围（例如：{"start_row": 2, "end_row": 200}）
 
         Raises:
             ConfigError: 配置无效时抛出
@@ -116,6 +118,7 @@ class ExcelWriter:
                     bank_branch_mapping,
                     month_type_mapping,
                     month_param,
+                    clear_rows,
                 )
             elif ext == ".csv":
                 self._write_csv(
@@ -131,6 +134,7 @@ class ExcelWriter:
                     bank_branch_mapping,
                     month_type_mapping,
                     month_param,
+                    clear_rows,
                 )
             elif ext == ".xls":
                 self._write_xls(
@@ -146,6 +150,7 @@ class ExcelWriter:
                     bank_branch_mapping,
                     month_type_mapping,
                     month_param,
+                    clear_rows,
                 )
             else:
                 error_msg = f"不支持的文件格式: {ext}"
@@ -175,6 +180,7 @@ class ExcelWriter:
         bank_branch_mapping: Optional[dict] = None,
         month_type_mapping: Optional[dict] = None,
         month_param: Optional[str] = None,
+        clear_rows: Optional[dict] = None,
     ) -> None:
         """使用openpyxl写入.xlsx文件，保留格式、公式、合并单元格"""
         logger.debug(f"使用openpyxl写入xlsx文件: {template_path}")
@@ -208,11 +214,25 @@ class ExcelWriter:
         else:
             logger.debug("header_row = 0，跳过读取表头（使用列标识符）")
 
-        # 清除从start_row开始的所有行（保留header_row）
-        logger.debug(f"清除从第 {start_row} 行开始的数据")
-        max_row = ws.max_row
-        if max_row >= start_row:
-            ws.delete_rows(start_row, max_row - start_row + 1)
+        # 清理数据区
+        clear_config = clear_rows or {}
+        clear_end = clear_config.get("end_row", clear_config.get("data_end_row"))
+        if clear_end is not None:
+            clear_start = clear_config.get("start_row", start_row)
+            if clear_start > clear_end:
+                raise ConfigError("clear_rows.start_row 不能大于 end_row")
+            clear_count = clear_end - clear_start + 1
+            if len(data) > clear_count:
+                ws.insert_rows(clear_end + 1, amount=len(data) - clear_count)
+            for row_idx in range(clear_start, clear_end + 1):
+                for col_idx in range(1, ws.max_column + 1):
+                    ws.cell(row_idx, col_idx, None)
+            logger.debug(f"清理数据区：{clear_start}-{clear_end}")
+        else:
+            logger.debug(f"清除从第 {start_row} 行开始的数据")
+            max_row = ws.max_row
+            if max_row >= start_row:
+                ws.delete_rows(start_row, max_row - start_row + 1)
 
         # 应用字段映射并写入数据
         self._write_data_to_worksheet(
@@ -247,6 +267,7 @@ class ExcelWriter:
         bank_branch_mapping: Optional[dict] = None,
         month_type_mapping: Optional[dict] = None,
         month_param: Optional[str] = None,
+        clear_rows: Optional[dict] = None,
     ) -> None:
         """使用csv模块写入.csv文件（UTF-8编码，无格式保留）"""
         logger.debug(f"使用csv模块写入csv文件: {template_path}")
@@ -273,9 +294,6 @@ class ExcelWriter:
             logger.debug("header_row = 0，跳过读取表头（使用列标识符）")
             max_columns = len(rows[0]) if rows else 0
 
-        # 保留header_row行之前的所有内容
-        output_rows = rows[:header_row] if header_row > 0 else []
-
         # 处理数据并转换为行列表
         data_rows = self._process_data_to_rows(
             data,
@@ -290,8 +308,25 @@ class ExcelWriter:
             month_param,
         )
 
-        # 添加数据行
-        output_rows.extend(data_rows)
+        clear_config = clear_rows or {}
+        clear_end = clear_config.get("end_row", clear_config.get("data_end_row"))
+        if clear_end is not None:
+            clear_start = clear_config.get("start_row", start_row)
+            if clear_start > clear_end:
+                raise ExcelError("clear_rows.start_row 不能大于 end_row")
+
+            clear_count = clear_end - clear_start + 1
+            rows_before = rows[: clear_start - 1]
+            rows_after = rows[clear_end:] if clear_end < len(rows) else []
+            filler_rows = []
+            if len(data_rows) < clear_count:
+                filler_rows = [[""] * max_columns for _ in range(clear_count - len(data_rows))]
+            output_rows = rows_before + data_rows + filler_rows + rows_after
+        else:
+            # 保留header_row行之前的所有内容
+            output_rows = rows[:header_row] if header_row > 0 else []
+            # 添加数据行
+            output_rows.extend(data_rows)
 
         # 写入输出文件（使用utf-8-sig编码，让Excel正确识别UTF-8）
         with open(output_path, "w", encoding="utf-8-sig", newline="") as f:
@@ -314,6 +349,7 @@ class ExcelWriter:
         bank_branch_mapping: Optional[dict] = None,
         month_type_mapping: Optional[dict] = None,
         month_param: Optional[str] = None,
+        clear_rows: Optional[dict] = None,
     ) -> None:
         """使用xlwt写入.xls文件（保留模板其他Sheet）"""
         logger.debug(f"使用xlwt写入xls文件: {template_path}")
@@ -352,13 +388,26 @@ class ExcelWriter:
         else:
             logger.debug("header_row = 0，跳过读取表头（使用列标识符）")
 
-        # 尝试清除已有数据（覆盖为空字符串）
-        # 注意：xlwt 无法真正删除行，只能覆盖内容
-        if ws_template.nrows > start_row - 1:
-            logger.debug(f"清除从第 {start_row} 行开始的数据 (覆盖为空)")
-            for row_idx in range(start_row - 1, ws_template.nrows):
+        # 清理数据区（覆盖为空字符串）
+        clear_config = clear_rows or {}
+        clear_end = clear_config.get("end_row", clear_config.get("data_end_row"))
+        if clear_end is not None:
+            clear_start = clear_config.get("start_row", start_row)
+            if clear_start > clear_end:
+                raise ConfigError("clear_rows.start_row 不能大于 end_row")
+            clear_count = clear_end - clear_start + 1
+            if len(data) > clear_count:
+                raise ConfigError("clear_rows 范围不足以容纳全部数据，请增大 end_row")
+            logger.debug(f"清理数据区：{clear_start}-{clear_end} (覆盖为空)")
+            for row_idx in range(clear_start - 1, clear_end):
                 for col_idx in range(ws_template.ncols):
                     ws_output.write(row_idx, col_idx, "")
+        else:
+            if ws_template.nrows > start_row - 1:
+                logger.debug(f"清除从第 {start_row} 行开始的数据 (覆盖为空)")
+                for row_idx in range(start_row - 1, ws_template.nrows):
+                    for col_idx in range(ws_template.ncols):
+                        ws_output.write(row_idx, col_idx, "")
 
         self._write_data_to_xls_sheet(
             ws_output,

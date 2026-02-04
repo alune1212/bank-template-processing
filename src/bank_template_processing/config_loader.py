@@ -240,6 +240,10 @@ def _validate_validation_rules(unit_name: str, validation_rules: dict, rule_name
                 raise ConfigError(
                     f"{prefix} 的 validation_rules.value_ranges 中 '{field_name}' 必须是字典"
                 )
+            if "allowed_values" in rules and not isinstance(rules["allowed_values"], list):
+                raise ConfigError(
+                    f"{prefix} 的 validation_rules.value_ranges 中 '{field_name}'.allowed_values 必须是列表"
+                )
 
 
 def _validate_legacy_unit_config(unit_name: str, unit_config: dict) -> None:
@@ -310,6 +314,9 @@ def _validate_legacy_unit_config(unit_name: str, unit_config: dict) -> None:
 
     if "validation_rules" in unit_config:
         _validate_validation_rules(unit_name, unit_config["validation_rules"])
+
+    if "clear_rows" in unit_config:
+        _validate_clear_rows(unit_name, unit_config["clear_rows"])
 
     _validate_reader_options(unit_name, unit_config)
 
@@ -392,6 +399,9 @@ def _validate_rule_group_config(unit_name: str, rule_name: str, rule_config: dic
     if "validation_rules" in rule_config:
         _validate_validation_rules(unit_name, rule_config["validation_rules"], rule_name=rule_name)
 
+    if "clear_rows" in rule_config:
+        _validate_clear_rows(unit_name, rule_config["clear_rows"], rule_name=rule_name)
+
     _validate_reader_options(unit_name, rule_config, rule_name=rule_name)
 
 
@@ -410,3 +420,35 @@ def _validate_reader_options(unit_name: str, config: dict, rule_name: str | None
 
     if "data_only" in options and not isinstance(options["data_only"], bool):
         raise ConfigError(f"{prefix} 的 reader_options.data_only 必须是布尔值")
+
+    if "header_row" in options:
+        header_row = options["header_row"]
+        if not isinstance(header_row, int) or header_row < 1:
+            raise ConfigError(f"{prefix} 的 reader_options.header_row 必须是 >= 1 的整数")
+
+
+def _validate_clear_rows(unit_name: str, clear_rows: dict, rule_name: str | None = None) -> None:
+    """验证 clear_rows 配置"""
+    prefix = f"单位 '{unit_name}'"
+    if rule_name:
+        prefix = f"单位 '{unit_name}' 的规则组 '{rule_name}'"
+
+    if not isinstance(clear_rows, dict):
+        raise ConfigError(f"{prefix} 的 clear_rows 必须是字典")
+
+    if "end_row" in clear_rows and "data_end_row" in clear_rows:
+        raise ConfigError(f"{prefix} 的 clear_rows 不能同时包含 end_row 与 data_end_row")
+
+    end_row = clear_rows.get("end_row", clear_rows.get("data_end_row"))
+    if end_row is None:
+        raise ConfigError(f"{prefix} 的 clear_rows 必须包含 end_row 或 data_end_row")
+
+    if not isinstance(end_row, int) or end_row < 1:
+        raise ConfigError(f"{prefix} 的 clear_rows.end_row 必须是 >= 1 的整数")
+
+    start_row = clear_rows.get("start_row")
+    if start_row is not None:
+        if not isinstance(start_row, int) or start_row < 1:
+            raise ConfigError(f"{prefix} 的 clear_rows.start_row 必须是 >= 1 的整数")
+        if start_row > end_row:
+            raise ConfigError(f"{prefix} 的 clear_rows.start_row 不能大于 end_row")

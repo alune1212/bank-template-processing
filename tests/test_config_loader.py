@@ -107,6 +107,99 @@ class TestValidateConfig:
         with pytest.raises(ConfigError, match="类型不支持"):
             validate_config(config)
 
+    def test_validate_reader_options_header_row(self):
+        """测试 reader_options.header_row 校验"""
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "test_unit": {
+                    "template_path": "templates/test.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {"姓名": {"source_column": "name"}},
+                    "transformations": {},
+                    "reader_options": {"header_row": 0},
+                }
+            },
+        }
+        with pytest.raises(ConfigError, match="header_row"):
+            validate_config(config)
+
+    def test_validate_clear_rows_invalid(self):
+        """测试 clear_rows 配置非法"""
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "test_unit": {
+                    "template_path": "templates/test.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {"姓名": {"source_column": "name"}},
+                    "transformations": {},
+                    "clear_rows": {"start_row": 5, "end_row": 2},
+                }
+            },
+        }
+        with pytest.raises(ConfigError, match="start_row"):
+            validate_config(config)
+
+    def test_validate_clear_rows_data_end_row(self):
+        """测试 clear_rows 使用 data_end_row"""
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "test_unit": {
+                    "template_path": "templates/test.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {"姓名": {"source_column": "name"}},
+                    "transformations": {},
+                    "clear_rows": {"data_end_row": 10},
+                }
+            },
+        }
+        validate_config(config)
+
+    def test_validate_clear_rows_conflict_keys(self):
+        """测试 clear_rows end_row 与 data_end_row 冲突"""
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "test_unit": {
+                    "template_path": "templates/test.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {"姓名": {"source_column": "name"}},
+                    "transformations": {},
+                    "clear_rows": {"end_row": 10, "data_end_row": 20},
+                }
+            },
+        }
+        with pytest.raises(ConfigError, match="不能同时包含"):
+            validate_config(config)
+
+    def test_validate_allowed_values_not_list(self):
+        """测试 allowed_values 非列表触发错误"""
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "test_unit": {
+                    "template_path": "templates/test.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {"姓名": {"source_column": "name"}},
+                    "transformations": {},
+                    "validation_rules": {
+                        "value_ranges": {
+                            "状态": {"allowed_values": "active"}
+                        }
+                    },
+                }
+            },
+        }
+        with pytest.raises(ConfigError, match="allowed_values"):
+            validate_config(config)
+
     def test_validate_missing_version(self):
         """测试缺失version字段"""
         config = {

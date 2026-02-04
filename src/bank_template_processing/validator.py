@@ -53,6 +53,18 @@ class Validator:
             raise ValidationError(f"字段 '{field}' 的值 {value} 不是有效数值") from e
 
     @staticmethod
+    def _try_parse_date(value: Any) -> datetime | date | None:
+        if isinstance(value, (datetime, date)):
+            return value
+        if isinstance(value, str):
+            for fmt in Transformer.DATE_INPUT_FORMATS:
+                try:
+                    return datetime.strptime(value, fmt)
+                except ValueError:
+                    continue
+        return None
+
+    @staticmethod
     def _is_numeric_value(value: Any) -> bool:
         return isinstance(value, (int, float, Decimal)) and not isinstance(value, bool)
 
@@ -127,6 +139,66 @@ class Validator:
         min_cmp = Validator._coerce_numeric_bound(min_val) if min_val is not None else None
         max_cmp = Validator._coerce_numeric_bound(max_val) if max_val is not None else None
         return value_cmp, min_cmp, max_cmp
+
+    @staticmethod
+    def _normalize_allowed_values(
+        field: str, value: Any, allowed_values: Any
+    ) -> tuple[Any, Any, bool]:
+        """
+        归一化 allowed_values 以便比较
+
+        Returns:
+            (normalized_value, normalized_allowed_values, use_normalized)
+        """
+        if not isinstance(allowed_values, list):
+            return value, allowed_values, False
+
+        value_date = Validator._try_parse_date(value)
+        allowed_dates = [Validator._try_parse_date(item) for item in allowed_values]
+        if value_date is not None and any(item is not None for item in allowed_dates):
+            date_mode = "datetime" if isinstance(value, datetime) or any(
+                isinstance(item, datetime) for item in allowed_values
+            ) else "date"
+            try:
+                normalized_value = Validator._coerce_date_value(field, value, date_mode)
+            except TypeError as e:
+                logger.warning(f"字段 '{field}' 的 allowed_values 日期归一化失败，已回退原值比较: {e}")
+                return value, allowed_values, False
+
+            normalized_allowed = []
+            for item in allowed_values:
+                try:
+                    normalized_allowed.append(Validator._coerce_date_bound(item, date_mode))
+                except TypeError as e:
+                    logger.warning(
+                        f"字段 '{field}' 的 allowed_values 日期值无法解析，已保留原值: {e}"
+                    )
+                    normalized_allowed.append(item)
+
+            return normalized_value, normalized_allowed, True
+
+        try:
+            normalized_value = Validator._coerce_numeric_value(field, value)
+        except (TypeError, ValidationError) as e:
+            logger.warning(f"字段 '{field}' 的 allowed_values 数值归一化失败，已回退原值比较: {e}")
+            return value, allowed_values, False
+
+        normalized_allowed = []
+        any_numeric = False
+        for item in allowed_values:
+            try:
+                normalized_allowed.append(Validator._coerce_numeric_bound(item))
+                any_numeric = True
+            except TypeError as e:
+                logger.warning(
+                    f"字段 '{field}' 的 allowed_values 数值无法解析，已保留原值: {e}"
+                )
+                normalized_allowed.append(item)
+
+        if not any_numeric:
+            return value, allowed_values, False
+
+        return normalized_value, normalized_allowed, True
 
     @staticmethod
     def validate_required(row: Dict[str, Any], required_fields: List[str]) -> None:
@@ -370,9 +442,19 @@ class Validator:
             # 验证允许的值（枚举）
             if "allowed_values" in rules:
                 allowed = rules["allowed_values"]
-                if value not in allowed:
+                normalized_value, normalized_allowed, use_normalized = Validator._normalize_allowed_values(
+                    field, value, allowed
+                )
+                if use_normalized:
+                    if normalized_value in normalized_allowed or value in allowed:
+                        continue
                     error_msg = f"字段 '{field}' 的值 {value} 不在允许的值列表中: {allowed}"
                     logger.error(error_msg)
                     raise ValidationError(error_msg)
+                else:
+                    if value not in allowed:
+                        error_msg = f"字段 '{field}' 的值 {value} 不在允许的值列表中: {allowed}"
+                        logger.error(error_msg)
+                        raise ValidationError(error_msg)
 
         logger.info("值范围验证通过")

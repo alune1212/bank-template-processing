@@ -341,6 +341,7 @@ def process_group(
     auto_number = group_config.get("auto_number", {"enabled": False})
     bank_branch_mapping = group_config.get("bank_branch_mapping", {"enabled": False})
     month_type_mapping = group_config.get("month_type_mapping", {"enabled": False})
+    clear_rows = group_config.get("clear_rows")
 
     logger.info(f"写入输出文件：{output_path}")
     writer = ExcelWriter()
@@ -357,6 +358,7 @@ def process_group(
         bank_branch_mapping=bank_branch_mapping,
         month_type_mapping=month_type_mapping,
         month_param=month_param,
+        clear_rows=clear_rows,
     )
     logger.info(f"输出文件已保存：{output_path}")
 
@@ -410,10 +412,15 @@ def main(argv=None) -> None:
         if not isinstance(reader_options, dict):
             logger.warning("reader_options 配置无效，已忽略")
             reader_options = {}
+        header_row = reader_options.get("header_row", 1)
+        if not isinstance(header_row, int) or header_row < 1:
+            logger.warning("reader_options.header_row 配置无效，已使用默认值 1")
+            header_row = 1
 
         reader = ExcelReader(
             row_filter=row_filter,
             data_only=bool(reader_options.get("data_only", False)),
+            header_row=header_row,
         )
         data = reader.read_excel(args.excel_path)
         logger.info(f"读取到 {len(data)} 行数据")

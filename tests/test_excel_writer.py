@@ -5,6 +5,7 @@ import csv
 import openpyxl
 import pytest
 
+from bank_template_processing.config_loader import ConfigError
 from bank_template_processing.excel_writer import ExcelError, ExcelWriter
 
 
@@ -280,15 +281,134 @@ class TestExcelWriter:
         assert ws_result.cell(2, 2).value == "01月工资"
         wb_result.close()
 
-        # 验证固定值
+    def test_clear_rows_preserve_tail(self, tmp_path):
+        """测试 clear_rows 仅清理数据区并保留尾部"""
+        template_path = tmp_path / "template.xlsx"
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.cell(1, 1, "姓名")
+        ws.cell(2, 1, "旧数据1")
+        ws.cell(3, 1, "旧数据2")
+        ws.cell(4, 1, "旧数据3")
+        ws.cell(5, 1, "合计")
+        wb.save(template_path)
+
+        data = [{"姓名": "张三"}, {"姓名": "李四"}]
+        field_mappings = {"姓名": {"source_column": "姓名"}}
+
+        output_path = tmp_path / "output.xlsx"
+        writer = ExcelWriter()
+        writer.write_excel(
+            template_path=str(template_path),
+            data=data,
+            field_mappings=field_mappings,
+            output_path=str(output_path),
+            header_row=1,
+            start_row=2,
+            mapping_mode="column_name",
+            clear_rows={"start_row": 2, "end_row": 4},
+        )
+
         wb_result = openpyxl.load_workbook(output_path)
         ws_result = wb_result.active
         assert ws_result.cell(2, 1).value == "张三"
-        assert ws_result.cell(2, 2).value == "财务部"  # 固定值
         assert ws_result.cell(3, 1).value == "李四"
-        assert ws_result.cell(3, 2).value == "财务部"  # 固定值
-
+        assert ws_result.cell(5, 1).value == "合计"
         wb_result.close()
+
+    def test_clear_rows_insert_rows_when_data_exceeds(self, tmp_path):
+        """测试 clear_rows 数据超过范围时插入行"""
+        template_path = tmp_path / "template.xlsx"
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.cell(1, 1, "姓名")
+        ws.cell(2, 1, "旧数据1")
+        ws.cell(3, 1, "旧数据2")
+        ws.cell(4, 1, "合计")
+        wb.save(template_path)
+
+        data = [{"姓名": "张三"}, {"姓名": "李四"}, {"姓名": "王五"}]
+        field_mappings = {"姓名": {"source_column": "姓名"}}
+
+        output_path = tmp_path / "output.xlsx"
+        writer = ExcelWriter()
+        writer.write_excel(
+            template_path=str(template_path),
+            data=data,
+            field_mappings=field_mappings,
+            output_path=str(output_path),
+            header_row=1,
+            start_row=2,
+            mapping_mode="column_name",
+            clear_rows={"start_row": 2, "end_row": 3},
+        )
+
+        wb_result = openpyxl.load_workbook(output_path)
+        ws_result = wb_result.active
+        assert ws_result.cell(2, 1).value == "张三"
+        assert ws_result.cell(3, 1).value == "李四"
+        assert ws_result.cell(4, 1).value == "王五"
+        assert ws_result.cell(5, 1).value == "合计"
+        wb_result.close()
+
+    def test_clear_rows_csv_preserve_tail(self, tmp_path):
+        """测试 CSV clear_rows 保留尾部"""
+        template_path = tmp_path / "template.csv"
+        with open(template_path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["姓名"])
+            writer.writerow(["旧数据1"])
+            writer.writerow(["旧数据2"])
+            writer.writerow(["合计"])
+
+        data = [{"姓名": "张三"}]
+        field_mappings = {"姓名": {"source_column": "姓名"}}
+
+        output_path = tmp_path / "output.csv"
+        writer = ExcelWriter()
+        writer.write_excel(
+            template_path=str(template_path),
+            data=data,
+            field_mappings=field_mappings,
+            output_path=str(output_path),
+            header_row=1,
+            start_row=2,
+            mapping_mode="column_name",
+            clear_rows={"start_row": 2, "end_row": 3},
+        )
+
+        with open(output_path, "r", encoding="utf-8-sig", newline="") as f:
+            rows = list(csv.reader(f))
+        assert rows[1][0] == "张三"
+        assert rows[3][0] == "合计"
+
+    def test_clear_rows_xls_insufficient_range(self, tmp_path):
+        """测试 XLS clear_rows 范围不足时抛错"""
+        import xlwt
+        from bank_template_processing.config_loader import ConfigError
+
+        template_path = tmp_path / "template.xls"
+        wb = xlwt.Workbook(encoding="utf-8")
+        ws = wb.add_sheet("Sheet1")
+        ws.write(0, 0, "姓名")
+        ws.write(1, 0, "旧数据1")
+        wb.save(template_path)
+
+        data = [{"姓名": "张三"}, {"姓名": "李四"}]
+        field_mappings = {"姓名": {"source_column": "姓名"}}
+
+        writer = ExcelWriter()
+        with pytest.raises(ConfigError):
+            writer.write_excel(
+                template_path=str(template_path),
+                data=data,
+                field_mappings=field_mappings,
+                output_path=str(tmp_path / "output.xls"),
+                header_row=1,
+                start_row=2,
+                mapping_mode="column_name",
+                clear_rows={"start_row": 2, "end_row": 2},
+            )
 
     def test_auto_number(self, tmp_path):
         """测试自动编号功能"""

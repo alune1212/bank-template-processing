@@ -157,6 +157,51 @@ class TestGroupData:
         # 特殊组应该有 3 条数据
         assert len(result["special"]["data"]) == 3
 
+    def test_bank_name_normalization(self):
+        """银行名称包含空格/全角时仍能正确分组"""
+        config = {
+            "template_selector": {
+                "enabled": True,
+                "default_bank": "农业银行",
+                "default_template": "templates/农业银行.xlsx",
+                "special_template": "templates/农业银行-特殊.xlsx",
+            }
+        }
+        selector = TemplateSelector(config)
+
+        data = [
+            {"开户银行": "　农业银行　", "姓名": "张三", "金额": 1000},  # 全角空格
+            {"开户银行": "工商银行", "姓名": "李四", "金额": 2000},
+        ]
+
+        result = selector.group_data(data, default_bank="农业银行")
+
+        assert len(result["default"]["data"]) == 1
+        assert result["default"]["data"][0]["姓名"] == "张三"
+        assert len(result["special"]["data"]) == 1
+
+    def test_bank_name_fullwidth_letters(self):
+        """全角字母可正确归一化"""
+        config = {
+            "template_selector": {
+                "enabled": True,
+                "default_bank": "ABC银行",
+                "default_template": "templates/ABC银行.xlsx",
+                "special_template": "templates/ABC银行-特殊.xlsx",
+            }
+        }
+        selector = TemplateSelector(config)
+
+        data = [
+            {"开户银行": "ＡＢＣ银行", "姓名": "张三", "金额": 1000},
+            {"开户银行": "XYZ银行", "姓名": "李四", "金额": 2000},
+        ]
+
+        result = selector.group_data(data, default_bank="ABC银行")
+
+        assert len(result["default"]["data"]) == 1
+        assert result["default"]["data"][0]["姓名"] == "张三"
+
     def test_bank_column_not_exist(self):
         """开户银行列不存在，抛出 ValidationError"""
         config = {

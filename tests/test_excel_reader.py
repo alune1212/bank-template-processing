@@ -124,3 +124,64 @@ class TestExcelReader:
         finally:
             # 清理测试文件
             Path(file_path).unlink()
+
+    def test_header_row_option_xlsx(self, tmp_path):
+        """测试 reader_options.header_row 生效"""
+        import openpyxl
+
+        file_path = tmp_path / "header_row.xlsx"
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.append(["说明行"])
+        ws.append(["姓名", "年龄"])
+        ws.append(["张三", 25])
+        wb.save(file_path)
+
+        reader = ExcelReader(header_row=2)
+        result = reader.read_excel(str(file_path))
+
+        assert len(result) == 1
+        assert result[0]["姓名"] == "张三"
+        assert result[0]["年龄"] == 25
+
+    def test_header_row_option_csv(self, tmp_path):
+        """测试 CSV 的 header_row 生效"""
+        file_path = tmp_path / "header_row.csv"
+        file_path.write_text("说明行\n姓名,年龄\n张三,25\n", encoding="utf-8")
+
+        reader = ExcelReader(header_row=2)
+        result = reader.read_excel(str(file_path))
+
+        assert len(result) == 1
+        assert result[0]["姓名"] == "张三"
+        assert result[0]["年龄"] == "25"
+
+    def test_header_row_option_xls(self, tmp_path):
+        """测试 XLS 的 header_row 生效"""
+        import xlwt
+
+        file_path = tmp_path / "header_row.xls"
+        wb = xlwt.Workbook(encoding="utf-8")
+        ws = wb.add_sheet("Sheet1")
+        ws.write(0, 0, "说明行")
+        ws.write(1, 0, "姓名")
+        ws.write(1, 1, "年龄")
+        ws.write(2, 0, "张三")
+        ws.write(2, 1, 25)
+        wb.save(file_path)
+
+        reader = ExcelReader(header_row=2)
+        result = reader.read_excel(str(file_path))
+
+        assert len(result) == 1
+        assert result[0]["姓名"] == "张三"
+        assert result[0]["年龄"] == 25
+
+    def test_header_row_invalid_csv(self, tmp_path):
+        """测试 CSV header_row 非法值"""
+        file_path = tmp_path / "header_row_invalid.csv"
+        file_path.write_text("姓名,年龄\n张三,25\n", encoding="utf-8")
+
+        reader = ExcelReader(header_row=0)
+        with pytest.raises(ExcelError):
+            reader.read_excel(str(file_path))

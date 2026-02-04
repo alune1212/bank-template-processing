@@ -14,6 +14,14 @@
         "template_path": "templates/农业银行模板.csv",
         "header_row": 0,
         "start_row": 1,
+        "reader_options": {
+          "data_only": false,
+          "header_row": 1
+        },
+        "clear_rows": {
+          "start_row": 1,
+          "end_row": 200
+        },
         "row_filter": {
           "exclude_keywords": ["合计"]
         },
