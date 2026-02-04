@@ -3,6 +3,10 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Local config and templates (sensitive / user-specific)
+config.json
+templates/
+
 # C extensions
 *.so
 

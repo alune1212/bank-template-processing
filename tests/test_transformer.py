@@ -114,6 +114,18 @@ class TestTransformAmount:
         result = transformer.transform_amount(100.123456, decimal_places=4)
         assert result == 100.1235
 
+    def test_transform_amount_rounding_floor(self):
+        """测试向下取整（floor）"""
+        transformer = Transformer()
+        result = transformer.transform_amount(100.129, decimal_places=2, rounding="floor")
+        assert result == 100.12
+
+    def test_transform_amount_rounding_ceil(self):
+        """测试向上取整（ceil）"""
+        transformer = Transformer()
+        result = transformer.transform_amount(100.121, decimal_places=2, rounding="ceil")
+        assert result == 100.13
+
     def test_transform_amount_empty_value(self):
         """测试空值转换失败"""
         transformer = Transformer()
@@ -177,6 +189,20 @@ class TestTransformCardNumber:
         invalid_card = "6222021234567890124"
         with pytest.raises(TransformError, match="Luhn 验证失败"):
             transformer.transform_card_number(invalid_card)
+
+    def test_transform_card_number_skip_luhn(self):
+        """关闭 Luhn 验证时允许无效卡号"""
+        transformer = Transformer()
+        invalid_card = "6222021234567890124"
+        result = transformer.transform_card_number(invalid_card, luhn_validation=False)
+        assert result == invalid_card
+
+    def test_transform_card_number_keep_formatting(self):
+        """关闭格式清理时保留原始格式"""
+        transformer = Transformer()
+        value = "6222 0212 3456 7890 128"
+        result = transformer.transform_card_number(value, remove_formatting=False)
+        assert result == value
 
     def test_transform_card_number_too_short(self):
         """测试卡号过短"""

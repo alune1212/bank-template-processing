@@ -242,6 +242,44 @@ class TestExcelWriter:
             fixed_values=fixed_values,
         )
 
+    def test_month_format_custom(self, tmp_path):
+        """测试 month_format 生效"""
+        template_path = tmp_path / "template.xlsx"
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.cell(1, 1, "姓名")
+        ws.cell(1, 2, "用途")
+        wb.save(template_path)
+
+        data = [{"姓名": "张三"}]
+        field_mappings = {"姓名": {"source_column": "姓名"}}
+        month_type_mapping = {
+            "enabled": True,
+            "target_column": "用途",
+            "month_format": "{month}月工资",
+            "bonus_value": "年终奖",
+            "compensation_value": "补偿金",
+        }
+
+        output_path = tmp_path / "output.xlsx"
+        writer = ExcelWriter()
+        writer.write_excel(
+            template_path=str(template_path),
+            data=data,
+            field_mappings=field_mappings,
+            output_path=str(output_path),
+            header_row=1,
+            start_row=2,
+            mapping_mode="column_name",
+            month_type_mapping=month_type_mapping,
+            month_param="1",
+        )
+
+        wb_result = openpyxl.load_workbook(output_path)
+        ws_result = wb_result.active
+        assert ws_result.cell(2, 2).value == "01月工资"
+        wb_result.close()
+
         # 验证固定值
         wb_result = openpyxl.load_workbook(output_path)
         ws_result = wb_result.active

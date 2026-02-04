@@ -16,6 +16,22 @@ class ConfigError(Exception):
     pass
 
 
+ALLOWED_DATA_TYPES = {
+    "numeric",
+    "date",
+    "datetime",
+    "string",
+    "str",
+    "int",
+    "integer",
+    "float",
+    "bool",
+    "boolean",
+    "list",
+    "dict",
+}
+
+
 def load_config(config_path: str) -> dict:
     """
     从JSON文件加载配置
@@ -177,6 +193,55 @@ def _validate_unit_config(unit_name: str, unit_config: dict) -> None:
         _validate_legacy_unit_config(unit_name, unit_config)
 
 
+def _validate_validation_rules(unit_name: str, validation_rules: dict, rule_name: str | None = None) -> None:
+    """
+    验证 validation_rules 配置
+
+    Args:
+        unit_name: 单位名称
+        validation_rules: 验证规则
+        rule_name: 规则组名称（可选）
+    """
+    prefix = f"单位 '{unit_name}'"
+    if rule_name:
+        prefix = f"单位 '{unit_name}' 的规则组 '{rule_name}'"
+
+    if not isinstance(validation_rules, dict):
+        raise ConfigError(f"{prefix} 的 validation_rules 必须是字典")
+
+    if "type_rules" in validation_rules or "range_rules" in validation_rules:
+        raise ConfigError(f"{prefix} 的 validation_rules 仅支持 data_types/value_ranges，请勿使用旧键名")
+
+    if "required_fields" in validation_rules:
+        required_fields = validation_rules["required_fields"]
+        if not isinstance(required_fields, list) or any(not isinstance(item, str) for item in required_fields):
+            raise ConfigError(f"{prefix} 的 validation_rules.required_fields 必须是字符串列表")
+
+    if "data_types" in validation_rules:
+        data_types = validation_rules["data_types"]
+        if not isinstance(data_types, dict):
+            raise ConfigError(f"{prefix} 的 validation_rules.data_types 必须是字典")
+        for field_name, type_name in data_types.items():
+            if not isinstance(type_name, str):
+                raise ConfigError(
+                    f"{prefix} 的 validation_rules.data_types 中 '{field_name}' 必须是字符串类型名"
+                )
+            if type_name.strip().lower() not in ALLOWED_DATA_TYPES:
+                raise ConfigError(
+                    f"{prefix} 的 validation_rules.data_types 中 '{field_name}' 类型不支持: {type_name}"
+                )
+
+    if "value_ranges" in validation_rules:
+        value_ranges = validation_rules["value_ranges"]
+        if not isinstance(value_ranges, dict):
+            raise ConfigError(f"{prefix} 的 validation_rules.value_ranges 必须是字典")
+        for field_name, rules in value_ranges.items():
+            if not isinstance(rules, dict):
+                raise ConfigError(
+                    f"{prefix} 的 validation_rules.value_ranges 中 '{field_name}' 必须是字典"
+                )
+
+
 def _validate_legacy_unit_config(unit_name: str, unit_config: dict) -> None:
     """
     验证旧结构的单位配置（向后兼容）
@@ -242,6 +307,9 @@ def _validate_legacy_unit_config(unit_name: str, unit_config: dict) -> None:
     # 验证transformations是字典
     if not isinstance(unit_config["transformations"], dict):
         raise ConfigError(f"单位 '{unit_name}' 的 transformations 必须是字典")
+
+    if "validation_rules" in unit_config:
+        _validate_validation_rules(unit_name, unit_config["validation_rules"])
 
     _validate_reader_options(unit_name, unit_config)
 
@@ -320,6 +388,9 @@ def _validate_rule_group_config(unit_name: str, rule_name: str, rule_config: dic
     # 验证transformations是字典
     if not isinstance(rule_config["transformations"], dict):
         raise ConfigError(f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 transformations 必须须是字典")
+
+    if "validation_rules" in rule_config:
+        _validate_validation_rules(unit_name, rule_config["validation_rules"], rule_name=rule_name)
 
     _validate_reader_options(unit_name, rule_config, rule_name=rule_name)
 

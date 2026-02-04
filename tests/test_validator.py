@@ -94,13 +94,13 @@ class TestValidateDataTypes:
             "created_at": datetime(2024, 1, 1),
         }
         type_rules = {
-            "name": str,
-            "age": int,
-            "score": float,
-            "is_active": bool,
-            "tags": list,
-            "metadata": dict,
-            "created_at": datetime,
+            "name": "string",
+            "age": "int",
+            "score": "float",
+            "is_active": "boolean",
+            "tags": "list",
+            "metadata": "dict",
+            "created_at": "datetime",
         }
 
         # 应该不抛出异常
@@ -108,18 +108,18 @@ class TestValidateDataTypes:
 
     def test_wrong_type_string_instead_of_int(self):
         """字段类型错误：字符串替代整数 → ValidationError"""
-        row = {"name": "张三", "age": "25"}
-        type_rules = {"name": str, "age": int}
+        row = {"name": "张三", "age": "25a"}
+        type_rules = {"name": "string", "age": "int"}
 
         with pytest.raises(ValidationError) as exc_info:
             Validator.validate_data_types(row, type_rules)
 
-        assert "字段 'age' 的类型应为 int，实际为 str" in str(exc_info.value)
+        assert "字段 'age' 的值 25a 不是有效数值" in str(exc_info.value)
 
     def test_wrong_type_int_instead_of_float(self):
         """字段类型错误：整数替代浮点数 → ValidationError"""
         row = {"score": 95}
-        type_rules = {"score": float}
+        type_rules = {"score": "float"}
 
         with pytest.raises(ValidationError) as exc_info:
             Validator.validate_data_types(row, type_rules)
@@ -129,7 +129,7 @@ class TestValidateDataTypes:
     def test_wrong_type_dict_instead_of_datetime(self):
         """字段类型错误：字典替代datetime → ValidationError"""
         row = {"created_at": {"year": 2024}}
-        type_rules = {"created_at": datetime}
+        type_rules = {"created_at": "datetime"}
 
         with pytest.raises(ValidationError) as exc_info:
             Validator.validate_data_types(row, type_rules)
@@ -140,11 +140,42 @@ class TestValidateDataTypes:
         """字段不存在 → 跳过验证（不抛出异常）"""
         row = {"name": "张三"}
         type_rules = {
-            "name": str,
-            "age": int,  # age 不存在，跳过验证
+            "name": "string",
+            "age": "int",  # age 不存在，跳过验证
         }
 
         # 应该不抛出异常
+        Validator.validate_data_types(row, type_rules)
+
+    def test_numeric_string_value(self):
+        """数值字符串通过 numeric 校验"""
+        row = {"amount": "123.45"}
+        type_rules = {"amount": "numeric"}
+        Validator.validate_data_types(row, type_rules)
+
+    def test_date_string_value(self):
+        """日期字符串通过 date 校验"""
+        row = {"date": "2024-01-05"}
+        type_rules = {"date": "date"}
+        Validator.validate_data_types(row, type_rules)
+
+    def test_numeric_string_invalid(self):
+        """无效数值字符串 → ValidationError"""
+        row = {"amount": "abc"}
+        type_rules = {"amount": "numeric"}
+        with pytest.raises(ValidationError, match="不是有效数值"):
+            Validator.validate_data_types(row, type_rules)
+
+    def test_integer_string_value(self):
+        """整数数字字符串通过 integer 校验"""
+        row = {"card": "6228481329039402872"}
+        type_rules = {"card": "integer"}
+        Validator.validate_data_types(row, type_rules)
+
+    def test_type_validation_empty_string_skip(self):
+        """空字符串应跳过类型验证"""
+        row = {"card": ""}
+        type_rules = {"card": "integer"}
         Validator.validate_data_types(row, type_rules)
 
 
@@ -239,6 +270,18 @@ class TestValidateValueRanges:
         }
 
         # 应该不抛出异常
+        Validator.validate_value_ranges(row, range_rules)
+
+    def test_value_none_skip(self):
+        """None 值应跳过范围验证"""
+        row = {"age": None}
+        range_rules = {"age": {"min": 18, "max": 60}}
+        Validator.validate_value_ranges(row, range_rules)
+
+    def test_value_empty_string_skip(self):
+        """空字符串应跳过范围验证"""
+        row = {"age": ""}
+        range_rules = {"age": {"min": 18, "max": 60}}
         Validator.validate_value_ranges(row, range_rules)
 
 

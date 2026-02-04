@@ -66,6 +66,47 @@ class TestValidateConfig:
         }
         validate_config(config)  # 不应抛出异常
 
+    def test_validate_old_validation_rules_keys(self):
+        """测试旧键名 type_rules/range_rules 触发错误"""
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "test_unit": {
+                    "template_path": "templates/test.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {"姓名": {"source_column": "name"}},
+                    "transformations": {},
+                    "validation_rules": {
+                        "type_rules": {"金额": "numeric"},
+                        "range_rules": {"金额": {"min": 0}},
+                    },
+                }
+            },
+        }
+        with pytest.raises(ConfigError, match="仅支持 data_types/value_ranges"):
+            validate_config(config)
+
+    def test_validate_invalid_data_types(self):
+        """测试 data_types 非法类型名触发错误"""
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "test_unit": {
+                    "template_path": "templates/test.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {"姓名": {"source_column": "name"}},
+                    "transformations": {},
+                    "validation_rules": {
+                        "data_types": {"金额": "unknown_type"},
+                    },
+                }
+            },
+        }
+        with pytest.raises(ConfigError, match="类型不支持"):
+            validate_config(config)
+
     def test_validate_missing_version(self):
         """测试缺失version字段"""
         config = {

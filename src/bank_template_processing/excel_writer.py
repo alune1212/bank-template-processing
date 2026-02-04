@@ -671,8 +671,13 @@ class ExcelWriter:
         try:
             month_num = int(month_param)
             if 1 <= month_num <= 12:
-                # 格式化为"XX月收入"
-                return f"{month_num:02d}月收入"
+                month_format = month_type_mapping.get("month_format", "{month}月收入")
+                try:
+                    return month_format.format(month=f"{month_num:02d}")
+                except KeyError as e:
+                    raise ConfigError(f"month_format 缺少变量: {e}") from e
+                except Exception as e:
+                    raise ConfigError(f"month_format 格式错误: {e}") from e
         except ValueError:
             pass
 

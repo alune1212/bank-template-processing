@@ -4,10 +4,12 @@
 提供数据验证功能，包括必填字段验证、数据类型验证和值范围验证。
 """
 
-from datetime import datetime
+from datetime import datetime, date, time
+from decimal import Decimal, InvalidOperation
 from typing import List, Any, Dict
 import logging
 
+from .transformer import Transformer
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -33,6 +35,98 @@ class ValidationError(Exception):
 
 class Validator:
     """数据验证器类"""
+
+    @staticmethod
+    def _parse_date_string(field: str, value: str) -> datetime:
+        for fmt in Transformer.DATE_INPUT_FORMATS:
+            try:
+                return datetime.strptime(value, fmt)
+            except ValueError:
+                continue
+        raise ValidationError(f"字段 '{field}' 的值 {value} 不是有效日期")
+
+    @staticmethod
+    def _parse_numeric_string(field: str, value: str) -> Decimal:
+        try:
+            return Decimal(str(value))
+        except (InvalidOperation, ValueError, TypeError) as e:
+            raise ValidationError(f"字段 '{field}' 的值 {value} 不是有效数值") from e
+
+    @staticmethod
+    def _is_numeric_value(value: Any) -> bool:
+        return isinstance(value, (int, float, Decimal)) and not isinstance(value, bool)
+
+    @staticmethod
+    def _coerce_numeric_value(field: str, value: Any) -> Decimal:
+        if isinstance(value, Decimal):
+            return value
+        if isinstance(value, bool):
+            raise TypeError("bool 不作为数值处理")
+        if isinstance(value, (int, float)):
+            return Decimal(str(value))
+        if isinstance(value, str):
+            return Validator._parse_numeric_string(field, value)
+        raise TypeError("无法转换为数值")
+
+    @staticmethod
+    def _coerce_numeric_bound(value: Any) -> Decimal:
+        if isinstance(value, Decimal):
+            return value
+        if isinstance(value, bool):
+            raise TypeError("bool 不作为数值处理")
+        if isinstance(value, (int, float)):
+            return Decimal(str(value))
+        if isinstance(value, str):
+            try:
+                return Decimal(str(value))
+            except (InvalidOperation, ValueError, TypeError) as e:
+                raise TypeError(f"无法转换为数值: {value}") from e
+        raise TypeError("无法转换为数值")
+
+    @staticmethod
+    def _coerce_date_value(field: str, value: Any, date_mode: str) -> Any:
+        if isinstance(value, datetime):
+            return value if date_mode == "datetime" else value.date()
+        if isinstance(value, date):
+            if date_mode == "datetime":
+                return datetime.combine(value, time.min)
+            return value
+        if isinstance(value, str):
+            parsed = Validator._parse_date_string(field, value)
+            return parsed if date_mode == "datetime" else parsed.date()
+        raise TypeError("无法转换为日期")
+
+    @staticmethod
+    def _coerce_date_bound(value: Any, date_mode: str) -> Any:
+        if isinstance(value, datetime):
+            return value if date_mode == "datetime" else value.date()
+        if isinstance(value, date):
+            if date_mode == "datetime":
+                return datetime.combine(value, time.min)
+            return value
+        if isinstance(value, str):
+            try:
+                parsed = Validator._parse_date_string("边界", value)
+            except ValidationError as e:
+                raise TypeError(str(e)) from e
+            return parsed if date_mode == "datetime" else parsed.date()
+        raise TypeError("无法转换为日期")
+
+    @staticmethod
+    def _coerce_for_comparison(field: str, value: Any, min_val: Any, max_val: Any) -> tuple[Any, Any, Any]:
+        has_datetime = isinstance(min_val, datetime) or isinstance(max_val, datetime)
+        has_date = isinstance(min_val, date) or isinstance(max_val, date)
+        if has_datetime or has_date:
+            date_mode = "datetime" if has_datetime else "date"
+            value_cmp = Validator._coerce_date_value(field, value, date_mode)
+            min_cmp = Validator._coerce_date_bound(min_val, date_mode) if min_val is not None else None
+            max_cmp = Validator._coerce_date_bound(max_val, date_mode) if max_val is not None else None
+            return value_cmp, min_cmp, max_cmp
+
+        value_cmp = Validator._coerce_numeric_value(field, value)
+        min_cmp = Validator._coerce_numeric_bound(min_val) if min_val is not None else None
+        max_cmp = Validator._coerce_numeric_bound(max_val) if max_val is not None else None
+        return value_cmp, min_cmp, max_cmp
 
     @staticmethod
     def validate_required(row: Dict[str, Any], required_fields: List[str]) -> None:
@@ -79,21 +173,33 @@ class Validator:
         logger.info(f"必填字段验证通过: {required_fields}")
 
     @staticmethod
-    def validate_data_types(row: Dict[str, Any], type_rules: Dict[str, type]) -> None:
+    def validate_data_types(row: Dict[str, Any], type_rules: Dict[str, str]) -> None:
         """
         验证数据类型
 
         检查字段值是否匹配预期的类型
-        支持类型：str, int, float, bool, datetime, list, dict
+        支持类型：numeric, date, datetime, string/str, int/integer, float, bool/boolean, list, dict
 
         Args:
             row: 数据行（字典）
-            type_rules: 类型规则字典，格式为 {字段名: 类型}
+            type_rules: 类型规则字典，格式为 {字段名: 类型名字符串}
 
         Raises:
             ValidationError: 当字段值类型不匹配时抛出
         """
         logger.debug(f"开始验证数据类型: {type_rules}")
+
+        type_map = {
+            "string": str,
+            "str": str,
+            "int": int,
+            "integer": int,
+            "float": float,
+            "bool": bool,
+            "boolean": bool,
+            "list": list,
+            "dict": dict,
+        }
 
         for field, expected_type in type_rules.items():
             if field not in row:
@@ -102,19 +208,68 @@ class Validator:
                 continue
 
             value = row[field]
+            if value is None or (isinstance(value, str) and not value.strip()):
+                logger.debug(f"字段 '{field}' 值为空，跳过类型验证")
+                continue
 
-            # 处理 datetime 类型
-            if expected_type == datetime:
-                if not isinstance(value, datetime):
-                    error_msg = f"字段 '{field}' 的类型应为 datetime，实际为 {type(value).__name__}"
+            if not isinstance(expected_type, str):
+                error_msg = f"字段 '{field}' 的类型配置必须为字符串"
+                logger.error(error_msg)
+                raise ValidationError(error_msg)
+
+            type_name = expected_type.strip().lower()
+
+            if type_name == "numeric":
+                if Validator._is_numeric_value(value):
+                    continue
+                if isinstance(value, str):
+                    Validator._parse_numeric_string(field, value)
+                    continue
+                error_msg = f"字段 '{field}' 的类型应为 numeric，实际为 {type(value).__name__}"
+                logger.error(error_msg)
+                raise ValidationError(error_msg)
+
+            if type_name in ("int", "integer"):
+                if isinstance(value, bool):
+                    error_msg = f"字段 '{field}' 的类型应为 integer，实际为 bool"
                     logger.error(error_msg)
                     raise ValidationError(error_msg)
-            else:
-                # 处理其他类型
-                if not isinstance(value, expected_type):
-                    error_msg = f"字段 '{field}' 的类型应为 {expected_type.__name__}，实际为 {type(value).__name__}"
-                    logger.error(error_msg)
-                    raise ValidationError(error_msg)
+                if isinstance(value, int):
+                    continue
+                if isinstance(value, float) and value.is_integer():
+                    continue
+                if isinstance(value, Decimal) and value == value.to_integral_value():
+                    continue
+                if isinstance(value, str):
+                    numeric_value = Validator._parse_numeric_string(field, value)
+                    if numeric_value == numeric_value.to_integral_value():
+                        continue
+                error_msg = f"字段 '{field}' 的类型应为 integer，实际为 {type(value).__name__}"
+                logger.error(error_msg)
+                raise ValidationError(error_msg)
+
+            if type_name in ("date", "datetime"):
+                if isinstance(value, (datetime, date)):
+                    continue
+                if isinstance(value, str):
+                    Validator._parse_date_string(field, value)
+                    continue
+                error_msg = f"字段 '{field}' 的类型应为 {type_name}，实际为 {type(value).__name__}"
+                logger.error(error_msg)
+                raise ValidationError(error_msg)
+
+            expected_py_type = type_map.get(type_name)
+            if expected_py_type is None:
+                error_msg = f"字段 '{field}' 的类型不支持: {expected_type}"
+                logger.error(error_msg)
+                raise ValidationError(error_msg)
+
+            if not isinstance(value, expected_py_type):
+                error_msg = (
+                    f"字段 '{field}' 的类型应为 {type_name}，实际为 {type(value).__name__}"
+                )
+                logger.error(error_msg)
+                raise ValidationError(error_msg)
 
         logger.info("数据类型验证通过")
 
@@ -148,18 +303,44 @@ class Validator:
 
             value = row[field]
 
+            if value is None or (isinstance(value, str) and not value.strip()):
+                logger.debug(f"字段 '{field}' 值为空，跳过范围验证")
+                continue
+
             # 验证最小值
             if "min" in rules:
                 min_val = rules["min"]
-                if value < min_val:
+                max_val = rules.get("max")
+                try:
+                    value_cmp, min_cmp, max_cmp = Validator._coerce_for_comparison(field, value, min_val, max_val)
+                except ValidationError:
+                    raise
+                except TypeError as e:
+                    logger.warning(f"字段 '{field}' 的范围规则无法比较，已跳过: {e}")
+                    continue
+
+                if min_cmp is not None and value_cmp < min_cmp:
                     error_msg = f"字段 '{field}' 的值 {value} 小于最小值 {min_val}"
                     logger.error(error_msg)
                     raise ValidationError(error_msg)
 
+                if max_cmp is not None and value_cmp > max_cmp:
+                    error_msg = f"字段 '{field}' 的值 {value} 大于最大值 {max_val}"
+                    logger.error(error_msg)
+                    raise ValidationError(error_msg)
+
             # 验证最大值
-            if "max" in rules:
+            if "max" in rules and "min" not in rules:
                 max_val = rules["max"]
-                if value > max_val:
+                try:
+                    value_cmp, min_cmp, max_cmp = Validator._coerce_for_comparison(field, value, None, max_val)
+                except ValidationError:
+                    raise
+                except TypeError as e:
+                    logger.warning(f"字段 '{field}' 的范围规则无法比较，已跳过: {e}")
+                    continue
+
+                if max_cmp is not None and value_cmp > max_cmp:
                     error_msg = f"字段 '{field}' 的值 {value} 大于最大值 {max_val}"
                     logger.error(error_msg)
                     raise ValidationError(error_msg)
@@ -167,18 +348,24 @@ class Validator:
             # 验证最小长度（用于字符串、列表、字典）
             if "min_length" in rules:
                 min_len = rules["min_length"]
-                if len(value) < min_len:
-                    error_msg = f"字段 '{field}' 的长度 {len(value)} 小于最小长度 {min_len}"
-                    logger.error(error_msg)
-                    raise ValidationError(error_msg)
+                try:
+                    if len(value) < min_len:
+                        error_msg = f"字段 '{field}' 的长度 {len(value)} 小于最小长度 {min_len}"
+                        logger.error(error_msg)
+                        raise ValidationError(error_msg)
+                except TypeError:
+                    logger.warning(f"字段 '{field}' 不支持长度校验，已跳过 min_length")
 
             # 验证最大长度（用于字符串、列表、字典）
             if "max_length" in rules:
                 max_len = rules["max_length"]
-                if len(value) > max_len:
-                    error_msg = f"字段 '{field}' 的长度 {len(value)} 大于最大长度 {max_len}"
-                    logger.error(error_msg)
-                    raise ValidationError(error_msg)
+                try:
+                    if len(value) > max_len:
+                        error_msg = f"字段 '{field}' 的长度 {len(value)} 大于最大长度 {max_len}"
+                        logger.error(error_msg)
+                        raise ValidationError(error_msg)
+                except TypeError:
+                    logger.warning(f"字段 '{field}' 不支持长度校验，已跳过 max_length")
 
             # 验证允许的值（枚举）
             if "allowed_values" in rules:

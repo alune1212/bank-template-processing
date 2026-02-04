@@ -278,9 +278,17 @@ def apply_transformations(data: list, transformations: dict, field_mappings: dic
             if transform_type == "amount_decimal":
                 transform_config = transformations.get("amount_decimal", {})
                 decimal_places = transform_config.get("decimal_places", 2)
-                new_row[source_field] = transformer.transform_amount(value, decimal_places)
+                rounding = transform_config.get("rounding", "round")
+                new_row[source_field] = transformer.transform_amount(value, decimal_places, rounding=rounding)
             elif transform_type == "card_number":
-                new_row[source_field] = transformer.transform_card_number(value)
+                transform_config = transformations.get("card_number", {})
+                remove_formatting = transform_config.get("remove_formatting", True)
+                luhn_validation = transform_config.get("luhn_validation", True)
+                new_row[source_field] = transformer.transform_card_number(
+                    value,
+                    remove_formatting=remove_formatting,
+                    luhn_validation=luhn_validation,
+                )
             elif transform_type == "date_format":
                 transform_config = transformations.get("date_format", {})
                 output_format = transform_config.get("output_format", "YYYY-MM-DD")
@@ -427,10 +435,10 @@ def main(argv=None) -> None:
                 for row in data:
                     if "required_fields" in validation_rules:
                         Validator.validate_required(row, validation_rules["required_fields"])
-                    if "type_rules" in validation_rules:
-                        Validator.validate_data_types(row, validation_rules["type_rules"])
-                    if "range_rules" in validation_rules:
-                        Validator.validate_value_ranges(row, validation_rules["range_rules"])
+                    if "data_types" in validation_rules:
+                        Validator.validate_data_types(row, validation_rules["data_types"])
+                    if "value_ranges" in validation_rules:
+                        Validator.validate_value_ranges(row, validation_rules["value_ranges"])
 
                 logger.info("数据验证通过")
 
@@ -516,10 +524,10 @@ def main(argv=None) -> None:
                     for row in group_data:
                         if "required_fields" in validation_rules:
                             Validator.validate_required(row, validation_rules["required_fields"])
-                        if "type_rules" in validation_rules:
-                            Validator.validate_data_types(row, validation_rules["type_rules"])
-                        if "range_rules" in validation_rules:
-                            Validator.validate_value_ranges(row, validation_rules["range_rules"])
+                        if "data_types" in validation_rules:
+                            Validator.validate_data_types(row, validation_rules["data_types"])
+                        if "value_ranges" in validation_rules:
+                            Validator.validate_value_ranges(row, validation_rules["value_ranges"])
 
                     logger.info("数据验证通过")
 

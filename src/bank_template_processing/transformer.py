@@ -7,7 +7,15 @@
 import logging
 import re
 from datetime import datetime, date
-from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+from decimal import (
+    Decimal,
+    ROUND_HALF_UP,
+    ROUND_DOWN,
+    ROUND_UP,
+    ROUND_FLOOR,
+    ROUND_CEILING,
+    InvalidOperation,
+)
 
 
 # 配置日志
@@ -95,7 +103,7 @@ class Transformer:
         logger.error(error_msg)
         raise TransformError(error_msg)
 
-    def transform_amount(self, value, decimal_places=2) -> float:
+    def transform_amount(self, value, decimal_places=2, rounding="round") -> float:
         """
         金额转换：使用标准舍入到指定小数位
 
@@ -104,6 +112,7 @@ class Transformer:
         Args:
             value: 输入金额（数字或字符串）
             decimal_places: 小数位数，默认为 2
+            rounding: 舍入方式，支持 round/half_up/floor/ceil/down/up
 
         Returns:
             float: 舍入后的金额
@@ -111,7 +120,7 @@ class Transformer:
         Raises:
             TransformError: 如果金额转换失败
         """
-        logger.debug(f"开始金额转换: value={value}, decimal_places={decimal_places}")
+        logger.debug(f"开始金额转换: value={value}, decimal_places={decimal_places}, rounding={rounding}")
 
         if value is None or value == "":
             error_msg = "金额值为空"
@@ -122,8 +131,24 @@ class Transformer:
             # 使用 Decimal 进行精确运算
             decimal_value = Decimal(str(value))
 
-            # 使用四舍五入
-            rounded_value = decimal_value.quantize(Decimal(f"1.{'0' * decimal_places}"), rounding=ROUND_HALF_UP)
+            rounding_map = {
+                "round": ROUND_HALF_UP,
+                "half_up": ROUND_HALF_UP,
+                "floor": ROUND_FLOOR,
+                "ceil": ROUND_CEILING,
+                "down": ROUND_DOWN,
+                "up": ROUND_UP,
+            }
+            rounding_key = str(rounding).strip().lower()
+            if rounding_key not in rounding_map:
+                error_msg = f"不支持的舍入方式: {rounding}"
+                logger.error(error_msg)
+                raise TransformError(error_msg)
+
+            rounded_value = decimal_value.quantize(
+                Decimal(f"1.{'0' * decimal_places}"),
+                rounding=rounding_map[rounding_key],
+            )
 
             result = float(rounded_value)
             logger.debug(f"金额转换成功: {value} -> {result}")
@@ -172,7 +197,7 @@ class Transformer:
         logger.debug(f"Luhn 验证结果: {result} (总和: {total})")
         return result
 
-    def transform_card_number(self, value) -> str:
+    def transform_card_number(self, value, remove_formatting: bool = True, luhn_validation: bool = True) -> str:
         """
         卡号转换：移除非数字字符，并进行 Luhn 验证
 
@@ -198,6 +223,7 @@ class Transformer:
             raise TransformError(error_msg)
 
         # 预处理数值类型，避免科学计数法
+        original_value = value if isinstance(value, str) else None
         if isinstance(value, Decimal):
             if value == value.to_integral_value():
                 value_str = format(value, "f").split(".")[0]
@@ -227,11 +253,13 @@ class Transformer:
             logger.error(error_msg)
             raise TransformError(error_msg)
 
-        # 执行 Luhn 验证
-        if not self._luhn_check(cleaned):
-            error_msg = f"卡号 Luhn 验证失败: {cleaned}"
-            logger.error(error_msg)
-            raise TransformError(error_msg)
+        # 执行 Luhn 验证（可选）
+        if luhn_validation:
+            if not self._luhn_check(cleaned):
+                error_msg = f"卡号 Luhn 验证失败: {cleaned}"
+                logger.error(error_msg)
+                raise TransformError(error_msg)
 
-        logger.debug(f"卡号转换成功: {value} -> {cleaned}")
-        return cleaned
+        result = cleaned if remove_formatting else (original_value if original_value is not None else value_str)
+        logger.debug(f"卡号转换成功: {value} -> {result}")
+        return result
