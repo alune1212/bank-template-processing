@@ -1,18 +1,23 @@
 # PACKAGE KNOWLEDGE BASE
 
+**Generated:** 2026-02-04  
+**Scope:** Core business logic for bank card Excel template processing
+
 ## OVERVIEW
-Core business logic for processing bank card excel templates. Handles input parsing, data transformation, validation, and template-based output generation.
+Handles input parsing, data transformation, validation, and template-based output generation. Supports multi-format Excel (.xlsx/.csv/.xls), dynamic template routing by bank name, and comprehensive data validation including Luhn algorithm for card numbers.
 
 ## STRUCTURE
 ```
 src/bank_template_processing/
-├── config_loader.py      # JSON config loading & schema validation
-├── excel_reader.py       # Input handling (.xlsx, .csv, .xls)
-├── excel_writer.py       # Output generation (template filling)
-├── main.py               # CLI entry point logic
-├── template_selector.py  # Dynamic template routing
-├── transformer.py        # Data cleaning & formatting logic
-└── validator.py          # Data constraints & type checking
+├── __init__.py           # Package marker (empty)
+├── __main__.py           # Module entry point (python -m)
+├── main.py               # CLI logic, workflow orchestration (594 lines)
+├── config_loader.py      # JSON config loading & multi-rule schema validation
+├── excel_reader.py       # Input handling (.xlsx, .csv, .xls) with filtering
+├── excel_writer.py       # Template filling, auto-numbering, fixed values
+├── transformer.py        # Date/amount/card transformation, Luhn validation
+├── validator.py          # Required fields, type checking, range validation
+└── template_selector.py  # Dynamic routing by "开户银行" column
 ```
 
 ## WHERE TO LOOK
