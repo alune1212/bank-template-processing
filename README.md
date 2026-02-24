@@ -16,7 +16,7 @@
   - 自动编号
   - 固定值填写
   - 银行支行映射
-  - 月份类型映射（月收入、年终奖、补偿金）
+  - 月份类型映射（月收入、年终奖、补偿金，已弃用仅兼容）
 
 ## 安装
 
@@ -137,7 +137,7 @@ uv run python -m bank_template_processing --merge-folder output --config config.
 | `fixed_values` | 固定值配置 | 可选 |
 | `auto_number` | 自动编号配置 | 可选 |
 | `bank_branch_mapping` | 银行支行映射 | 可选 |
-| `month_type_mapping` | 月份类型映射 | 可选 |
+| `month_type_mapping` | 月份类型映射（已弃用，当前版本忽略） | 可选 |
 | `reader_options` | 读取器选项 | 可选 |
 | `template_selector` | 动态模板选择 | 可选 |
 
@@ -200,6 +200,9 @@ uv run python -m bank_template_processing --merge-folder output --config config.
   "compensation_value": "补偿金"
 }
 ```
+
+说明：
+- 该配置在当前版本已全局移除写入行为，保留仅用于兼容旧配置。
 
 ### 读取器选项（reader_options）
 

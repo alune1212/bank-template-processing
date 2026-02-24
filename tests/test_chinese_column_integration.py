@@ -142,7 +142,7 @@ def test_chinese_column_name_with_xlsx_save_integration():
         assert ws_result.cell(3, 3).value == "李四"
         assert ws_result.cell(3, 4).value == 5000.0
         assert ws_result.cell(3, 5).value == "中国工商银行"
-        assert ws_result.cell(3, 6).value == "01月收入"
+        assert ws_result.cell(3, 6).value is None
 
         # Data row 2
         assert ws_result.cell(4, 1).value == 2  # Auto number
@@ -150,7 +150,7 @@ def test_chinese_column_name_with_xlsx_save_integration():
         assert ws_result.cell(4, 3).value == "王五"
         assert ws_result.cell(4, 4).value == 6000.0
         assert ws_result.cell(4, 5).value == "中国建设银行"
-        assert ws_result.cell(4, 6).value == "01月收入"
+        assert ws_result.cell(4, 6).value is None
 
         # Old data should be cleared
         assert ws_result.cell(5, 1).value is None

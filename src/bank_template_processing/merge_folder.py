@@ -21,6 +21,7 @@ MERGE_FILE_PATTERN = re.compile(
     r"^(?P<prefix>.+)_(?P<count>\d+)人_金额(?P<amount>-?\d+(?:\.\d+)?)元$"
 )
 SUPPORTED_EXTENSIONS = {".xlsx", ".xls", ".csv"}
+MERGE_MONTH_SOURCE_COLUMN = "__merge_month_value__"
 
 
 class MergeFolderError(Exception):
@@ -142,13 +143,27 @@ def resolve_rule_group_for_template(config: dict, unit_name: str, template_name:
     return rule_group, get_unit_config(config, unit_name, rule_group)
 
 
-def infer_month_param_from_values(month_values: set[str], month_type_mapping: dict) -> str:
+def infer_month_param_from_values(
+    month_values: set[str],
+    month_type_mapping: dict,
+    allow_conflict: bool = False,
+    logger: logging.Logger | None = None,
+) -> str:
     """根据文件中月类型列值推断 month 参数。"""
     if not month_values:
         raise MergeFolderError("month_type_mapping 已启用，但未在输入文件中读取到月类型值")
 
     inferred_params = {_infer_month_param_from_single_value(value, month_type_mapping) for value in month_values}
     if len(inferred_params) != 1:
+        if allow_conflict:
+            selected_param = _select_month_param_on_conflict(inferred_params)
+            if logger:
+                logger.warning(
+                    "检测到同一分组存在冲突的月类型值 %s，已忽略差异并使用 '%s' 继续合并",
+                    sorted(month_values),
+                    selected_param,
+                )
+            return selected_param
         raise MergeFolderError(
             f"同一分组存在冲突的月类型值: {sorted(month_values)}，推断结果: {sorted(inferred_params)}"
         )
@@ -251,8 +266,15 @@ def prepare_merge_tasks(
 
         month_param = ""
         month_type_mapping = group_config.get("month_type_mapping", {})
+        output_group_config = group_config
         if isinstance(month_type_mapping, dict) and month_type_mapping.get("enabled"):
-            month_param = infer_month_param_from_values(merged_month_values, month_type_mapping)
+            month_param = infer_month_param_from_values(
+                merged_month_values,
+                month_type_mapping,
+                allow_conflict=True,
+                logger=logger,
+            )
+            output_group_config = _build_merge_output_group_config(group_config, keep_row_month_values=True)
             logger.info("分组 %s_%s 月份参数推断成功：%s", unit_name, template_name, month_param)
 
         merge_tasks.append(
@@ -260,7 +282,7 @@ def prepare_merge_tasks(
                 unit_name=unit_name,
                 template_name=template_name,
                 rule_group=rule_group,
-                group_config=group_config,
+                group_config=output_group_config,
                 template_path=template_path,
                 group_data=merged_group_data,
                 month_param=month_param,
@@ -334,6 +356,7 @@ def _read_generated_file_rows(file_path: Path, group_config: dict) -> tuple[list
             month_value = _get_cell_value(row_values, month_col_idx)
             if not _is_empty_value(month_value):
                 month_values.add(str(month_value).strip())
+            row_dict[MERGE_MONTH_SOURCE_COLUMN] = month_value
 
         data_rows.append(row_dict)
 
@@ -530,3 +553,53 @@ def _infer_month_param_from_single_value(value: str, month_type_mapping: dict) -
             f"月类型值 '{normalized_value}' 对 month_format 匹配到多个月份: {matched_months}"
         )
     raise MergeFolderError(f"无法从月类型值推断月份参数: '{normalized_value}'")
+
+
+def _select_month_param_on_conflict(inferred_params: set[str]) -> str:
+    """冲突时选择一个稳定的月份参数继续处理。"""
+    numeric_months: list[str] = []
+    text_params: list[str] = []
+
+    for param in inferred_params:
+        if param.isdigit():
+            numeric_months.append(f"{int(param):02d}")
+        else:
+            text_params.append(param)
+
+    if numeric_months:
+        return sorted(set(numeric_months), key=lambda value: int(value))[0]
+    if "年终奖" in text_params:
+        return "年终奖"
+    if "补偿金" in text_params:
+        return "补偿金"
+    return sorted(text_params)[0]
+
+
+def _build_merge_output_group_config(group_config: dict, keep_row_month_values: bool) -> dict:
+    """
+    构建用于合并输出的规则组配置。
+
+    当 keep_row_month_values=True 且启用 month_type_mapping 时：
+    - 关闭 month_type_mapping 的统一填充值行为
+    - 通过 field_mappings 增加一条“原月类型值 -> 目标列”映射，按行回写原值
+    """
+    if not keep_row_month_values:
+        return group_config
+
+    month_type_mapping = group_config.get("month_type_mapping", {})
+    if not isinstance(month_type_mapping, dict) or not month_type_mapping.get("enabled"):
+        return group_config
+
+    updated_config = dict(group_config)
+    updated_field_mappings = dict(group_config.get("field_mappings", {}))
+    target_column = month_type_mapping.get("target_column", "C")
+
+    updated_field_mappings[MERGE_MONTH_SOURCE_COLUMN] = {
+        "source_column": MERGE_MONTH_SOURCE_COLUMN,
+        "target_column": target_column,
+        "transform": "none",
+    }
+    updated_config["field_mappings"] = updated_field_mappings
+    updated_config["month_type_mapping"] = {"enabled": False}
+
+    return updated_config

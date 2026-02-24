@@ -42,7 +42,7 @@ def _create_generated_file(path: Path, rows: list[tuple[str, float, str]]) -> No
     workbook.save(path)
 
 
-def _build_test_config(default_template: Path, crossbank_template: Path) -> dict:
+def _build_test_config(default_template: Path, crossbank_template: Path, month_type_enabled: bool = False) -> dict:
     return {
         "version": "2.0",
         "organization_units": {
@@ -76,7 +76,11 @@ def _build_test_config(default_template: Path, crossbank_template: Path) -> dict
                     },
                     "validation_rules": {},
                     "month_type_mapping": {
-                        "enabled": False,
+                        "enabled": month_type_enabled,
+                        "target_column": "用途",
+                        "month_format": "{month}月收入",
+                        "bonus_value": "年终奖",
+                        "compensation_value": "补偿金",
                     },
                 },
                 "crossbank": {
@@ -103,7 +107,11 @@ def _build_test_config(default_template: Path, crossbank_template: Path) -> dict
                     },
                     "validation_rules": {},
                     "month_type_mapping": {
-                        "enabled": False,
+                        "enabled": month_type_enabled,
+                        "target_column": "用途",
+                        "month_format": "{month}月收入",
+                        "bonus_value": "年终奖",
+                        "compensation_value": "补偿金",
                     },
                 },
             }
@@ -164,6 +172,12 @@ def test_infer_month_param_from_values():
 
     with pytest.raises(MergeFolderError, match="同一分组存在冲突的月类型值"):
         infer_month_param_from_values({"年终奖", "补偿金"}, month_type_mapping)
+
+    assert infer_month_param_from_values(
+        {"01月收入", "年终奖"},
+        month_type_mapping,
+        allow_conflict=True,
+    ) == "01"
 
 
 def test_prepare_merge_tasks_stats_mismatch_raises(tmp_path):
@@ -239,3 +253,43 @@ def test_main_merge_folder_generates_result_files(tmp_path):
         "苏州悦鸣服务外包有限公司_农行跨行_3人_金额350.00元.xlsx",
         "苏州悦鸣服务外包有限公司_招行跨行_3人_金额140.00元.xlsx",
     ]
+
+
+def test_main_merge_folder_keeps_row_month_values_for_mixed_months(tmp_path):
+    default_template = tmp_path / "default_template.xlsx"
+    crossbank_template = tmp_path / "crossbank_template.xlsx"
+    _create_template_file(default_template)
+    _create_template_file(crossbank_template)
+
+    config = _build_test_config(default_template, crossbank_template, month_type_enabled=True)
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    merge_dir = tmp_path / "merge_input"
+    merge_dir.mkdir()
+
+    _create_generated_file(
+        merge_dir / "苏州悦鸣服务外包有限公司_农行跨行_2人_金额300.00元.xlsx",
+        [("张三", 100.0, "01月收入"), ("李四", 200.0, "年终奖")],
+    )
+
+    main(
+        [
+            "--merge-folder",
+            str(merge_dir),
+            "--config",
+            str(config_path),
+        ]
+    )
+
+    output_path = merge_dir / "result" / "苏州悦鸣服务外包有限公司_农行跨行_2人_金额300.00元.xlsx"
+    assert output_path.exists()
+
+    workbook = openpyxl.load_workbook(output_path)
+    try:
+        sheet = workbook.active
+        assert sheet is not None
+        assert sheet.cell(2, 3).value == "01月收入"
+        assert sheet.cell(3, 3).value == "年终奖"
+    finally:
+        workbook.close()
