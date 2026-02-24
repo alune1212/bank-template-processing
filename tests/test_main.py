@@ -106,6 +106,52 @@ class TestArgumentParser:
         assert args.config == "custom_config.json"
         assert args.output_filename_template == "{unit_name}_{month}_{timestamp}"
 
+    def test_parse_args_merge_folder_mode(self):
+        """测试批量合并模式参数解析"""
+        from bank_template_processing.main import parse_args
+
+        args = parse_args(
+            [
+                "--merge-folder",
+                "merge_input",
+                "--config",
+                "custom_config.json",
+            ]
+        )
+
+        assert args.merge_folder == "merge_input"
+        assert args.config == "custom_config.json"
+        assert args.excel_path is None
+        assert args.unit_name is None
+        assert args.month is None
+
+
+class TestCliModeValidation:
+    """测试命令行模式参数校验"""
+
+    def test_normal_mode_missing_args_raises(self):
+        """普通模式缺少必填参数时报错"""
+        from bank_template_processing.main import parse_args, validate_cli_mode_args
+
+        args = parse_args(["input.xlsx", "unit1"])
+        with pytest.raises(ValueError, match="普通模式必须提供 excel_path、unit_name、month 三个参数"):
+            validate_cli_mode_args(args)
+
+    def test_merge_mode_with_positional_args_raises(self):
+        """合并模式与位置参数冲突时报错"""
+        from bank_template_processing.main import parse_args, validate_cli_mode_args
+
+        args = parse_args(["input.xlsx", "unit1", "01", "--merge-folder", "merge_input"])
+        with pytest.raises(ValueError, match="使用 --merge-folder 时不能同时提供 excel_path/unit_name/month"):
+            validate_cli_mode_args(args)
+
+    def test_merge_mode_validation_pass(self):
+        """合并模式参数校验通过"""
+        from bank_template_processing.main import parse_args, validate_cli_mode_args
+
+        args = parse_args(["--merge-folder", "merge_input"])
+        validate_cli_mode_args(args)
+
 
 class TestGenerateOutputFilename:
     """测试输出文件名生成"""

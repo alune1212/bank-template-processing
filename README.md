@@ -11,6 +11,7 @@
   - 卡号格式化（移除分隔符，Luhn校验）
 - **数据筛选**：在读取后、转换前默认过滤 `实发工资 = 0` 的行
 - **动态模板选择**：根据"开户银行"字段自动选择默认模板或特殊模板
+- **批量合并汇总**：按文件名中的“单位+模板”分组，批量合并目录下已生成模板文件
 - **高级功能**：
   - 自动编号
   - 固定值填写
@@ -77,6 +78,9 @@ bank-template-processing.exe input.xlsx 单位名称 01 --output-dir custom_outp
 
 # 使用自定义配置文件
 bank-template-processing.exe input.xlsx 单位名称 01 --config custom_config.json
+
+# 批量合并目录中的已生成模板文件（结果输出到目录下 result/）
+bank-template-processing.exe --merge-folder output --config config.json
 ```
 
 ### Python 源码用法
@@ -94,6 +98,9 @@ uv run python -m bank_template_processing input.xlsx 单位名称 年终奖
 
 # 自定义输出目录
 uv run python -m bank_template_processing input.xlsx 单位名称 01 --output-dir custom_output/
+
+# 批量合并目录中的已生成模板文件（结果输出到目录下 result/）
+uv run python -m bank_template_processing --merge-folder output --config config.json
 ```
 
 ## 配置文件说明

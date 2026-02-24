@@ -13,6 +13,7 @@ from .validator import Validator, ValidationError
 from .transformer import Transformer, TransformError
 from .excel_writer import ExcelWriter
 from .template_selector import TemplateSelector
+from .merge_folder import prepare_merge_tasks, MergeFolderError
 
 
 def get_executable_dir() -> Path:
@@ -115,18 +116,38 @@ def parse_args(argv=None) -> argparse.Namespace:
 
   # 使用自定义配置文件
   python main.py input.xlsx 单位名称 01 --config custom_config.json
+
+  # 批量合并目录中的已生成模板文件
+  python main.py --merge-folder ./output --config config.json
         """,
     )
 
-    parser.add_argument("excel_path", help="输入Excel文件路径（支持.xlsx, .csv, .xls格式）")
+    parser.add_argument(
+        "excel_path",
+        nargs="?",
+        help="输入Excel文件路径（支持.xlsx, .csv, .xls格式）",
+    )
 
-    parser.add_argument("unit_name", help="组织单位名称（必须在配置文件中定义）")
+    parser.add_argument(
+        "unit_name",
+        nargs="?",
+        help="组织单位名称（必须在配置文件中定义）",
+    )
 
-    parser.add_argument("month", help="月份参数（1-12、01-09、'年终奖'或'补偿金'）")
+    parser.add_argument(
+        "month",
+        nargs="?",
+        help="月份参数（1-12、01-09、'年终奖'或'补偿金'）",
+    )
 
     parser.add_argument("--output-dir", default="output/", help="输出目录（默认：output/）")
 
     parser.add_argument("--config", default="config.json", help="配置文件路径（默认：config.json）")
+
+    parser.add_argument(
+        "--merge-folder",
+        help="批量合并模式：输入目录路径（会读取目录内已生成模板文件并在 result/ 输出）",
+    )
 
     parser.add_argument(
         "--output-filename-template",
@@ -135,6 +156,21 @@ def parse_args(argv=None) -> argparse.Namespace:
     )
 
     return parser.parse_args(argv)
+
+
+def validate_cli_mode_args(args: argparse.Namespace) -> None:
+    """校验命令行模式参数组合是否正确。"""
+    has_merge_folder = bool(args.merge_folder)
+    has_any_positional = any([args.excel_path, args.unit_name, args.month])
+    has_all_positional = all([args.excel_path, args.unit_name, args.month])
+
+    if has_merge_folder:
+        if has_any_positional:
+            raise ValueError("使用 --merge-folder 时不能同时提供 excel_path/unit_name/month")
+        return
+
+    if not has_all_positional:
+        raise ValueError("普通模式必须提供 excel_path、unit_name、month 三个参数")
 
 
 def generate_output_filename(
@@ -443,10 +479,7 @@ def main(argv=None) -> None:
         logger = logging.getLogger(__name__)
 
         args = parse_args(argv)
-        logger.info(f"开始处理：{args.excel_path}，单位：{args.unit_name}，月份：{args.month}")
-
-        validated_month = validate_month(args.month)
-        logger.info(f"月份参数验证通过：{validated_month}")
+        validate_cli_mode_args(args)
 
         # 处理配置文件路径：如果是相对路径，则相对于可执行文件所在目录
         config_path = Path(args.config)
@@ -460,6 +493,49 @@ def main(argv=None) -> None:
         config = load_config(str(config_path))
         validate_config(config)
         logger.info(f"配置版本：{config['version']}")
+
+        if args.merge_folder:
+            logger.info(f"开始批量合并目录：{args.merge_folder}")
+            merge_tasks = prepare_merge_tasks(
+                merge_folder_path=args.merge_folder,
+                config=config,
+                resolve_path_fn=resolve_path,
+                apply_transformations_fn=apply_transformations,
+                needs_transformations_fn=_needs_transformations,
+                calculate_stats_fn=_calculate_stats,
+                logger=logger,
+            )
+
+            result_dir = Path(args.merge_folder) / "result"
+            result_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"批量合并准备完成，共 {len(merge_tasks)} 个分组，输出目录：{result_dir}")
+
+            for task in merge_tasks:
+                output_filename = generate_output_filename(
+                    task.unit_name,
+                    task.month_param,
+                    task.template_name,
+                    task.template_path,
+                    task.count,
+                    task.amount,
+                    args.output_filename_template,
+                )
+                output_path = result_dir / output_filename
+                process_group(
+                    task.group_data,
+                    task.group_config,
+                    task.template_path,
+                    output_path,
+                    task.month_param,
+                    logger,
+                )
+
+            logger.info("批量合并处理完成")
+            return
+
+        logger.info(f"开始处理：{args.excel_path}，单位：{args.unit_name}，月份：{args.month}")
+        validated_month = validate_month(args.month)
+        logger.info(f"月份参数验证通过：{validated_month}")
 
         if args.unit_name not in config["organization_units"]:
             raise ConfigError(f"配置文件中未找到单位配置：{args.unit_name}")
@@ -641,6 +717,7 @@ def main(argv=None) -> None:
         ExcelError,
         ValidationError,
         TransformError,
+        MergeFolderError,
         ValueError,
         FileNotFoundError,
     ) as e:
