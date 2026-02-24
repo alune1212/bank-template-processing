@@ -4,6 +4,7 @@ import argparse
 import logging
 import os
 import sys
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from .config_loader import load_config, validate_config, ConfigError, get_unit_config
@@ -237,6 +238,72 @@ def setup_logging() -> None:
     )
 
 
+def _is_zero_salary_value(value) -> bool:
+    """
+    判断“实发工资”是否为零值。
+
+    判定规则：
+    - int/float/Decimal 且数值等于 0 => True
+    - 字符串去除首尾空格及中英文逗号后，可解析为数值且等于 0 => True
+    - None/空字符串/不可解析字符串/bool => False
+    """
+    if isinstance(value, bool):
+        return False
+
+    if value is None:
+        return False
+
+    if isinstance(value, (int, float, Decimal)):
+        return value == 0
+
+    if isinstance(value, str):
+        normalized = value.strip().replace(",", "").replace("，", "")
+        if not normalized:
+            return False
+        try:
+            return Decimal(normalized) == 0
+        except (InvalidOperation, ValueError):
+            return False
+
+    return False
+
+
+def _filter_zero_salary_rows(data: list[dict], salary_column: str = "实发工资") -> list[dict]:
+    """
+    过滤“实发工资”为 0 的数据行。
+
+    Args:
+        data: 输入数据行
+        salary_column: 工资列名，默认“实发工资”
+
+    Returns:
+        过滤后的数据行
+
+    Raises:
+        ValidationError: 当所有行都缺少工资列时
+    """
+    logger = logging.getLogger(__name__)
+
+    if not data:
+        logger.info("实发工资零值筛选完成：原始 0 行，过滤 0 行，保留 0 行")
+        return data
+
+    if not any(salary_column in row for row in data):
+        raise ValidationError(f"缺少'{salary_column}'列")
+
+    filtered_rows = [row for row in data if not _is_zero_salary_value(row.get(salary_column))]
+    filtered_count = len(data) - len(filtered_rows)
+
+    logger.info(
+        "实发工资零值筛选完成：原始 %s 行，过滤 %s 行，保留 %s 行",
+        len(data),
+        filtered_count,
+        len(filtered_rows),
+    )
+
+    return filtered_rows
+
+
 def apply_transformations(data: list, transformations: dict, field_mappings: dict) -> list:
     """
     应用转换规则到数据
@@ -424,6 +491,7 @@ def main(argv=None) -> None:
         )
         data = reader.read_excel(args.excel_path)
         logger.info(f"读取到 {len(data)} 行数据")
+        data = _filter_zero_salary_rows(data)
 
         if not selector_enabled:
             logger.info("使用默认模板（未启用模板选择）")

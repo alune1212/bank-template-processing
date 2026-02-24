@@ -1,9 +1,11 @@
 """main.py 模块的测试"""
 
-import pytest
 import json
-from unittest.mock import patch, MagicMock
 import sys
+from decimal import Decimal
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestMonthValidation:
@@ -141,6 +143,63 @@ class TestGenerateOutputFilename:
         assert filename == "unit1_template_10人_金额1000.00元.xls"
 
 
+class TestZeroSalaryFilterFunctions:
+    """测试零工资筛选相关内部函数"""
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            (0, True),
+            (0.0, True),
+            (-0.0, True),
+            (Decimal("0"), True),
+            ("0", True),
+            ("0.00", True),
+            ("-0", True),
+            ("0,000", True),
+            ("0，000", True),
+            (" 0 ", True),
+            (1, False),
+            ("1.00", False),
+            (None, False),
+            ("", False),
+            ("N/A", False),
+            (False, False),
+            (True, False),
+        ],
+    )
+    def test_is_zero_salary_value(self, value, expected):
+        """测试零值判定"""
+        from bank_template_processing.main import _is_zero_salary_value
+
+        assert _is_zero_salary_value(value) is expected
+
+    def test_filter_zero_salary_rows_missing_column_raises(self):
+        """测试缺少实发工资列时抛异常"""
+        from bank_template_processing.main import _filter_zero_salary_rows
+        from bank_template_processing.validator import ValidationError
+
+        with pytest.raises(ValidationError, match="缺少'实发工资'列"):
+            _filter_zero_salary_rows([{"姓名": "张三"}, {"姓名": "李四"}])
+
+    def test_filter_zero_salary_rows_filters_only_zero(self):
+        """测试仅过滤零工资行"""
+        from bank_template_processing.main import _filter_zero_salary_rows
+
+        data = [
+            {"姓名": "张三", "实发工资": 0},
+            {"姓名": "李四", "实发工资": "0.00"},
+            {"姓名": "王五", "实发工资": "1000.50"},
+            {"姓名": "赵六", "实发工资": "N/A"},
+            {"姓名": "孙七", "实发工资": None},
+            {"姓名": "周八"},
+        ]
+
+        result = _filter_zero_salary_rows(data)
+
+        assert [row["姓名"] for row in result] == ["王五", "赵六", "孙七", "周八"]
+
+
 class TestMainWorkflow:
     """测试主工作流程"""
 
@@ -215,7 +274,12 @@ class TestMainWorkflow:
 
         mock_reader_instance = MagicMock()
         mock_reader_instance.read_excel.return_value = [
-            {"姓名": "张三", "卡号": "6222021234567890128", "金额": "1000.00"}
+            {
+                "姓名": "张三",
+                "卡号": "6222021234567890128",
+                "金额": "1000.00",
+                "实发工资": "1000.00",
+            }
         ]
         mock_reader_class.return_value = mock_reader_instance
 
@@ -298,6 +362,14 @@ class TestMainWorkflow:
                 "姓名": "张三",
                 "卡号": "6222021234567890128",
                 "金额": "1000.00",
+                "实发工资": "0",
+                "开户银行": "工商银行",
+            },
+            {
+                "姓名": "李四",
+                "卡号": "6222021234567890128",
+                "金额": "2000.00",
+                "实发工资": "2000.00",
                 "开户银行": "工商银行",
             }
         ]
@@ -308,9 +380,10 @@ class TestMainWorkflow:
             "default": {
                 "data": [
                     {
-                        "姓名": "张三",
+                        "姓名": "李四",
                         "卡号": "6222021234567890128",
-                        "金额": "1000.00",
+                        "金额": "2000.00",
+                        "实发工资": "2000.00",
                         "开户银行": "工商银行",
                     }
                 ],
@@ -347,6 +420,9 @@ class TestMainWorkflow:
         mock_reader_class.assert_called_once()
         mock_selector_class.assert_called_once()
         mock_selector_instance.group_data.assert_called_once()
+        grouped_data = mock_selector_instance.group_data.call_args.args[0]
+        assert len(grouped_data) == 1
+        assert grouped_data[0]["姓名"] == "李四"
         mock_writer_class.assert_called_once()
 
     def test_main_file_not_found(self, tmp_path, caplog):
@@ -394,6 +470,238 @@ class TestMainWorkflow:
 
         mock_exit.assert_called_once_with(1)
         assert any("错误" in record.message for record in caplog.records)
+
+
+class TestMainZeroSalaryFiltering:
+    """测试主流程中的零工资筛选行为"""
+
+    def _write_basic_config(self, tmp_path, template_path: str) -> str:
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "unit1": {
+                    "template_path": template_path,
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {},
+                    "transformations": {},
+                    "validation_rules": {},
+                }
+            },
+        }
+
+        config_path = tmp_path / "config_basic.json"
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+        return str(config_path)
+
+    @patch("bank_template_processing.main.ExcelReader")
+    @patch("bank_template_processing.main.ExcelWriter")
+    def test_filter_before_validation_transform_and_write(
+        self,
+        mock_writer_class,
+        mock_reader_class,
+        tmp_path,
+        caplog,
+    ):
+        """测试零工资行在验证/转换/写入前被过滤"""
+        from bank_template_processing.main import main
+
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "unit1": {
+                    "template_path": str(tmp_path / "template.xlsx"),
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {
+                        "金额": {
+                            "source_column": "实发工资",
+                            "transform": "amount_decimal",
+                        }
+                    },
+                    "transformations": {
+                        "amount_decimal": {
+                            "decimal_places": 2,
+                        }
+                    },
+                    "validation_rules": {
+                        "required_fields": ["姓名"],
+                    },
+                }
+            },
+        }
+        config_path = tmp_path / "config_transform.json"
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+
+        mock_reader_instance = MagicMock()
+        mock_reader_instance.read_excel.return_value = [
+            {"姓名": "张三", "实发工资": "0"},
+            {"姓名": "李四", "实发工资": "1000.456"},
+        ]
+        mock_reader_class.return_value = mock_reader_instance
+
+        mock_writer_instance = MagicMock()
+        mock_writer_class.return_value = mock_writer_instance
+
+        caplog.set_level("INFO")
+        with (
+            patch("bank_template_processing.main.Validator.validate_required") as mock_validate_required,
+            patch(
+                "bank_template_processing.main.Transformer.transform_amount",
+                return_value=1000.46,
+            ) as mock_transform_amount,
+            patch.object(
+                sys,
+                "argv",
+                [
+                    "main.py",
+                    str(tmp_path / "input.xlsx"),
+                    "unit1",
+                    "01",
+                    "--output-dir",
+                    str(tmp_path / "output"),
+                    "--config",
+                    str(config_path),
+                ],
+            ),
+        ):
+            main()
+
+        assert mock_validate_required.call_count == 1
+        assert mock_transform_amount.call_count == 1
+        assert mock_transform_amount.call_args.args[0] == "1000.456"
+
+        written_data = mock_writer_instance.write_excel.call_args.kwargs["data"]
+        assert len(written_data) == 1
+        assert written_data[0]["姓名"] == "李四"
+        assert written_data[0]["实发工资"] == 1000.46
+        assert any("原始 2 行，过滤 1 行，保留 1 行" in record.message for record in caplog.records)
+
+    @patch("bank_template_processing.main.ExcelReader")
+    def test_main_missing_salary_column_exits(self, mock_reader_class, tmp_path):
+        """测试主流程缺少实发工资列时退出"""
+        from bank_template_processing.main import main
+
+        config_path = self._write_basic_config(tmp_path, str(tmp_path / "template.xlsx"))
+        mock_reader_instance = MagicMock()
+        mock_reader_instance.read_excel.return_value = [{"姓名": "张三"}]
+        mock_reader_class.return_value = mock_reader_instance
+
+        with (
+            patch("sys.exit") as mock_exit,
+            patch.object(
+                sys,
+                "argv",
+                [
+                    "main.py",
+                    str(tmp_path / "input.xlsx"),
+                    "unit1",
+                    "01",
+                    "--config",
+                    config_path,
+                ],
+            ),
+        ):
+            main()
+
+        mock_exit.assert_called_once_with(1)
+
+
+class TestMainZeroSalaryFilteringByInputFormat:
+    """测试零工资筛选对三种输入格式均生效"""
+
+    def _create_input_file(self, tmp_path, suffix: str) -> str:
+        file_path = tmp_path / f"input{suffix}"
+        headers = ["姓名", "实发工资", "开户银行"]
+        rows = [
+            ["张三", "0", "工商银行"],
+            ["李四", "1000.50", "工商银行"],
+        ]
+
+        if suffix == ".xlsx":
+            import openpyxl
+
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            assert ws is not None
+            ws.append(headers)
+            for row in rows:
+                ws.append(row)
+            wb.save(file_path)
+        elif suffix == ".csv":
+            lines = [",".join(headers)] + [",".join(row) for row in rows]
+            file_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        elif suffix == ".xls":
+            import xlwt
+
+            wb = xlwt.Workbook(encoding="utf-8")
+            ws = wb.add_sheet("Sheet1")
+            for col_idx, value in enumerate(headers):
+                ws.write(0, col_idx, value)
+            for row_idx, row in enumerate(rows, start=1):
+                for col_idx, value in enumerate(row):
+                    ws.write(row_idx, col_idx, value)
+            wb.save(str(file_path))
+        else:
+            raise ValueError(f"不支持的测试后缀: {suffix}")
+
+        return str(file_path)
+
+    def _create_config(self, tmp_path, template_path: str) -> str:
+        config = {
+            "version": "1.0",
+            "organization_units": {
+                "unit1": {
+                    "template_path": template_path,
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {},
+                    "transformations": {},
+                    "validation_rules": {},
+                }
+            },
+        }
+        config_path = tmp_path / "config_formats.json"
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+        return str(config_path)
+
+    @pytest.mark.parametrize("suffix", [".xlsx", ".csv", ".xls"])
+    @patch("bank_template_processing.main.ExcelWriter")
+    def test_main_filters_zero_salary_for_all_input_formats(self, mock_writer_class, tmp_path, suffix):
+        """测试 .xlsx/.csv/.xls 输入均会过滤零工资行"""
+        from bank_template_processing.main import _is_zero_salary_value, main
+
+        input_path = self._create_input_file(tmp_path, suffix)
+        config_path = self._create_config(tmp_path, str(tmp_path / "template.xlsx"))
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        mock_writer_instance = MagicMock()
+        mock_writer_class.return_value = mock_writer_instance
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "main.py",
+                input_path,
+                "unit1",
+                "01",
+                "--output-dir",
+                str(output_dir),
+                "--config",
+                config_path,
+            ],
+        ):
+            main()
+
+        written_data = mock_writer_instance.write_excel.call_args.kwargs["data"]
+        assert len(written_data) == 1
+        assert written_data[0]["姓名"] == "李四"
+        assert not _is_zero_salary_value(written_data[0].get("实发工资"))
 
 
 class TestApplyTransformations:
