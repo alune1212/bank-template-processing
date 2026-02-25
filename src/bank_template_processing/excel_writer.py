@@ -99,8 +99,6 @@ class ExcelWriter:
         # 废弃 bank_branch_mapping 警告
         if bank_branch_mapping and bank_branch_mapping.get("enabled"):
             logger.warning("配置警告: 'bank_branch_mapping' 已废弃，请使用 'field_mappings' 进行配置。")
-        if month_type_mapping and month_type_mapping.get("enabled"):
-            logger.warning("配置警告: 'month_type_mapping' 已全局移除，当前配置将被忽略。")
 
         # 根据文件扩展名选择写入方式
         ext = Path(template_path).suffix.lower()
@@ -454,6 +452,10 @@ class ExcelWriter:
         if auto_number and auto_number.get("enabled"):
             current_number = auto_number.get("start_from", 1)
 
+        month_value = None
+        if month_type_mapping and month_type_mapping.get("enabled"):
+            month_value = self._calculate_month_value(month_param, month_type_mapping)
+
         for row_idx, row_data in enumerate(data):
             row_output = [""] * max_columns
 
@@ -506,6 +508,15 @@ class ExcelWriter:
                 except ValueError as e:
                     logger.warning(f"跳过自动编号列 {column}: {e}")
 
+            if month_value is not None and month_type_mapping:
+                target_column = month_type_mapping.get("target_column", "C")
+                try:
+                    col_idx = self._resolve_column_index_by_mode(target_column, headers, max_columns, mapping_mode)
+                    if 1 <= col_idx <= max_columns:
+                        row_output[col_idx - 1] = str(month_value)
+                except ValueError as e:
+                    logger.warning(f"跳过月类型映射列 {target_column}: {e}")
+
             result_rows.append(row_output)
 
         return result_rows
@@ -528,6 +539,10 @@ class ExcelWriter:
         current_number = None
         if auto_number and auto_number.get("enabled"):
             current_number = auto_number.get("start_from", 1)
+
+        month_value = None
+        if month_type_mapping and month_type_mapping.get("enabled"):
+            month_value = self._calculate_month_value(month_param, month_type_mapping)
 
         for row_idx, row_data in enumerate(data):
             output_row_idx = start_row + row_idx
@@ -590,6 +605,14 @@ class ExcelWriter:
                 except ValueError as e:
                     logger.warning(f"跳过自动编号列 {column}: {e}")
 
+            if month_value is not None and month_type_mapping:
+                target_column = month_type_mapping.get("target_column", "C")
+                try:
+                    col_idx = self._resolve_column_index_by_mode(target_column, headers, ws.max_column, mapping_mode)
+                    ws.cell(output_row_idx, col_idx, month_value)
+                except ValueError as e:
+                    logger.warning(f"跳过月类型映射列 {target_column}: {e}")
+
         logger.debug(f"已写入 {len(data)} 行数据到工作表")
 
     def _write_data_to_xls_sheet(
@@ -611,6 +634,10 @@ class ExcelWriter:
         current_number = None
         if auto_number and auto_number.get("enabled"):
             current_number = auto_number.get("start_from", 1)
+
+        month_value = None
+        if month_type_mapping and month_type_mapping.get("enabled"):
+            month_value = self._calculate_month_value(month_param, month_type_mapping)
 
         for row_idx, row_data in enumerate(data):
             output_row_idx = start_row + row_idx
@@ -664,7 +691,54 @@ class ExcelWriter:
                 except ValueError as e:
                     logger.warning(f"跳过自动编号列 {column}: {e}")
 
+            if month_value is not None and month_type_mapping:
+                target_column = month_type_mapping.get("target_column", "C")
+                try:
+                    col_idx = self._resolve_column_index_by_mode(target_column, headers, max_columns, mapping_mode)
+                    if 1 <= col_idx <= max_columns:
+                        ws.write(output_row_idx - 1, col_idx - 1, month_value)
+                except ValueError as e:
+                    logger.warning(f"跳过月类型映射列 {target_column}: {e}")
+
         logger.debug(f"已写入 {len(data)} 行数据到xls工作表")
+
+    def _calculate_month_value(self, month_param: Optional[str], month_type_mapping: dict) -> Optional[str]:
+        """
+        计算month类型映射的值
+
+        Args:
+            month_param: 月参数（例如："1"或"01"或"年终奖"或"补偿金"）
+            month_type_mapping: 月类型映射配置
+
+        Returns:
+            str: 计算后的值
+        """
+        if month_param is None:
+            return None
+
+        # 检查是否为月份数字
+        try:
+            month_num = int(month_param)
+            if 1 <= month_num <= 12:
+                month_format = month_type_mapping.get("month_format", "{month}月收入")
+                try:
+                    return month_format.format(month=f"{month_num:02d}")
+                except KeyError as e:
+                    raise ConfigError(f"month_format 缺少变量: {e}") from e
+                except Exception as e:
+                    raise ConfigError(f"month_format 格式错误: {e}") from e
+        except ValueError:
+            pass
+
+        # 检查是否为"年终奖"
+        if month_param == "年终奖":
+            return month_type_mapping.get("bonus_value", "年终奖")
+
+        # 检查是否为"补偿金"
+        if month_param == "补偿金":
+            return month_type_mapping.get("compensation_value", "补偿金")
+
+        return None
 
     def _column_letter_to_index(self, column: str) -> int:
         """

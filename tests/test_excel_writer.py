@@ -244,13 +244,12 @@ class TestExcelWriter:
         )
 
     def test_month_format_custom(self, tmp_path):
-        """测试 month_type_mapping 全局忽略，不覆盖模板值"""
+        """测试 month_format 生效"""
         template_path = tmp_path / "template.xlsx"
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.cell(1, 1, "姓名")
         ws.cell(1, 2, "用途")
-        ws.cell(2, 2, "原始用途")
         wb.save(template_path)
 
         data = [{"姓名": "张三"}]
@@ -279,7 +278,7 @@ class TestExcelWriter:
 
         wb_result = openpyxl.load_workbook(output_path)
         ws_result = wb_result.active
-        assert ws_result.cell(2, 2).value is None
+        assert ws_result.cell(2, 2).value == "01月工资"
         wb_result.close()
 
     def test_clear_rows_preserve_tail(self, tmp_path):
@@ -503,7 +502,7 @@ class TestExcelWriter:
         wb_result.close()
 
     def test_month_type_mapping_month_number(self, tmp_path):
-        """测试 month_type_mapping 已忽略 - 月份数字场景"""
+        """测试月类型映射功能 - 月份数字"""
         # 创建模板文件
         template_path = tmp_path / "template.xlsx"
         wb = openpyxl.Workbook()
@@ -538,18 +537,18 @@ class TestExcelWriter:
             month_param="1",
         )
 
-        # 验证 month_type_mapping 被忽略（月份列不写入）
+        # 验证月类型映射
         wb_result = openpyxl.load_workbook(output_path)
         ws_result = wb_result.active
         assert ws_result.cell(2, 1).value == "张三"
-        assert ws_result.cell(2, 2).value is None
+        assert ws_result.cell(2, 2).value == "01月收入"
         assert ws_result.cell(3, 1).value == "李四"
-        assert ws_result.cell(3, 2).value is None
+        assert ws_result.cell(3, 2).value == "01月收入"
 
         wb_result.close()
 
     def test_month_type_mapping_bonus(self, tmp_path):
-        """测试 month_type_mapping 已忽略 - 年终奖场景"""
+        """测试月类型映射功能 - 年终奖"""
         # 创建模板文件
         template_path = tmp_path / "template.xlsx"
         wb = openpyxl.Workbook()
@@ -588,11 +587,11 @@ class TestExcelWriter:
             month_param="年终奖",
         )
 
-        # 验证 month_type_mapping 被忽略（类型列不写入）
+        # 验证月类型映射
         wb_result = openpyxl.load_workbook(output_path)
         ws_result = wb_result.active
         assert ws_result.cell(2, 1).value == "张三"
-        assert ws_result.cell(2, 2).value is None
+        assert ws_result.cell(2, 2).value == "年终奖"
 
         wb_result.close()
 
