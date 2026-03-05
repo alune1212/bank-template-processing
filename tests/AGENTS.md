@@ -12,6 +12,7 @@
 - 测试模块：13 个 `test_*.py`。
 - 测试用例：约 203 个 `test_*` 函数/方法。
 - 夹具目录：`tests/fixtures/`（`xlsx/csv/xls/json`）。
+- 质量门槛：总覆盖率 `>=92%`，分支覆盖率 `>=85%`（由 `scripts/check_branch_coverage.py` 校验）。
 - 组织方式：
   - 以 `Test*` 类组织为主
   - 以函数式测试补充关键回归（如公式读取、文件名统计、中文列名问题）
@@ -57,6 +58,7 @@ tests/
 - 优先使用内置 `tmp_path` 与 `unittest.mock.patch`。
 - 包导入统一 `from bank_template_processing...`，不使用平铺导入。
 - 测试配置由 `pyproject.toml` 管理，不新增 `pytest.ini`。
+- 属性测试使用 `Hypothesis`，并统一走 `tests/conftest.py` 的 `ci` profile（可复现、禁用 deadline）。
 
 ## ANTI-PATTERNS
 - 不要只测 happy path，涉及配置解析与写入逻辑需同时覆盖失败分支。
@@ -77,6 +79,10 @@ uv run pytest tests/test_excel_reader.py tests/test_excel_reader_formula.py -v
 
 # 含覆盖率
 uv run pytest --cov=src --cov-report=term-missing
+
+# 上线前门槛（总覆盖率 + 分支覆盖）
+uv run pytest tests/ --cov=src --cov-branch --cov-report=xml --cov-fail-under=92
+uv run python scripts/check_branch_coverage.py --min-branch 85 --xml coverage.xml
 ```
 
 ## NOTES

@@ -5,7 +5,6 @@ import csv
 import openpyxl
 import pytest
 
-from bank_template_processing.config_loader import ConfigError
 from bank_template_processing.excel_writer import ExcelError, ExcelWriter
 
 

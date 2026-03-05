@@ -316,6 +316,10 @@ uv run pytest
 
 # 运行测试并生成覆盖率报告
 uv run pytest --cov=src --cov-report=html
+
+# 上线前质量门槛（总覆盖率>=92%，分支覆盖率>=85%）
+uv run pytest tests/ --cov=src --cov-branch --cov-report=xml --cov-fail-under=92
+uv run python scripts/check_branch_coverage.py --min-branch 85 --xml coverage.xml
 ```
 
 ### 代码检查

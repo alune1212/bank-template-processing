@@ -329,7 +329,7 @@ def _split_prefix_to_unit_and_template(prefix: str, unit_names: list[str]) -> tu
             template_name = prefix[len(marker) :]
             if not template_name:
                 raise MergeFolderError(f"文件名前缀缺少模板名称: {prefix}")
-            return unit_name, template_name
+            return str(unit_name), str(template_name)
 
     raise MergeFolderError(f"文件名前缀无法匹配单位名称: {prefix}")
 
