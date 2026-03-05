@@ -177,6 +177,7 @@ def prepare_merge_tasks(
     apply_transformations_fn: Callable[[list, dict, dict], list],
     needs_transformations_fn: Callable[[dict], bool],
     calculate_stats_fn: Callable[[list, dict, dict], tuple[int, float]],
+    needs_month_for_filename: bool,
     logger: logging.Logger,
 ) -> list[MergeTask]:
     """扫描并准备批量合并任务。"""
@@ -272,14 +273,17 @@ def prepare_merge_tasks(
         month_type_mapping = group_config.get("month_type_mapping", {})
         output_group_config = group_config
         if isinstance(month_type_mapping, dict) and month_type_mapping.get("enabled"):
-            month_param = infer_month_param_from_values(
-                merged_month_values,
-                month_type_mapping,
-                allow_conflict=True,
-                logger=logger,
-            )
             output_group_config = _build_merge_output_group_config(group_config, keep_row_month_values=True)
-            logger.info("分组 %s_%s 月份参数推断成功：%s", unit_name, template_name, month_param)
+            if needs_month_for_filename:
+                month_param = infer_month_param_from_values(
+                    merged_month_values,
+                    month_type_mapping,
+                    allow_conflict=True,
+                    logger=logger,
+                )
+                logger.info("分组 %s_%s 月份参数推断成功：%s", unit_name, template_name, month_param)
+            else:
+                logger.info("分组 %s_%s 跳过月份参数推断：输出文件名模板未使用 {month}", unit_name, template_name)
 
         merge_tasks.append(
             MergeTask(

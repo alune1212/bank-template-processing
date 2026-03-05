@@ -153,6 +153,25 @@ class TestCliModeValidation:
         validate_cli_mode_args(args)
 
 
+class TestOutputTemplateUsesMonth:
+    """测试输出模板是否使用 month 变量的判断"""
+
+    def test_output_template_uses_month(self):
+        from bank_template_processing.main import _output_template_uses_month
+
+        assert _output_template_uses_month("{unit_name}_{month}_{template_name}") is True
+
+    def test_output_template_escaped_month_literal_not_counted(self):
+        from bank_template_processing.main import _output_template_uses_month
+
+        assert _output_template_uses_month("{unit_name}_{{month}}_{template_name}") is False
+
+    def test_output_template_none_not_use_month(self):
+        from bank_template_processing.main import _output_template_uses_month
+
+        assert _output_template_uses_month(None) is False
+
+
 class TestGenerateOutputFilename:
     """测试输出文件名生成"""
 

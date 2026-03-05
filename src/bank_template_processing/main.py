@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+import string
 import sys
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -224,6 +225,22 @@ def generate_output_filename(
         return filename
 
     return f"{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{template_ext}"
+
+
+def _output_template_uses_month(output_template: str | None) -> bool:
+    """判断输出文件名模板是否实际使用 month 变量。"""
+    if not output_template:
+        return False
+
+    formatter = string.Formatter()
+    for _, field_name, _, _ in formatter.parse(output_template):
+        if field_name is None:
+            continue
+        root_field = field_name.split(".", 1)[0].split("[", 1)[0]
+        if root_field == "month":
+            return True
+
+    return False
 
 
 def _calculate_stats(data: list, field_mappings: dict, transformations: dict) -> tuple[int, float]:
@@ -496,6 +513,7 @@ def main(argv=None) -> None:
 
         if args.merge_folder:
             logger.info(f"开始批量合并目录：{args.merge_folder}")
+            needs_month_for_filename = _output_template_uses_month(args.output_filename_template)
             merge_tasks = prepare_merge_tasks(
                 merge_folder_path=args.merge_folder,
                 config=config,
@@ -503,6 +521,7 @@ def main(argv=None) -> None:
                 apply_transformations_fn=apply_transformations,
                 needs_transformations_fn=_needs_transformations,
                 calculate_stats_fn=_calculate_stats,
+                needs_month_for_filename=needs_month_for_filename,
                 logger=logger,
             )
 

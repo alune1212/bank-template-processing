@@ -203,6 +203,7 @@ def test_prepare_merge_tasks_stats_mismatch_raises(tmp_path):
             apply_transformations_fn=apply_transformations,
             needs_transformations_fn=_needs_transformations,
             calculate_stats_fn=_calculate_stats,
+            needs_month_for_filename=False,
             logger=logging.getLogger(__name__),
         )
 
@@ -235,6 +236,7 @@ def test_prepare_merge_tasks_orders_by_mtime_not_filename(tmp_path):
         apply_transformations_fn=apply_transformations,
         needs_transformations_fn=_needs_transformations,
         calculate_stats_fn=_calculate_stats,
+        needs_month_for_filename=False,
         logger=logging.getLogger(__name__),
     )
 
@@ -269,11 +271,75 @@ def test_prepare_merge_tasks_mtime_tie_breaks_by_filename(tmp_path):
         apply_transformations_fn=apply_transformations,
         needs_transformations_fn=_needs_transformations,
         calculate_stats_fn=_calculate_stats,
+        needs_month_for_filename=False,
         logger=logging.getLogger(__name__),
     )
 
     assert len(tasks) == 1
     assert [row["姓名"] for row in tasks[0].group_data] == ["文件名10在前", "文件名20在后"]
+
+
+def test_prepare_merge_tasks_skips_month_inference_when_filename_template_not_use_month(tmp_path, caplog):
+    default_template = tmp_path / "default_template.xlsx"
+    crossbank_template = tmp_path / "crossbank_template.xlsx"
+    _create_template_file(default_template)
+    _create_template_file(crossbank_template)
+    config = _build_test_config(default_template, crossbank_template, month_type_enabled=True)
+
+    merge_dir = tmp_path / "merge_input"
+    merge_dir.mkdir()
+    _create_generated_file(
+        merge_dir / "苏州悦鸣服务外包有限公司_农行跨行_2人_金额300.00元.xlsx",
+        [("张三", 100.0, "01月收入"), ("李四", 200.0, "年终奖")],
+    )
+
+    caplog.set_level(logging.INFO)
+    tasks = prepare_merge_tasks(
+        merge_folder_path=str(merge_dir),
+        config=config,
+        resolve_path_fn=lambda path: path,
+        apply_transformations_fn=apply_transformations,
+        needs_transformations_fn=_needs_transformations,
+        calculate_stats_fn=_calculate_stats,
+        needs_month_for_filename=False,
+        logger=logging.getLogger(__name__),
+    )
+
+    assert len(tasks) == 1
+    assert tasks[0].month_param == ""
+    assert "检测到同一分组存在冲突的月类型值" not in caplog.text
+    assert "跳过月份参数推断：输出文件名模板未使用 {month}" in caplog.text
+
+
+def test_prepare_merge_tasks_infers_month_when_filename_template_uses_month(tmp_path, caplog):
+    default_template = tmp_path / "default_template.xlsx"
+    crossbank_template = tmp_path / "crossbank_template.xlsx"
+    _create_template_file(default_template)
+    _create_template_file(crossbank_template)
+    config = _build_test_config(default_template, crossbank_template, month_type_enabled=True)
+
+    merge_dir = tmp_path / "merge_input"
+    merge_dir.mkdir()
+    _create_generated_file(
+        merge_dir / "苏州悦鸣服务外包有限公司_农行跨行_2人_金额300.00元.xlsx",
+        [("张三", 100.0, "01月收入"), ("李四", 200.0, "年终奖")],
+    )
+
+    caplog.set_level(logging.INFO)
+    tasks = prepare_merge_tasks(
+        merge_folder_path=str(merge_dir),
+        config=config,
+        resolve_path_fn=lambda path: path,
+        apply_transformations_fn=apply_transformations,
+        needs_transformations_fn=_needs_transformations,
+        calculate_stats_fn=_calculate_stats,
+        needs_month_for_filename=True,
+        logger=logging.getLogger(__name__),
+    )
+
+    assert len(tasks) == 1
+    assert tasks[0].month_param == "01"
+    assert "检测到同一分组存在冲突的月类型值" in caplog.text
 
 
 def test_main_merge_folder_generates_result_files(tmp_path):
@@ -363,3 +429,38 @@ def test_main_merge_folder_keeps_row_month_values_for_mixed_months(tmp_path):
         assert sheet.cell(3, 3).value == "年终奖"
     finally:
         workbook.close()
+
+
+def test_main_merge_folder_with_escaped_month_literal_template_skips_month_inference(tmp_path, caplog):
+    default_template = tmp_path / "default_template.xlsx"
+    crossbank_template = tmp_path / "crossbank_template.xlsx"
+    _create_template_file(default_template)
+    _create_template_file(crossbank_template)
+
+    config = _build_test_config(default_template, crossbank_template, month_type_enabled=True)
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    merge_dir = tmp_path / "merge_input"
+    merge_dir.mkdir()
+    _create_generated_file(
+        merge_dir / "苏州悦鸣服务外包有限公司_农行跨行_2人_金额300.00元.xlsx",
+        [("张三", 100.0, "01月收入"), ("李四", 200.0, "年终奖")],
+    )
+
+    caplog.set_level(logging.INFO)
+    main(
+        [
+            "--merge-folder",
+            str(merge_dir),
+            "--config",
+            str(config_path),
+            "--output-filename-template",
+            "{unit_name}_{{month}}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
+        ]
+    )
+
+    assert "检测到同一分组存在冲突的月类型值" not in caplog.text
+
+    output_path = merge_dir / "result" / "苏州悦鸣服务外包有限公司_{month}_农行跨行_2人_金额300.00元.xlsx"
+    assert output_path.exists()
