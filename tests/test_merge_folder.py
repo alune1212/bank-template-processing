@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 
 import openpyxl
@@ -204,6 +205,75 @@ def test_prepare_merge_tasks_stats_mismatch_raises(tmp_path):
             calculate_stats_fn=_calculate_stats,
             logger=logging.getLogger(__name__),
         )
+
+
+def test_prepare_merge_tasks_orders_by_mtime_not_filename(tmp_path):
+    default_template = tmp_path / "default_template.xlsx"
+    crossbank_template = tmp_path / "crossbank_template.xlsx"
+    _create_template_file(default_template)
+    _create_template_file(crossbank_template)
+    config = _build_test_config(default_template, crossbank_template)
+
+    merge_dir = tmp_path / "merge_input"
+    merge_dir.mkdir()
+
+    filename_first = merge_dir / "苏州悦鸣服务外包有限公司_农行跨行_1人_金额10.00元.xlsx"
+    filename_later = merge_dir / "苏州悦鸣服务外包有限公司_农行跨行_1人_金额20.00元.xlsx"
+
+    _create_generated_file(filename_first, [("应后出现", 10.0, "01月收入")])
+    _create_generated_file(filename_later, [("应先出现", 20.0, "01月收入")])
+
+    older_ts = 1_700_000_000
+    newer_ts = older_ts + 60
+    os.utime(filename_later, (older_ts, older_ts))
+    os.utime(filename_first, (newer_ts, newer_ts))
+
+    tasks = prepare_merge_tasks(
+        merge_folder_path=str(merge_dir),
+        config=config,
+        resolve_path_fn=lambda path: path,
+        apply_transformations_fn=apply_transformations,
+        needs_transformations_fn=_needs_transformations,
+        calculate_stats_fn=_calculate_stats,
+        logger=logging.getLogger(__name__),
+    )
+
+    assert len(tasks) == 1
+    assert [row["姓名"] for row in tasks[0].group_data] == ["应先出现", "应后出现"]
+
+
+def test_prepare_merge_tasks_mtime_tie_breaks_by_filename(tmp_path):
+    default_template = tmp_path / "default_template.xlsx"
+    crossbank_template = tmp_path / "crossbank_template.xlsx"
+    _create_template_file(default_template)
+    _create_template_file(crossbank_template)
+    config = _build_test_config(default_template, crossbank_template)
+
+    merge_dir = tmp_path / "merge_input"
+    merge_dir.mkdir()
+
+    filename_10 = merge_dir / "苏州悦鸣服务外包有限公司_农行跨行_1人_金额10.00元.xlsx"
+    filename_20 = merge_dir / "苏州悦鸣服务外包有限公司_农行跨行_1人_金额20.00元.xlsx"
+
+    _create_generated_file(filename_10, [("文件名10在前", 10.0, "01月收入")])
+    _create_generated_file(filename_20, [("文件名20在后", 20.0, "01月收入")])
+
+    same_ts = 1_700_000_000
+    os.utime(filename_10, (same_ts, same_ts))
+    os.utime(filename_20, (same_ts, same_ts))
+
+    tasks = prepare_merge_tasks(
+        merge_folder_path=str(merge_dir),
+        config=config,
+        resolve_path_fn=lambda path: path,
+        apply_transformations_fn=apply_transformations,
+        needs_transformations_fn=_needs_transformations,
+        calculate_stats_fn=_calculate_stats,
+        logger=logging.getLogger(__name__),
+    )
+
+    assert len(tasks) == 1
+    assert [row["姓名"] for row in tasks[0].group_data] == ["文件名10在前", "文件名20在后"]
 
 
 def test_main_merge_folder_generates_result_files(tmp_path):

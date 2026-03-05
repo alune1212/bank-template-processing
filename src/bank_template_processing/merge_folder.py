@@ -192,7 +192,11 @@ def prepare_merge_tasks(
 
     unit_names = list(organization_units.keys())
     input_files = _scan_merge_input_files(merge_folder, unit_names)
-    logger.info("批量合并扫描完成：目录 %s 共发现 %s 个输入文件", merge_folder, len(input_files))
+    logger.info(
+        "批量合并扫描完成：目录 %s 共发现 %s 个输入文件（排序规则=mtime asc, tie=name asc）",
+        merge_folder,
+        len(input_files),
+    )
 
     grouped_files: dict[tuple[str, str], list[MergeInputFile]] = {}
     for input_file in input_files:
@@ -203,7 +207,7 @@ def prepare_merge_tasks(
     merge_tasks: list[MergeTask] = []
 
     for unit_name, template_name in sorted(grouped_files.keys()):
-        files = sorted(grouped_files[(unit_name, template_name)], key=lambda item: item.path.name)
+        files = grouped_files[(unit_name, template_name)]
         logger.info("处理合并分组：%s_%s（%s 个文件）", unit_name, template_name, len(files))
 
         rule_group, group_config = resolve_rule_group_for_template(config, unit_name, template_name)
@@ -295,16 +299,23 @@ def prepare_merge_tasks(
 
 
 def _scan_merge_input_files(merge_folder: Path, unit_names: list[str]) -> list[MergeInputFile]:
-    excel_files = sorted(
-        path for path in merge_folder.iterdir() if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS
-    )
+    excel_files = [path for path in merge_folder.iterdir() if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS]
     if not excel_files:
         raise MergeFolderError(f"目录中未找到可合并的 Excel 文件: {merge_folder}")
+    excel_files.sort(key=_merge_input_file_sort_key)
 
     parsed_files: list[MergeInputFile] = []
     for file_path in excel_files:
         parsed_files.append(parse_merge_filename(file_path, unit_names))
     return parsed_files
+
+
+def _merge_input_file_sort_key(file_path: Path) -> tuple[float, str]:
+    try:
+        mtime = file_path.stat().st_mtime
+    except OSError as e:
+        raise MergeFolderError(f"读取文件修改时间失败: {file_path.name}: {e}") from e
+    return mtime, file_path.name
 
 
 def _split_prefix_to_unit_and_template(prefix: str, unit_names: list[str]) -> tuple[str, str]:
