@@ -20,18 +20,19 @@ def test_get_executable_dir_non_frozen_returns_project_root(monkeypatch):
     assert executable_dir == Path(main_module.__file__).parents[2].resolve()
 
 
-def test_get_executable_dir_frozen_returns_executable_dir(monkeypatch):
+def test_get_executable_dir_frozen_returns_executable_dir(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "executable", "/tmp/bank-template-processing/app.exe", raising=False)
+    executable_path = tmp_path / "bank-template-processing" / "app.exe"
+    monkeypatch.setattr(sys, "executable", str(executable_path), raising=False)
 
     executable_dir = main_module.get_executable_dir()
 
-    assert executable_dir == Path("/tmp/bank-template-processing")
+    assert executable_dir == executable_path.parent
 
 
-def test_resolve_path_with_absolute_path_returns_original():
-    absolute_path = "/tmp/example.xlsx"
-    assert main_module.resolve_path(absolute_path) == absolute_path
+def test_resolve_path_with_absolute_path_returns_original(tmp_path):
+    absolute_path = tmp_path / "example.xlsx"
+    assert main_module.resolve_path(str(absolute_path)) == str(absolute_path)
 
 
 def test_resolve_path_with_relative_path_and_custom_base(tmp_path):
