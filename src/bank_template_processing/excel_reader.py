@@ -11,6 +11,7 @@ from typing import List, Dict, Optional, Any
 import openpyxl
 import xlrd
 
+from .sheet_utils import convert_xls_cell, is_empty_value
 
 logger = logging.getLogger(__name__)
 
@@ -83,46 +84,11 @@ class ExcelReader:
 
     def _is_empty_cell(self, value: Any) -> bool:
         """判断单元格是否为空"""
-        if value is None:
-            return True
-        if isinstance(value, str):
-            return not value.strip()
-        return False
+        return is_empty_value(value)
 
     def _convert_xls_cell(self, cell, datemode: int) -> Any:
         """将 .xls 单元格值转换为更合适的 Python 类型"""
-        try:
-            cell_type = cell.ctype
-        except Exception:
-            return cell.value
-
-        # 空单元格
-        empty_types = [getattr(xlrd, "XL_CELL_EMPTY", -1), getattr(xlrd, "XL_CELL_BLANK", -1)]
-        if cell_type in empty_types:
-            return None
-
-        # 日期单元格
-        if cell_type == getattr(xlrd, "XL_CELL_DATE", -1):
-            try:
-                return xlrd.xldate_as_datetime(cell.value, datemode)
-            except Exception:
-                return cell.value
-
-        # 数字单元格
-        if cell_type == getattr(xlrd, "XL_CELL_NUMBER", -1):
-            try:
-                if float(cell.value).is_integer():
-                    return int(cell.value)
-            except Exception:
-                pass
-            return cell.value
-
-        # 布尔单元格
-        if cell_type == getattr(xlrd, "XL_CELL_BOOLEAN", -1):
-            return bool(cell.value)
-
-        # 其他类型（文本、错误等）
-        return cell.value
+        return convert_xls_cell(cell, datemode)
 
     def _should_skip_row(self, row_values: List[str], headers: Optional[List[str]]) -> bool:
         """检查是否应该跳过该行

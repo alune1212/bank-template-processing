@@ -111,15 +111,39 @@ uv run python -m bank_template_processing --merge-folder output --config config.
 
 ```json
 {
-  "version": "1.0",
+  "version": "2.0",
   "organization_units": {
     "单位名称": {
-      "template_path": "templates/模板文件.xlsx",
-      "header_row": 1,
-      "start_row": 2,
-      "field_mappings": { ... },
-      "transformations": { ... },
-      "validation_rules": { ... }
+      "template_selector": {
+        "enabled": true,
+        "default_bank": "中国农业银行",
+        "bank_column": "开户银行",
+        "default_group_name": "农业银行",
+        "special_group_name": "农行跨行"
+      },
+      "default": {
+        "template_path": "templates/农业银行模板.csv",
+        "header_row": 0,
+        "start_row": 1,
+        "reader_options": {
+          "data_only": false,
+          "header_row": 1
+        },
+        "clear_rows": {
+          "start_row": 1,
+          "end_row": 200
+        },
+        "field_mappings": { ... },
+        "transformations": { ... },
+        "validation_rules": { ... }
+      },
+      "crossbank": {
+        "template_path": "templates/农业银行跨行进卡模板.xlsx",
+        "header_row": 2,
+        "start_row": 3,
+        "field_mappings": { ... },
+        "transformations": { ... }
+      }
     }
   }
 }
@@ -129,14 +153,14 @@ uv run python -m bank_template_processing --merge-folder output --config config.
 
 | 配置项 | 说明 | 默认值 |
 |---------|------|---------|
-| `version` | 配置文件版本号 | "1.0" |
+| `version` | 配置文件版本号 | `"2.0"` |
 | `template_path` | 模板文件路径 | 必填 |
-| `header_row` | 表头所在行（从1开始）| 必填，≥ 1 |
-| `start_row` | 数据起始行（从1开始）| header_row + 1 |
+| `header_row` | 输出模板表头所在行（从1开始，可为0） | 必填，≥ 0 |
+| `start_row` | 输出数据起始行（从1开始） | `max(1, header_row + 1)` |
 | `field_mappings` | 字段映射配置 | 必填 |
 | `fixed_values` | 固定值配置 | 可选 |
 | `auto_number` | 自动编号配置 | 可选 |
-| `bank_branch_mapping` | 银行支行映射 | 可选 |
+| `clear_rows` | 输出数据区清理范围 | 可选 |
 | `month_type_mapping` | 月份类型映射 | 可选 |
 | `reader_options` | 读取器选项 | 可选 |
 | `template_selector` | 动态模板选择 | 可选 |
@@ -207,13 +231,31 @@ uv run python -m bank_template_processing --merge-folder output --config config.
 
 ```json
 "reader_options": {
-  "data_only": true
+  "data_only": true,
+  "header_row": 1
 }
 ```
 
 说明：
 - `data_only`: 当为 `true` 时，读取公式单元格的**缓存结果**；为 `false` 时读取公式文本。
   - 注意：`openpyxl` 不会计算公式，只有在 Excel 中保存过计算结果时才有缓存值。
+- `header_row`: 输入文件表头行号（从 1 开始），用于跳过输入中的标题/说明行。
+
+### 输出数据区清理（clear_rows）
+
+用于在写入前清空模板中的固定数据区，同时保留模板尾部统计/公式区域。
+
+```json
+"clear_rows": {
+  "start_row": 2,
+  "end_row": 200
+}
+```
+
+说明：
+- `end_row` 为推荐字段。
+- `data_end_row` 仍兼容旧配置，但不能与 `end_row` 同时出现。
+- `.xlsx` 在数据超出清理区间时会自动插入行；`.xls` 要求区间足够容纳全部数据。
 
 ### 动态模板选择配置
 
@@ -223,7 +265,9 @@ uv run python -m bank_template_processing --merge-folder output --config config.
 "template_selector": {
   "enabled": true,
   "default_bank": "中国农业银行",
-  "special_template": "templates/特殊模板.xlsx"
+  "bank_column": "开户银行",
+  "default_group_name": "农业银行",
+  "special_group_name": "农行跨行"
 }
 ```
 
@@ -232,8 +276,9 @@ uv run python -m bank_template_processing --merge-folder output --config config.
 - "开户银行" ≠ "中国农业银行" → 使用特殊模板
 
 **输出文件命名规则**：
-- 单模板模式：`{unit_name}_{month}_{timestamp}.xlsx`
-- 动态模板模式：`{unit_name}_{template_name}_{month}_{timestamp}.xlsx`
+- 默认模板：`{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}`
+- 可通过 `--output-filename-template` 自定义，支持变量：
+  - `{unit_name}` `{month}` `{template_name}` `{count}` `{amount}` `{ext}`
 
 ## 数据转换规则
 
@@ -393,6 +438,9 @@ bank-template-processing/
 │       ├── config_loader.py      # 配置加载器
 │       ├── excel_reader.py       # Excel读取器
 │       ├── excel_writer.py       # Excel写入器
+│       ├── merge_folder.py       # 批量合并目录模式
+│       ├── pipeline.py           # 共享处理管线
+│       ├── sheet_utils.py        # 表格共享工具
 │       ├── transformer.py        # 数据转换器
 │       ├── validator.py          # 数据验证器
 │       └── template_selector.py  # 模板选择器

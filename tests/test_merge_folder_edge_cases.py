@@ -9,7 +9,6 @@ import pytest
 
 import bank_template_processing.merge_folder as merge_folder_module
 from bank_template_processing.config_loader import ConfigError
-from bank_template_processing.excel_writer import ExcelWriter
 from bank_template_processing.merge_folder import (
     MergeFolderError,
     MergeInputFile,
@@ -174,58 +173,53 @@ def test_build_field_bindings_missing_source_column_raises():
             {"姓名": {"target_column": "A"}},
             {"姓名": 1},
             5,
-            ExcelWriter(),
+            None,
             Path("a.xlsx"),
         )
 
 
 def test_build_field_bindings_unresolvable_target_raises(monkeypatch):
-    writer = ExcelWriter()
-
     def fake_resolve(*_args, **_kwargs):
         raise ValueError("bad column")
 
-    monkeypatch.setattr(writer, "_resolve_column_index_by_mode", fake_resolve)
+    monkeypatch.setattr(merge_folder_module, "resolve_column_index_by_mode", fake_resolve)
     with pytest.raises(MergeFolderError, match="无法解析字段"):
         _build_field_bindings(
             {"姓名": {"source_column": "姓名", "target_column": "坏列"}},
             {"姓名": 1},
             5,
-            writer,
+            None,
             Path("a.xlsx"),
         )
 
 
 def test_build_field_bindings_old_format_mapping():
-    writer = ExcelWriter()
     bindings = _build_field_bindings(
         {"姓名": "A"},
         {},
         5,
-        writer,
+        None,
         Path("a.xlsx"),
     )
     assert bindings == [("姓名", 1)]
 
 
 def test_resolve_month_column_disabled_returns_none():
-    assert _resolve_month_column({}, {}, 1, ExcelWriter(), Path("a.xlsx")) is None
+    assert _resolve_month_column({}, {}, 1, None, Path("a.xlsx")) is None
 
 
 def test_resolve_month_column_invalid_target_raises(monkeypatch):
-    writer = ExcelWriter()
-
     def fake_resolve(*_args, **_kwargs):
         raise ValueError("bad")
 
-    monkeypatch.setattr(writer, "_resolve_column_index_by_mode", fake_resolve)
+    monkeypatch.setattr(merge_folder_module, "resolve_column_index_by_mode", fake_resolve)
 
     with pytest.raises(MergeFolderError, match="month_type_mapping.target_column"):
         _resolve_month_column(
             {"month_type_mapping": {"enabled": True, "target_column": "坏列"}},
             {},
             5,
-            writer,
+            None,
             Path("a.xlsx"),
         )
 

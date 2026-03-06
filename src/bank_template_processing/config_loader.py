@@ -6,6 +6,9 @@
 
 import json
 import logging
+from typing import Any, Mapping
+
+from .config_types import AppConfig, RuleGroupConfig
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +35,7 @@ ALLOWED_DATA_TYPES = {
 }
 
 
-def load_config(config_path: str) -> dict:
+def load_config(config_path: str) -> AppConfig:
     """
     从JSON文件加载配置
 
@@ -55,7 +58,7 @@ def load_config(config_path: str) -> dict:
     return config
 
 
-def validate_config(config: dict) -> None:
+def validate_config(config: AppConfig | dict[str, Any]) -> None:
     """
     验证配置结构的完整性
 
@@ -92,7 +95,7 @@ def validate_config(config: dict) -> None:
     logger.info("配置验证成功")
 
 
-def get_unit_config(config: dict, unit_name: str, template_key: str | None = None) -> dict:
+def get_unit_config(config: AppConfig | dict[str, Any], unit_name: str, template_key: str | None = None) -> RuleGroupConfig:
     """
     获取单位配置，支持多规则组结构
 
@@ -166,7 +169,7 @@ def get_unit_config(config: dict, unit_name: str, template_key: str | None = Non
         return unit_config
 
 
-def _validate_unit_config(unit_name: str, unit_config: dict) -> None:
+def _validate_unit_config(unit_name: str, unit_config: dict[str, Any]) -> None:
     """
     验证单个单位配置
 
@@ -193,7 +196,11 @@ def _validate_unit_config(unit_name: str, unit_config: dict) -> None:
         _validate_legacy_unit_config(unit_name, unit_config)
 
 
-def _validate_validation_rules(unit_name: str, validation_rules: dict, rule_name: str | None = None) -> None:
+def _validate_validation_rules(
+    unit_name: str,
+    validation_rules: Mapping[str, Any],
+    rule_name: str | None = None,
+) -> None:
     """
     验证 validation_rules 配置
 
@@ -246,7 +253,7 @@ def _validate_validation_rules(unit_name: str, validation_rules: dict, rule_name
                 )
 
 
-def _validate_legacy_unit_config(unit_name: str, unit_config: dict) -> None:
+def _validate_legacy_unit_config(unit_name: str, unit_config: RuleGroupConfig | dict[str, Any]) -> None:
     """
     验证旧结构的单位配置（向后兼容）
 
@@ -321,7 +328,7 @@ def _validate_legacy_unit_config(unit_name: str, unit_config: dict) -> None:
     _validate_reader_options(unit_name, unit_config)
 
 
-def _validate_rule_group_config(unit_name: str, rule_name: str, rule_config: dict) -> None:
+def _validate_rule_group_config(unit_name: str, rule_name: str, rule_config: RuleGroupConfig | dict[str, Any]) -> None:
     """
     验证规则组配置
 
@@ -405,7 +412,11 @@ def _validate_rule_group_config(unit_name: str, rule_name: str, rule_config: dic
     _validate_reader_options(unit_name, rule_config, rule_name=rule_name)
 
 
-def _validate_reader_options(unit_name: str, config: dict, rule_name: str | None = None) -> None:
+def _validate_reader_options(
+    unit_name: str,
+    config: RuleGroupConfig | dict[str, Any],
+    rule_name: str | None = None,
+) -> None:
     """验证 reader_options 配置"""
     if "reader_options" not in config:
         return
@@ -427,7 +438,11 @@ def _validate_reader_options(unit_name: str, config: dict, rule_name: str | None
             raise ConfigError(f"{prefix} 的 reader_options.header_row 必须是 >= 1 的整数")
 
 
-def _validate_clear_rows(unit_name: str, clear_rows: dict, rule_name: str | None = None) -> None:
+def _validate_clear_rows(
+    unit_name: str,
+    clear_rows: Mapping[str, Any],
+    rule_name: str | None = None,
+) -> None:
     """验证 clear_rows 配置"""
     prefix = f"单位 '{unit_name}'"
     if rule_name:

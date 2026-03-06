@@ -13,8 +13,23 @@ import openpyxl
 import xlrd
 
 from .config_loader import ConfigError, get_unit_config
+from .config_types import AppConfig, RuleGroupConfig
+from .pipeline import (
+    ProcessingContext,
+    calculate_stats as pipeline_calculate_stats,
+    enrich_error_context,
+    needs_transformations as pipeline_needs_transformations,
+    transform_rows as pipeline_transform_rows,
+    validate_rows as pipeline_validate_rows,
+)
 from .excel_writer import ExcelWriter
-from .validator import Validator
+from .sheet_utils import (
+    convert_xls_cell,
+    extract_headers,
+    get_cell_value,
+    is_empty_value,
+    resolve_column_index_by_mode,
+)
 
 
 MERGE_FILE_PATTERN = re.compile(
@@ -22,6 +37,10 @@ MERGE_FILE_PATTERN = re.compile(
 )
 SUPPORTED_EXTENSIONS = {".xlsx", ".xls", ".csv"}
 MERGE_MONTH_SOURCE_COLUMN = "__merge_month_value__"
+MERGE_SOURCE_FILE_COLUMN = "__merge_source_file__"
+
+
+logger = logging.getLogger(__name__)
 
 
 class MergeFolderError(Exception):
@@ -48,7 +67,7 @@ class MergeTask:
     unit_name: str
     template_name: str
     rule_group: str
-    group_config: dict
+    group_config: RuleGroupConfig | dict[str, Any]
     template_path: str
     group_data: list[dict]
     month_param: str
@@ -79,7 +98,11 @@ def parse_merge_filename(file_path: Path, unit_names: list[str]) -> MergeInputFi
     )
 
 
-def resolve_rule_group_for_template(config: dict, unit_name: str, template_name: str) -> tuple[str, dict]:
+def resolve_rule_group_for_template(
+    config: AppConfig | dict[str, Any],
+    unit_name: str,
+    template_name: str,
+) -> tuple[str, RuleGroupConfig]:
     """
     根据“单位+模板名”解析规则组。
 
@@ -172,15 +195,19 @@ def infer_month_param_from_values(
 
 def prepare_merge_tasks(
     merge_folder_path: str,
-    config: dict,
+    config: AppConfig | dict[str, Any],
     resolve_path_fn: Callable[[str], str],
-    apply_transformations_fn: Callable[[list, dict, dict], list],
-    needs_transformations_fn: Callable[[dict], bool],
-    calculate_stats_fn: Callable[[list, dict, dict], tuple[int, float]],
+    apply_transformations_fn: Callable[[list, dict, dict], list] | None,
+    needs_transformations_fn: Callable[[dict], bool] | None,
+    calculate_stats_fn: Callable[[list, dict, dict], tuple[int, float]] | None,
     needs_month_for_filename: bool,
     logger: logging.Logger,
 ) -> list[MergeTask]:
     """扫描并准备批量合并任务。"""
+    transform_fn = apply_transformations_fn or pipeline_transform_rows
+    needs_transform_fn = needs_transformations_fn or pipeline_needs_transformations
+    stats_fn = calculate_stats_fn or pipeline_calculate_stats
+
     merge_folder = Path(merge_folder_path)
     if not merge_folder.exists():
         raise FileNotFoundError(f"合并目录不存在: {merge_folder}")
@@ -212,9 +239,11 @@ def prepare_merge_tasks(
         logger.info("处理合并分组：%s_%s（%s 个文件）", unit_name, template_name, len(files))
 
         rule_group, group_config = resolve_rule_group_for_template(config, unit_name, template_name)
+        context = ProcessingContext(unit_name=unit_name, rule_group=rule_group, template_name=template_name)
         template_path_raw = group_config.get("template_path", "")
         if not template_path_raw:
-            raise ConfigError(f"单位 '{unit_name}' 的规则组 '{rule_group}' 未配置 template_path")
+            error = ConfigError(f"单位 '{unit_name}' 的规则组 '{rule_group}' 未配置 template_path")
+            raise enrich_error_context(error, "批量合并配置解析", context) from error
         template_path = resolve_path_fn(template_path_raw)
 
         merged_group_data: list[dict] = []
@@ -223,7 +252,11 @@ def prepare_merge_tasks(
         amount_from_name = 0.0
 
         for file_meta in files:
-            file_rows, month_values = _read_generated_file_rows(file_meta.path, group_config)
+            file_context = context.with_source_file(file_meta.path.name)
+            try:
+                file_rows, month_values = _read_generated_file_rows(file_meta.path, group_config)
+            except MergeFolderError as exc:
+                raise enrich_error_context(exc, "批量合并读取", file_context) from exc
             merged_group_data.extend(file_rows)
             merged_month_values.update(month_values)
             count_from_name += file_meta.count
@@ -239,28 +272,42 @@ def prepare_merge_tasks(
         validation_rules = group_config.get("validation_rules", {})
         if validation_rules:
             logger.info("分组 %s_%s 开始数据校验", unit_name, template_name)
-            for row in merged_group_data:
-                if "required_fields" in validation_rules:
-                    Validator.validate_required(row, validation_rules["required_fields"])
-                if "data_types" in validation_rules:
-                    Validator.validate_data_types(row, validation_rules["data_types"])
-                if "value_ranges" in validation_rules:
-                    Validator.validate_value_ranges(row, validation_rules["value_ranges"])
+            pipeline_validate_rows(
+                merged_group_data,
+                validation_rules,
+                context=context,
+                source_file_field=MERGE_SOURCE_FILE_COLUMN,
+            )
 
         field_mappings = group_config.get("field_mappings", {})
         transformations = group_config.get("transformations", {})
-        if needs_transformations_fn(field_mappings):
+        if needs_transform_fn(field_mappings):
             logger.info("分组 %s_%s 开始数据转换", unit_name, template_name)
-            merged_group_data = apply_transformations_fn(merged_group_data, transformations, field_mappings)
-
-        count_from_data, amount_from_data = calculate_stats_fn(merged_group_data, field_mappings, transformations)
+            try:
+                merged_group_data = transform_fn(
+                    merged_group_data,
+                    transformations,
+                    field_mappings,
+                    context=context,
+                    source_file_field=MERGE_SOURCE_FILE_COLUMN,
+                )
+            except TypeError as exc:
+                if "unexpected keyword argument 'context'" not in str(exc):
+                    raise
+                merged_group_data = transform_fn(merged_group_data, transformations, field_mappings)
+            except Exception as exc:
+                if isinstance(exc, MergeFolderError):
+                    raise
+                raise
+        count_from_data, amount_from_data = stats_fn(merged_group_data, field_mappings, transformations)
 
         if count_from_data != count_from_name:
-            raise MergeFolderError(
+            error = MergeFolderError(
                 f"分组 '{unit_name}_{template_name}' 人数校验失败：文件名累加={count_from_name}，数据重算={count_from_data}"
             )
+            raise enrich_error_context(error, "批量合并统计校验", context) from error
         if abs(amount_from_data - amount_from_name) > 0.01:
-            raise MergeFolderError(
+            error = MergeFolderError(
                 "分组 '{0}_{1}' 金额校验失败：文件名累加={2:.2f}，数据重算={3:.2f}".format(
                     unit_name,
                     template_name,
@@ -268,6 +315,7 @@ def prepare_merge_tasks(
                     amount_from_data,
                 )
             )
+            raise enrich_error_context(error, "批量合并统计校验", context) from error
 
         month_param = ""
         month_type_mapping = group_config.get("month_type_mapping", {})
@@ -275,12 +323,15 @@ def prepare_merge_tasks(
         if isinstance(month_type_mapping, dict) and month_type_mapping.get("enabled"):
             output_group_config = _build_merge_output_group_config(group_config, keep_row_month_values=True)
             if needs_month_for_filename:
-                month_param = infer_month_param_from_values(
-                    merged_month_values,
-                    month_type_mapping,
-                    allow_conflict=True,
-                    logger=logger,
-                )
+                try:
+                    month_param = infer_month_param_from_values(
+                        merged_month_values,
+                        month_type_mapping,
+                        allow_conflict=True,
+                        logger=logger,
+                    )
+                except MergeFolderError as exc:
+                    raise enrich_error_context(exc, "批量合并月份推断", context) from exc
                 logger.info("分组 %s_%s 月份参数推断成功：%s", unit_name, template_name, month_param)
             else:
                 logger.info("分组 %s_%s 跳过月份参数推断：输出文件名模板未使用 {month}", unit_name, template_name)
@@ -334,7 +385,10 @@ def _split_prefix_to_unit_and_template(prefix: str, unit_names: list[str]) -> tu
     raise MergeFolderError(f"文件名前缀无法匹配单位名称: {prefix}")
 
 
-def _read_generated_file_rows(file_path: Path, group_config: dict) -> tuple[list[dict], set[str]]:
+def _read_generated_file_rows(
+    file_path: Path,
+    group_config: RuleGroupConfig | dict[str, Any],
+) -> tuple[list[dict], set[str]]:
     rows = _read_all_rows(file_path)
     max_columns = max((len(row) for row in rows), default=0)
 
@@ -346,9 +400,8 @@ def _read_generated_file_rows(file_path: Path, group_config: dict) -> tuple[list
     headers = _extract_headers(rows, header_row, file_path)
     field_mappings = group_config.get("field_mappings", {})
 
-    writer = ExcelWriter()
-    bindings = _build_field_bindings(field_mappings, headers, max_columns, writer, file_path)
-    month_col_idx = _resolve_month_column(group_config, headers, max_columns, writer, file_path)
+    bindings = _build_field_bindings(field_mappings, headers, max_columns, None, file_path)
+    month_col_idx = _resolve_month_column(group_config, headers, max_columns, None, file_path)
 
     data_rows: list[dict] = []
     month_values: set[str] = set()
@@ -372,6 +425,7 @@ def _read_generated_file_rows(file_path: Path, group_config: dict) -> tuple[list
             if not _is_empty_value(month_value):
                 month_values.add(str(month_value).strip())
             row_dict[MERGE_MONTH_SOURCE_COLUMN] = month_value
+        row_dict[MERGE_SOURCE_FILE_COLUMN] = file_path.name
 
         data_rows.append(row_dict)
 
@@ -382,9 +436,10 @@ def _build_field_bindings(
     field_mappings: dict,
     headers: dict[str, int],
     max_columns: int,
-    writer: ExcelWriter,
+    writer: ExcelWriter | None,
     file_path: Path,
 ) -> list[tuple[str, int]]:
+    del writer
     bindings: list[tuple[str, int]] = []
     for template_column, mapping_config in field_mappings.items():
         if isinstance(mapping_config, dict):
@@ -398,11 +453,12 @@ def _build_field_bindings(
             raise MergeFolderError(f"文件 {file_path.name} 的字段映射缺少 source_column: {template_column}")
 
         try:
-            col_idx = writer._resolve_column_index_by_mode(
+            col_idx = resolve_column_index_by_mode(
                 target_column,
                 headers,
                 max_columns,
                 "column_name",
+                logger_instance=logger,
             )
         except ValueError as e:
             raise MergeFolderError(
@@ -415,19 +471,26 @@ def _build_field_bindings(
 
 
 def _resolve_month_column(
-    group_config: dict,
+    group_config: RuleGroupConfig | dict[str, Any],
     headers: dict[str, int],
     max_columns: int,
-    writer: ExcelWriter,
+    writer: ExcelWriter | None,
     file_path: Path,
 ) -> int | None:
+    del writer
     month_type_mapping = group_config.get("month_type_mapping", {})
     if not isinstance(month_type_mapping, dict) or not month_type_mapping.get("enabled"):
         return None
 
     target_column = month_type_mapping.get("target_column", "C")
     try:
-        return writer._resolve_column_index_by_mode(target_column, headers, max_columns, "column_name")
+        return resolve_column_index_by_mode(
+            target_column,
+            headers,
+            max_columns,
+            "column_name",
+            logger_instance=logger,
+        )
     except ValueError as e:
         raise MergeFolderError(
             f"文件 {file_path.name} 无法解析 month_type_mapping.target_column '{target_column}': {e}"
@@ -435,20 +498,10 @@ def _resolve_month_column(
 
 
 def _extract_headers(rows: list[list[Any]], header_row: int, file_path: Path) -> dict[str, int]:
-    if not isinstance(header_row, int) or header_row < 0:
-        raise MergeFolderError(f"文件 {file_path.name} 的 header_row 配置无效: {header_row}")
-    if header_row == 0:
-        return {}
-    if header_row > len(rows):
-        raise MergeFolderError(f"文件 {file_path.name} 的 header_row 超出文件行数: {header_row}")
-
-    header_values = rows[header_row - 1]
-    headers: dict[str, int] = {}
-    for col_idx, value in enumerate(header_values, start=1):
-        if _is_empty_value(value):
-            continue
-        headers[str(value).strip()] = col_idx
-    return headers
+    try:
+        return extract_headers(rows, header_row)
+    except ValueError as exc:
+        raise MergeFolderError(f"文件 {file_path.name} 的 {exc}") from exc
 
 
 def _read_all_rows(file_path: Path) -> list[list[Any]]:
@@ -493,45 +546,15 @@ def _read_xls_rows(file_path: Path) -> list[list[Any]]:
 
 
 def _convert_xls_cell(cell: Any, datemode: int) -> Any:
-    empty_types = [getattr(xlrd, "XL_CELL_EMPTY", -1), getattr(xlrd, "XL_CELL_BLANK", -1)]
-    if cell.ctype in empty_types:
-        return None
-
-    if cell.ctype == getattr(xlrd, "XL_CELL_DATE", -1):
-        try:
-            return xlrd.xldate_as_datetime(cell.value, datemode)
-        except Exception:
-            return cell.value
-
-    if cell.ctype == getattr(xlrd, "XL_CELL_NUMBER", -1):
-        try:
-            if float(cell.value).is_integer():
-                return int(cell.value)
-        except Exception:
-            pass
-        return cell.value
-
-    if cell.ctype == getattr(xlrd, "XL_CELL_BOOLEAN", -1):
-        return bool(cell.value)
-
-    return cell.value
+    return convert_xls_cell(cell, datemode)
 
 
 def _get_cell_value(row_values: list[Any], column_index: int) -> Any:
-    if column_index < 1:
-        return None
-    pos = column_index - 1
-    if pos >= len(row_values):
-        return None
-    return row_values[pos]
+    return get_cell_value(row_values, column_index)
 
 
 def _is_empty_value(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, str):
-        return not value.strip()
-    return False
+    return is_empty_value(value)
 
 
 def _infer_month_param_from_single_value(value: str, month_type_mapping: dict) -> str:
@@ -590,7 +613,10 @@ def _select_month_param_on_conflict(inferred_params: set[str]) -> str:
     return sorted(text_params)[0]
 
 
-def _build_merge_output_group_config(group_config: dict, keep_row_month_values: bool) -> dict:
+def _build_merge_output_group_config(
+    group_config: RuleGroupConfig | dict[str, Any],
+    keep_row_month_values: bool,
+) -> RuleGroupConfig | dict[str, Any]:
     """
     构建用于合并输出的规则组配置。
 
