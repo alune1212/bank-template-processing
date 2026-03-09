@@ -167,6 +167,32 @@ class TestExcelWriter:
             assert rows[2] == ["张三", "25", "1000.0"]
             assert rows[3] == ["李四", "30", "2000.0"]
 
+    def test_write_csv_preserves_rows_before_start_row(self, tmp_path):
+        """测试 CSV 写入会保留 start_row 之前的说明行"""
+        template_path = tmp_path / "template.csv"
+        with open(template_path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["姓名"])
+            writer.writerow(["说明行"])
+            writer.writerow(["旧数据"])
+            writer.writerow(["尾部"])
+
+        output_path = tmp_path / "output.csv"
+        ExcelWriter().write_excel(
+            template_path=str(template_path),
+            data=[{"姓名": "张三"}],
+            field_mappings={"姓名": {"source_column": "姓名"}},
+            output_path=str(output_path),
+            header_row=1,
+            start_row=3,
+            mapping_mode="column_name",
+        )
+
+        with open(output_path, "r", encoding="utf-8-sig", newline="") as f:
+            rows = list(csv.reader(f))
+
+        assert rows == [["姓名"], ["说明行"], ["张三"]]
+
     def test_write_xls_file(self, tmp_path):
         """测试写入.xls文件"""
         import xlwt
@@ -380,6 +406,34 @@ class TestExcelWriter:
             rows = list(csv.reader(f))
         assert rows[1][0] == "张三"
         assert rows[3][0] == "合计"
+
+    def test_clear_rows_csv_defaults_start_row_from_config(self, tmp_path):
+        """测试 CSV clear_rows 未写 start_row 时回退到 start_row 配置"""
+        template_path = tmp_path / "template.csv"
+        with open(template_path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["姓名"])
+            writer.writerow(["说明行"])
+            writer.writerow(["旧数据1"])
+            writer.writerow(["旧数据2"])
+            writer.writerow(["尾部"])
+
+        output_path = tmp_path / "output.csv"
+        ExcelWriter().write_excel(
+            template_path=str(template_path),
+            data=[{"姓名": "张三"}],
+            field_mappings={"姓名": {"source_column": "姓名"}},
+            output_path=str(output_path),
+            header_row=1,
+            start_row=3,
+            mapping_mode="column_name",
+            clear_rows={"end_row": 4},
+        )
+
+        with open(output_path, "r", encoding="utf-8-sig", newline="") as f:
+            rows = list(csv.reader(f))
+
+        assert rows == [["姓名"], ["说明行"], ["张三"], [""], ["尾部"]]
 
     def test_clear_rows_xls_insufficient_range(self, tmp_path):
         """测试 XLS clear_rows 范围不足时抛错"""

@@ -188,7 +188,7 @@ def _validate_unit_config(unit_name: str, unit_config: dict[str, Any]) -> None:
         # 多规则组结构：验证每个规则组
         for rule_name, rule_config in unit_config.items():
             if rule_name == "template_selector":
-                # template_selector 放在顶层，跳过验证
+                _validate_template_selector(unit_name, rule_config)
                 continue
             _validate_rule_group_config(unit_name, rule_name, rule_config)
     else:
@@ -325,6 +325,9 @@ def _validate_legacy_unit_config(unit_name: str, unit_config: RuleGroupConfig | 
     if "clear_rows" in unit_config:
         _validate_clear_rows(unit_name, unit_config["clear_rows"])
 
+    if "template_selector" in unit_config:
+        _validate_template_selector(unit_name, unit_config["template_selector"])
+
     _validate_reader_options(unit_name, unit_config)
 
 
@@ -410,6 +413,36 @@ def _validate_rule_group_config(unit_name: str, rule_name: str, rule_config: Rul
         _validate_clear_rows(unit_name, rule_config["clear_rows"], rule_name=rule_name)
 
     _validate_reader_options(unit_name, rule_config, rule_name=rule_name)
+
+
+def _validate_template_selector(unit_name: str, template_selector: Any) -> None:
+    """验证 template_selector 配置。"""
+    prefix = f"单位 '{unit_name}' 的 template_selector"
+
+    if not isinstance(template_selector, dict):
+        raise ConfigError(f"{prefix} 必须是字典")
+
+    enabled = template_selector.get("enabled", False)
+    if "enabled" in template_selector and not isinstance(enabled, bool):
+        raise ConfigError(f"{prefix}.enabled 必须是布尔值")
+
+    string_fields = [
+        "default_bank",
+        "bank_column",
+        "default_template",
+        "special_template",
+        "default_group_name",
+        "special_group_name",
+    ]
+    for field_name in string_fields:
+        if field_name not in template_selector:
+            continue
+        value = template_selector[field_name]
+        if not isinstance(value, str) or not value.strip():
+            raise ConfigError(f"{prefix}.{field_name} 必须是非空字符串")
+
+    if enabled and "default_bank" not in template_selector:
+        raise ConfigError(f"{prefix}.enabled=true 时必须配置 default_bank")
 
 
 def _validate_reader_options(

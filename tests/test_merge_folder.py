@@ -50,6 +50,7 @@ def _build_test_config(default_template: Path, crossbank_template: Path, month_t
             "苏州悦鸣服务外包有限公司": {
                 "template_selector": {
                     "enabled": True,
+                    "default_bank": "农业银行",
                     "default_group_name": "农行跨行",
                     "special_group_name": "招行跨行",
                 },

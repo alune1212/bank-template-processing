@@ -10,6 +10,7 @@ from bank_template_processing.config_loader import (
     _validate_legacy_unit_config,
     _validate_reader_options,
     _validate_rule_group_config,
+    _validate_template_selector,
     _validate_validation_rules,
     get_unit_config,
     validate_config,
@@ -162,6 +163,53 @@ def test_validate_rule_group_config_error_paths_and_default_start_row(caplog):
 
     with pytest.raises(ConfigError, match="transformations 必须须是字典"):
         _validate_rule_group_config("单位A", "default", dict(base, transformations=[]))
+
+
+def test_validate_template_selector_error_paths():
+    with pytest.raises(ConfigError, match="template_selector 必须是字典"):
+        _validate_template_selector("单位A", [])  # type: ignore[arg-type]
+
+    with pytest.raises(ConfigError, match="template_selector.enabled 必须是布尔值"):
+        _validate_template_selector("单位A", {"enabled": "yes"})
+
+    with pytest.raises(ConfigError, match="enabled=true 时必须配置 default_bank"):
+        _validate_template_selector("单位A", {"enabled": True})
+
+    with pytest.raises(ConfigError, match="template_selector.default_bank 必须是非空字符串"):
+        _validate_template_selector("单位A", {"enabled": True, "default_bank": ""})
+
+    with pytest.raises(ConfigError, match="template_selector.special_template 必须是非空字符串"):
+        _validate_template_selector("单位A", {"special_template": []})
+
+
+def test_validate_config_rejects_invalid_template_selector():
+    with pytest.raises(ConfigError, match="template_selector.bank_column 必须是非空字符串"):
+        validate_config(
+            {
+                "version": "2.0",
+                "organization_units": {
+                    "单位A": {
+                        "template_selector": {
+                            "enabled": True,
+                            "default_bank": "农业银行",
+                            "bank_column": 123,
+                        },
+                        "default": {
+                            "template_path": "a.xlsx",
+                            "header_row": 1,
+                            "field_mappings": {},
+                            "transformations": {},
+                        },
+                        "crossbank": {
+                            "template_path": "b.xlsx",
+                            "header_row": 1,
+                            "field_mappings": {},
+                            "transformations": {},
+                        },
+                    }
+                },
+            }
+        )
 
 
 def test_validate_reader_options_error_paths():

@@ -19,6 +19,7 @@ from .pipeline import (
     calculate_stats as pipeline_calculate_stats,
     enrich_error_context,
     needs_transformations as pipeline_needs_transformations,
+    split_validation_rules as pipeline_split_validation_rules,
     transform_rows as pipeline_transform_rows,
     validate_rows as pipeline_validate_rows,
 )
@@ -270,11 +271,12 @@ def prepare_merge_tasks(
             )
 
         validation_rules = group_config.get("validation_rules", {})
-        if validation_rules:
-            logger.info("分组 %s_%s 开始数据校验", unit_name, template_name)
+        pre_transform_rules, post_transform_rules = pipeline_split_validation_rules(validation_rules)
+        if pre_transform_rules:
+            logger.info("分组 %s_%s 开始必填校验", unit_name, template_name)
             pipeline_validate_rows(
                 merged_group_data,
-                validation_rules,
+                pre_transform_rules,
                 context=context,
                 source_file_field=MERGE_SOURCE_FILE_COLUMN,
             )
@@ -299,6 +301,14 @@ def prepare_merge_tasks(
                 if isinstance(exc, MergeFolderError):
                     raise
                 raise
+        if post_transform_rules:
+            logger.info("分组 %s_%s 开始类型/范围校验", unit_name, template_name)
+            pipeline_validate_rows(
+                merged_group_data,
+                post_transform_rules,
+                context=context,
+                source_file_field=MERGE_SOURCE_FILE_COLUMN,
+            )
         count_from_data, amount_from_data = stats_fn(merged_group_data, field_mappings, transformations)
 
         if count_from_data != count_from_name:

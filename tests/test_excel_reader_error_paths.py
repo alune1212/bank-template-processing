@@ -55,6 +55,32 @@ def test_read_xlsx_load_failure_raises(tmp_path, monkeypatch):
         ExcelReader()._read_xlsx(str(file_path))
 
 
+def test_read_xlsx_header_row_invalid_raises(tmp_path):
+    import openpyxl
+
+    file_path = tmp_path / "a.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["姓名"])
+    wb.save(file_path)
+
+    with pytest.raises(ExcelError, match="无法读取\\.xlsx文件"):
+        ExcelReader(header_row=0)._read_xlsx(str(file_path))
+
+
+def test_read_xlsx_header_row_out_of_range_raises(tmp_path):
+    import openpyxl
+
+    file_path = tmp_path / "a.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["姓名"])
+    wb.save(file_path)
+
+    with pytest.raises(ExcelError, match="无法读取\\.xlsx文件"):
+        ExcelReader(header_row=5)._read_xlsx(str(file_path))
+
+
 def test_read_csv_empty_file_returns_empty(tmp_path):
     file_path = tmp_path / "empty.csv"
     file_path.write_text("", encoding="utf-8")

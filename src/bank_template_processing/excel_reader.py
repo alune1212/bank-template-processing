@@ -133,7 +133,11 @@ class ExcelReader:
         """
         logger.debug(f"使用openpyxl读取.xlsx文件: {file_path}")
 
+        workbook = None
         try:
+            if self.header_row < 1:
+                raise ExcelError("header_row 必须大于等于 1")
+
             workbook = openpyxl.load_workbook(file_path, read_only=True, data_only=self.data_only)
             sheet = workbook.active  # 使用第一个工作表
             if sheet is None:
@@ -173,7 +177,9 @@ class ExcelReader:
                                 row_dict[headers[col_idx]] = value
                         data_rows.append(row_dict)
 
-            workbook.close()
+            if headers is None:
+                raise ExcelError(f"XLSX文件行数不足，无法读取表头行: {self.header_row}")
+
             logger.info(f"成功读取.xlsx文件，共 {len(data_rows)} 行数据")
 
             return data_rows
@@ -181,6 +187,9 @@ class ExcelReader:
         except Exception as e:
             logger.error(f"读取.xlsx文件失败: {e}")
             raise ExcelError(f"无法读取.xlsx文件: {file_path}") from e
+        finally:
+            if workbook is not None and hasattr(workbook, "close"):
+                workbook.close()
 
     def _read_csv(self, file_path: str) -> List[Dict[str, Any]]:
         """读取.csv文件

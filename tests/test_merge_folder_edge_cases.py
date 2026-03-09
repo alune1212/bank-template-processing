@@ -413,6 +413,62 @@ def test_prepare_merge_tasks_amount_mismatch_raises(tmp_path, monkeypatch):
         )
 
 
+def test_prepare_merge_tasks_transforms_before_post_validation(tmp_path, monkeypatch):
+    file_meta = MergeInputFile(
+        path=Path("x.xlsx"),
+        unit_name="单位A",
+        template_name="模板A",
+        count=1,
+        amount=0.0,
+    )
+    monkeypatch.setattr(merge_folder_module, "_scan_merge_input_files", lambda *_args, **_kwargs: [file_meta])
+    monkeypatch.setattr(
+        merge_folder_module,
+        "resolve_rule_group_for_template",
+        lambda *_args, **_kwargs: (
+            "default",
+            {
+                "template_path": "tpl.xlsx",
+                "field_mappings": {
+                    "工资卡卡号": {
+                        "source_column": "工资卡卡号",
+                        "transform": "card_number",
+                    }
+                },
+                "transformations": {
+                    "card_number": {
+                        "remove_formatting": True,
+                        "luhn_validation": False,
+                    }
+                },
+                "validation_rules": {
+                    "required_fields": ["工资卡卡号"],
+                    "data_types": {"工资卡卡号": "integer"},
+                },
+            },
+        ),
+    )
+    monkeypatch.setattr(
+        merge_folder_module,
+        "_read_generated_file_rows",
+        lambda *_args, **_kwargs: ([{"工资卡卡号": "6222 0212 3456 7890 128"}], set()),
+    )
+
+    tasks = prepare_merge_tasks(
+        merge_folder_path=str(tmp_path),
+        config={"organization_units": {"单位A": {"template_path": "tpl.xlsx"}}},
+        resolve_path_fn=lambda path: path,
+        apply_transformations_fn=None,
+        needs_transformations_fn=None,
+        calculate_stats_fn=lambda data, _fm, _t: (len(data), 0.0),
+        needs_month_for_filename=False,
+        logger=_noop_logger(),
+    )
+
+    assert len(tasks) == 1
+    assert tasks[0].group_data[0]["工资卡卡号"] == "6222021234567890128"
+
+
 def test_convert_xls_cell_all_branches(monkeypatch):
     empty_cell = SimpleNamespace(ctype=getattr(merge_folder_module.xlrd, "XL_CELL_EMPTY"), value="")
     assert _convert_xls_cell(empty_cell, 0) is None
