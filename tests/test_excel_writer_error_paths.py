@@ -318,41 +318,72 @@ class _FakeXlsSheet:
         self.values[(row, col)] = value
 
 
-def test_process_data_to_rows_warning_branches(monkeypatch):
+@pytest.mark.parametrize(
+    ("field_mappings", "fixed_values", "auto_number", "month_type_mapping", "month_param", "match"),
+    [
+        (
+            {"姓名": {"source_column": "姓名", "target_column": "NAME"}},
+            None,
+            None,
+            None,
+            None,
+            r"无法解析字段 '姓名' 的目标列 'NAME'",
+        ),
+        (
+            {"姓名": {"source_column": "姓名", "target_column": "姓名"}},
+            {"NAME": "固定"},
+            None,
+            None,
+            None,
+            r"无法解析固定值列 'NAME'",
+        ),
+        (
+            {"姓名": {"source_column": "姓名", "target_column": "姓名"}},
+            None,
+            {"enabled": True, "column": "NAME", "start_from": 1},
+            None,
+            None,
+            r"无法解析自动编号列 'NAME'",
+        ),
+        (
+            {"姓名": {"source_column": "姓名", "target_column": "姓名"}},
+            None,
+            None,
+            {"enabled": True, "target_column": "NAME"},
+            "1",
+            r"无法解析月类型映射列 'NAME'",
+        ),
+    ],
+)
+def test_process_data_to_rows_invalid_column_name_mode_raises(
+    field_mappings,
+    fixed_values,
+    auto_number,
+    month_type_mapping,
+    month_param,
+    match,
+):
     writer = ExcelWriter()
 
-    def fake_resolve(column, *_args, **_kwargs):
-        if column in {"BAD_FIELD", "BAD_FIXED", "BAD_AUTO", "BAD_MONTH"}:
-            raise ValueError("bad")
-        return 1
-
-    monkeypatch.setattr(writer, "_resolve_column_index_by_mode", fake_resolve)
-
-    rows = writer._process_data_to_rows(
-        data=[{"姓名": "张三"}],
-        field_mappings={
-            "姓名": {"source_column": "姓名", "target_column": "A"},
-            "旧格式列": "BAD_FIELD",
-        },
-        headers={},
-        max_columns=2,
-        mapping_mode="column_name",
-        fixed_values={"BAD_FIXED": "固定"},
-        auto_number={"enabled": True, "column": "BAD_AUTO", "start_from": 1},
-        month_type_mapping={"enabled": True, "target_column": "BAD_MONTH"},
-        month_param="1",
-    )
-
-    assert rows == [["张三", ""]]
+    with pytest.raises(ConfigError, match=match):
+        writer._process_data_to_rows(
+            data=[{"姓名": "张三"}],
+            field_mappings=field_mappings,
+            headers={"姓名": 1, "金额": 2},
+            max_columns=2,
+            mapping_mode="column_name",
+            fixed_values=fixed_values,
+            auto_number=auto_number,
+            month_type_mapping=month_type_mapping,
+            month_param=month_param,
+        )
 
 
-def test_write_data_to_worksheet_amount_and_warning_branches(monkeypatch):
+def test_write_data_to_worksheet_amount_branch(monkeypatch):
     writer = ExcelWriter()
     ws = _FakeWorksheet(max_column=3)
 
     def fake_resolve(column, *_args, **_kwargs):
-        if column in {"BAD_FIELD", "BAD_FIXED", "BAD_AUTO", "BAD_MONTH"}:
-            raise ValueError("bad")
         if column == "金额":
             return 2
         if column == "姓名":
@@ -367,28 +398,21 @@ def test_write_data_to_worksheet_amount_and_warning_branches(monkeypatch):
         field_mappings={
             "姓名": {"source_column": "姓名", "target_column": "姓名"},
             "金额": {"source_column": "金额", "target_column": "金额", "transform": "amount_decimal"},
-            "旧格式列": "BAD_FIELD",
         },
         headers={},
         start_row=2,
         mapping_mode="column_name",
-        fixed_values={"BAD_FIXED": "固定"},
-        auto_number={"enabled": True, "column": "BAD_AUTO", "start_from": None},
-        month_type_mapping={"enabled": True, "target_column": "BAD_MONTH"},
-        month_param="1",
     )
 
     assert ws.values[(2, 2)] == 12.5
     assert ws.values[(3, 2)] == "bad"
 
 
-def test_write_data_to_xls_sheet_warning_branches(monkeypatch):
+def test_write_data_to_xls_sheet_valid_columns(monkeypatch):
     writer = ExcelWriter()
     ws = _FakeXlsSheet()
 
     def fake_resolve(column, *_args, **_kwargs):
-        if column in {"BAD_FIELD", "BAD_FIXED", "BAD_AUTO", "BAD_MONTH"}:
-            raise ValueError("bad")
         if column == "A":
             return 1
         return 1
@@ -400,19 +424,46 @@ def test_write_data_to_xls_sheet_warning_branches(monkeypatch):
         data=[{"姓名": "张三"}],
         field_mappings={
             "姓名": {"source_column": "姓名", "target_column": "A"},
-            "旧格式列": "BAD_FIELD",
         },
         headers={},
         start_row=2,
         max_columns=2,
         mapping_mode="column_name",
-        fixed_values={"BAD_FIXED": "固定"},
-        auto_number={"enabled": True, "column": "BAD_AUTO", "start_from": 1},
-        month_type_mapping={"enabled": True, "target_column": "BAD_MONTH"},
-        month_param="1",
     )
 
     assert ws.values[(1, 0)] == "张三"
+
+
+def test_write_xlsx_invalid_column_name_mode_fails_early(tmp_path):
+    template_path = tmp_path / "template.xlsx"
+    _create_xlsx_template(template_path)
+
+    with pytest.raises(ConfigError, match="超出最大列数"):
+        ExcelWriter().write_excel(
+            template_path=str(template_path),
+            data=[{"姓名": "张三"}],
+            field_mappings={"姓名": {"source_column": "姓名", "target_column": "NAME"}},
+            output_path=str(tmp_path / "out.xlsx"),
+            header_row=1,
+            start_row=2,
+            mapping_mode="column_name",
+        )
+
+
+def test_write_csv_invalid_column_name_mode_fails_early(tmp_path):
+    template_path = tmp_path / "template.csv"
+    _create_csv_template(template_path)
+
+    with pytest.raises(ConfigError, match="超出最大列数"):
+        ExcelWriter().write_excel(
+            template_path=str(template_path),
+            data=[{"姓名": "张三"}],
+            field_mappings={"姓名": {"source_column": "姓名", "target_column": "NAME"}},
+            output_path=str(tmp_path / "out.csv"),
+            header_row=1,
+            start_row=2,
+            mapping_mode="column_name",
+        )
 
 
 def test_calculate_month_value_bonus_compensation_and_out_of_range():

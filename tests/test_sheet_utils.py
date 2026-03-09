@@ -47,6 +47,16 @@ def test_resolve_column_index_helpers():
         == 2
     )
 
+    assert sheet_utils.resolve_column_index_by_mode("B", headers={"姓名": 1}, max_columns=2, mapping_mode="column_name") == 2
+
+    with pytest.raises(ValueError, match="超出最大列数"):
+        sheet_utils.resolve_column_index_by_mode(
+            "NAME",
+            headers={"Name": 1},
+            max_columns=2,
+            mapping_mode="column_name",
+        )
+
 
 def test_convert_xls_cell_branches(monkeypatch):
     empty_cell = SimpleNamespace(ctype=getattr(sheet_utils.xlrd, "XL_CELL_EMPTY", -1), value="")

@@ -141,6 +141,57 @@ class Validator:
         return value_cmp, min_cmp, max_cmp
 
     @staticmethod
+    def _classify_range_bound(value: Any) -> str:
+        if isinstance(value, datetime):
+            return "date"
+        if isinstance(value, date):
+            return "date"
+        if isinstance(value, bool):
+            raise TypeError("bool 不能作为范围边界")
+        if isinstance(value, (int, float, Decimal)):
+            return "numeric"
+        if isinstance(value, str):
+            try:
+                Validator._parse_numeric_string("边界", value)
+                return "numeric"
+            except ValidationError:
+                pass
+            try:
+                Validator._parse_date_string("边界", value)
+                return "date"
+            except ValidationError as exc:
+                raise TypeError(str(exc)) from exc
+        raise TypeError(f"不支持的范围边界类型: {type(value).__name__}")
+
+    @staticmethod
+    def _coerce_comparison_bounds(min_val: Any, max_val: Any) -> tuple[str, str | None, Any, Any]:
+        kinds = {
+            Validator._classify_range_bound(value)
+            for value in (min_val, max_val)
+            if value is not None
+        }
+        if len(kinds) > 1:
+            raise TypeError("min/max 必须同为数值或同为日期")
+
+        kind = kinds.pop() if kinds else "numeric"
+        if kind == "date":
+            has_datetime = isinstance(min_val, datetime) or isinstance(max_val, datetime)
+            date_mode = "datetime" if has_datetime else "date"
+            min_cmp = Validator._coerce_date_bound(min_val, date_mode) if min_val is not None else None
+            max_cmp = Validator._coerce_date_bound(max_val, date_mode) if max_val is not None else None
+            return kind, date_mode, min_cmp, max_cmp
+
+        min_cmp = Validator._coerce_numeric_bound(min_val) if min_val is not None else None
+        max_cmp = Validator._coerce_numeric_bound(max_val) if max_val is not None else None
+        return kind, None, min_cmp, max_cmp
+
+    @staticmethod
+    def _coerce_value_for_range(field: str, value: Any, kind: str, date_mode: str | None) -> Any:
+        if kind == "date":
+            return Validator._coerce_date_value(field, value, date_mode or "date")
+        return Validator._coerce_numeric_value(field, value)
+
+    @staticmethod
     def _normalize_allowed_values(
         field: str, value: Any, allowed_values: Any
     ) -> tuple[Any, Any, bool]:
@@ -384,11 +435,17 @@ class Validator:
                 min_val = rules["min"]
                 max_val = rules.get("max")
                 try:
-                    value_cmp, min_cmp, max_cmp = Validator._coerce_for_comparison(field, value, min_val, max_val)
+                    kind, date_mode, min_cmp, max_cmp = Validator._coerce_comparison_bounds(min_val, max_val)
+                except TypeError as e:
+                    error_msg = f"字段 '{field}' 的范围规则无效: {e}"
+                    logger.error(error_msg)
+                    raise ValidationError(error_msg) from e
+                try:
+                    value_cmp = Validator._coerce_value_for_range(field, value, kind, date_mode)
                 except ValidationError:
                     raise
                 except TypeError as e:
-                    logger.warning(f"字段 '{field}' 的范围规则无法比较，已跳过: {e}")
+                    logger.warning(f"字段 '{field}' 的值无法与范围规则比较，已跳过: {e}")
                     continue
 
                 if min_cmp is not None and value_cmp < min_cmp:
@@ -405,11 +462,17 @@ class Validator:
             if "max" in rules and "min" not in rules:
                 max_val = rules["max"]
                 try:
-                    value_cmp, min_cmp, max_cmp = Validator._coerce_for_comparison(field, value, None, max_val)
+                    kind, date_mode, min_cmp, max_cmp = Validator._coerce_comparison_bounds(None, max_val)
+                except TypeError as e:
+                    error_msg = f"字段 '{field}' 的范围规则无效: {e}"
+                    logger.error(error_msg)
+                    raise ValidationError(error_msg) from e
+                try:
+                    value_cmp = Validator._coerce_value_for_range(field, value, kind, date_mode)
                 except ValidationError:
                     raise
                 except TypeError as e:
-                    logger.warning(f"字段 '{field}' 的范围规则无法比较，已跳过: {e}")
+                    logger.warning(f"字段 '{field}' 的值无法与范围规则比较，已跳过: {e}")
                     continue
 
                 if max_cmp is not None and value_cmp > max_cmp:

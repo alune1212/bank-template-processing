@@ -72,14 +72,14 @@ def resolve_column_index(
     """解析列标识为 1-based 列索引。"""
     if headers and isinstance(column_spec, str) and column_spec in headers:
         col_idx = headers[column_spec]
-        if strict_bounds and max_columns and col_idx > max_columns:
+        if strict_bounds and max_columns is not None and col_idx > max_columns:
             raise ValueError(f"列名 '{column_spec}' 对应的索引 {col_idx} 超出最大列数 {max_columns}")
         return col_idx
 
     if isinstance(column_spec, int):
         if column_spec < 1:
             raise ValueError(f"列索引必须 >= 1，当前值: {column_spec}")
-        if strict_bounds and max_columns and column_spec > max_columns:
+        if strict_bounds and max_columns is not None and column_spec > max_columns:
             raise ValueError(f"列索引 {column_spec} 超出最大列数 {max_columns}")
         return column_spec
 
@@ -88,13 +88,13 @@ def resolve_column_index(
             idx = int(column_spec)
             if idx < 1:
                 raise ValueError(f"列索引必须 >= 1，当前值: {column_spec}")
-            if strict_bounds and max_columns and idx > max_columns:
+            if strict_bounds and max_columns is not None and idx > max_columns:
                 raise ValueError(f"列索引 {idx} 超出最大列数 {max_columns}")
             return idx
 
         if column_spec.isalpha() and all(char in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" for char in column_spec.upper()):
             col_idx = column_letter_to_index(column_spec)
-            if strict_bounds and max_columns and col_idx > max_columns:
+            if strict_bounds and max_columns is not None and col_idx > max_columns:
                 raise ValueError(f"Excel列标识 '{column_spec}' 对应的索引 {col_idx} 超出最大列数 {max_columns}")
             return col_idx
 
@@ -119,7 +119,7 @@ def resolve_column_index_by_mode(
                 return resolve_column_index(column_spec, headers=headers, max_columns=max_columns)
             raise
 
-    return resolve_column_index(column_spec, headers=headers, max_columns=max_columns)
+    return resolve_column_index(column_spec, headers=headers, max_columns=max_columns, strict_bounds=True)
 
 
 def convert_xls_cell(cell: Any, datemode: int) -> Any:

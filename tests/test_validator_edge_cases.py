@@ -115,15 +115,23 @@ def test_validate_data_types_extra_error_paths():
         Validator.validate_data_types({"字段": "x"}, {"字段": "unsupported"})
 
 
-def test_validate_value_ranges_type_error_skip_and_max_only_paths():
-    # min/max 无法比较（TypeError）应跳过，不抛异常
+def test_validate_value_ranges_value_type_error_skip_and_max_only_paths():
+    # 值本身无法比较（TypeError）应跳过，不抛异常
     Validator.validate_value_ranges({"字段": []}, {"字段": {"min": 1, "max": 10}})
 
     with pytest.raises(ValidationError, match="大于最大值"):
         Validator.validate_value_ranges({"字段": 11}, {"字段": {"max": 10}})
 
-    # max-only 无法比较（TypeError）应跳过
+    # max-only 值无法比较（TypeError）应跳过
     Validator.validate_value_ranges({"字段": []}, {"字段": {"max": 10}})
+
+
+def test_validate_value_ranges_invalid_rule_raises():
+    with pytest.raises(ValidationError, match="范围规则无效"):
+        Validator.validate_value_ranges({"字段": "50"}, {"字段": {"min": "abc", "max": 100}})
+
+    with pytest.raises(ValidationError, match="min/max 必须同为数值或同为日期"):
+        Validator.validate_value_ranges({"字段": "50"}, {"字段": {"min": 1, "max": "2024-01-01"}})
 
 
 def test_validate_value_ranges_length_type_error_and_allowed_normalized_error():

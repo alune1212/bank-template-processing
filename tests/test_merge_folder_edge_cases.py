@@ -129,6 +129,17 @@ def test_resolve_rule_group_for_template_error_paths():
     with pytest.raises(MergeFolderError, match="匹配到多个规则组"):
         resolve_rule_group_for_template(cfg_multi_stem, "单位A", "same")
 
+    cfg_missing_crossbank = {
+        "organization_units": {
+            "单位A": {
+                "template_selector": {"special_group_name": "跨行模板"},
+                "default": {"template_path": "default.xlsx", "header_row": 1, "field_mappings": {}, "transformations": {}},
+            }
+        }
+    }
+    with pytest.raises(ConfigError, match="未找到规则组 'crossbank'"):
+        resolve_rule_group_for_template(cfg_missing_crossbank, "单位A", "跨行模板")
+
 
 def test_infer_month_param_from_values_empty_raises():
     with pytest.raises(MergeFolderError, match="未在输入文件中读取到月类型值"):
@@ -312,6 +323,59 @@ def test_read_generated_file_rows_skips_empty_rows_and_collects_month_values(mon
     )
     assert [row["姓名"] for row in rows] == ["张三", "李四"]
     assert month_values == {"01月收入"}
+
+
+def test_read_generated_file_rows_respects_clear_rows_boundary(monkeypatch):
+    monkeypatch.setattr(
+        merge_folder_module,
+        "_read_all_rows",
+        lambda _path: [
+            ["姓名", "用途"],
+            ["张三", "01月收入"],
+            ["李四", "01月收入"],
+            ["制表人", ""],
+        ],
+    )
+
+    rows, month_values = _read_generated_file_rows(
+        Path("a.xlsx"),
+        {
+            "header_row": 1,
+            "start_row": 2,
+            "clear_rows": {"end_row": 3},
+            "field_mappings": {"姓名": {"source_column": "姓名", "target_column": "姓名"}},
+            "month_type_mapping": {"enabled": True, "target_column": "用途"},
+        },
+    )
+
+    assert [row["姓名"] for row in rows] == ["张三", "李四"]
+    assert month_values == {"01月收入"}
+
+
+def test_read_generated_file_rows_clear_rows_start_row_defaults_from_group(monkeypatch):
+    monkeypatch.setattr(
+        merge_folder_module,
+        "_read_all_rows",
+        lambda _path: [
+            ["说明", ""],
+            ["姓名", "用途"],
+            ["张三", "01月收入"],
+            ["李四", "01月收入"],
+            ["尾注", ""],
+        ],
+    )
+
+    rows, _month_values = _read_generated_file_rows(
+        Path("a.xlsx"),
+        {
+            "header_row": 2,
+            "start_row": 3,
+            "clear_rows": {"end_row": 4},
+            "field_mappings": {"姓名": {"source_column": "姓名", "target_column": "姓名"}},
+        },
+    )
+
+    assert [row["姓名"] for row in rows] == ["张三", "李四"]
 
 
 def test_prepare_merge_tasks_precheck_error_paths(tmp_path, monkeypatch):
