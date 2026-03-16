@@ -6,9 +6,12 @@
 
 import json
 import logging
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any, Mapping
 
 from .config_types import AppConfig, RuleGroupConfig
+from .transformer import Transformer
 
 logger = logging.getLogger(__name__)
 
@@ -155,13 +158,9 @@ def get_unit_config(config: AppConfig | dict[str, Any], unit_name: str, template
         if template_key is None:
             # 如果没有指定 template_key，返回默认规则组
             return unit_config["default"]
-        else:
-            # 返回指定的规则组
-            if template_key in unit_config:
-                return unit_config[template_key]
-            else:
-                logger.warning(f"单位 '{unit_name}' 中未找到规则组 '{template_key}'，使用默认规则组")
-                return unit_config["default"]
+        if template_key in unit_config:
+            return unit_config[template_key]
+        raise ConfigError(f"单位 '{unit_name}' 中未找到规则组 '{template_key}'")
     else:
         # 旧结构（向后兼容）
         if template_key is not None:
@@ -191,9 +190,41 @@ def _validate_unit_config(unit_name: str, unit_config: dict[str, Any]) -> None:
                 _validate_template_selector(unit_name, rule_config)
                 continue
             _validate_rule_group_config(unit_name, rule_name, rule_config)
+        selector_config = unit_config.get("template_selector")
+        if isinstance(selector_config, dict) and selector_config.get("enabled") and "crossbank" not in unit_config:
+            raise ConfigError(f"单位 '{unit_name}' 启用 template_selector 时必须配置规则组 'crossbank'")
     else:
         # 旧结构（向后兼容）
         _validate_legacy_unit_config(unit_name, unit_config)
+
+
+def _classify_range_bound_kind(value: Any) -> str:
+    """将范围边界归类为 numeric/date。"""
+    if isinstance(value, datetime):
+        return "date"
+    if isinstance(value, date):
+        return "date"
+    if isinstance(value, bool):
+        raise TypeError("bool 不能作为范围边界")
+    if isinstance(value, (int, float, Decimal)):
+        return "numeric"
+    if isinstance(value, str):
+        normalized = value.strip()
+        if not normalized:
+            raise TypeError("空字符串不能作为范围边界")
+        try:
+            Decimal(normalized)
+            return "numeric"
+        except (InvalidOperation, TypeError, ValueError):
+            pass
+        for fmt in Transformer.DATE_INPUT_FORMATS:
+            try:
+                datetime.strptime(normalized, fmt)
+                return "date"
+            except ValueError:
+                continue
+        raise TypeError(f"无法解析范围边界: {value}")
+    raise TypeError(f"不支持的范围边界类型: {type(value).__name__}")
 
 
 def _validate_validation_rules(
@@ -250,6 +281,30 @@ def _validate_validation_rules(
             if "allowed_values" in rules and not isinstance(rules["allowed_values"], list):
                 raise ConfigError(
                     f"{prefix} 的 validation_rules.value_ranges 中 '{field_name}'.allowed_values 必须是列表"
+                )
+            for length_name in ("min_length", "max_length"):
+                if length_name not in rules:
+                    continue
+                length_value = rules[length_name]
+                if not isinstance(length_value, int) or isinstance(length_value, bool) or length_value < 0:
+                    raise ConfigError(
+                        f"{prefix} 的 validation_rules.value_ranges 中 '{field_name}'.{length_name} 必须是 >= 0 的整数"
+                    )
+
+            bound_kinds: set[str] = set()
+            for bound_name in ("min", "max"):
+                if bound_name not in rules:
+                    continue
+                try:
+                    bound_kinds.add(_classify_range_bound_kind(rules[bound_name]))
+                except TypeError as exc:
+                    raise ConfigError(
+                        f"{prefix} 的 validation_rules.value_ranges 中 '{field_name}'.{bound_name} 无效: {exc}"
+                    ) from exc
+
+            if len(bound_kinds) > 1:
+                raise ConfigError(
+                    f"{prefix} 的 validation_rules.value_ranges 中 '{field_name}' 的 min/max 必须同为数值或同为日期"
                 )
 
 

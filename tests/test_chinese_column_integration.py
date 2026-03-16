@@ -33,6 +33,7 @@ def test_chinese_column_name_with_xlsx_save_integration():
         ws.cell(2, 4, "金额")
         ws.cell(2, 5, "开户行支行名称")
         ws.cell(2, 6, "用途（附言）")
+        ws.cell(2, 7, "是否农行账户")
 
         # Add some old data that should be cleared
         ws.cell(3, 1, "1")
@@ -135,6 +136,7 @@ def test_chinese_column_name_with_xlsx_save_integration():
         assert ws_result.cell(2, 3).value == "收款方户名"
         assert ws_result.cell(2, 4).value == "金额"
         assert ws_result.cell(2, 5).value == "开户行支行名称"
+        assert ws_result.cell(2, 7).value == "是否农行账户"
 
         # Data row 1
         assert ws_result.cell(3, 1).value == 1  # Auto number
@@ -143,6 +145,7 @@ def test_chinese_column_name_with_xlsx_save_integration():
         assert ws_result.cell(3, 4).value == 5000.0
         assert ws_result.cell(3, 5).value == "中国工商银行"
         assert ws_result.cell(3, 6).value == "01月收入"
+        assert ws_result.cell(3, 7).value == "否"
 
         # Data row 2
         assert ws_result.cell(4, 1).value == 2  # Auto number
@@ -151,6 +154,7 @@ def test_chinese_column_name_with_xlsx_save_integration():
         assert ws_result.cell(4, 4).value == 6000.0
         assert ws_result.cell(4, 5).value == "中国建设银行"
         assert ws_result.cell(4, 6).value == "01月收入"
+        assert ws_result.cell(4, 7).value == "否"
 
         # Old data should be cleared
         assert ws_result.cell(5, 1).value is None

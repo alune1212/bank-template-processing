@@ -22,7 +22,7 @@ def test_validate_config_organization_units_must_be_dict():
         validate_config({"version": "2.0", "organization_units": []})
 
 
-def test_get_unit_config_multi_group_default_and_fallback(caplog):
+def test_get_unit_config_multi_group_default_and_explicit_group():
     config = {
         "organization_units": {
             "单位A": {
@@ -35,9 +35,8 @@ def test_get_unit_config_multi_group_default_and_fallback(caplog):
     assert get_unit_config(config, "单位A") == {"template_path": "a.xlsx"}
     assert get_unit_config(config, "单位A", "crossbank") == {"template_path": "b.xlsx"}
 
-    resolved = get_unit_config(config, "单位A", "not-exists")
-    assert resolved == {"template_path": "a.xlsx"}
-    assert "未找到规则组" in caplog.text
+    with pytest.raises(ConfigError, match="未找到规则组 'not-exists'"):
+        get_unit_config(config, "单位A", "not-exists")
 
 
 def test_get_unit_config_legacy_with_template_key_warns(caplog):
@@ -79,6 +78,18 @@ def test_validate_validation_rules_error_paths():
 
     with pytest.raises(ConfigError, match="value_ranges 中 '金额' 必须是字典"):
         _validate_validation_rules("单位A", {"value_ranges": {"金额": 1}})
+
+    with pytest.raises(ConfigError, match="min_length 必须是 >= 0 的整数"):
+        _validate_validation_rules("单位A", {"value_ranges": {"金额": {"min_length": -1}}})
+
+    with pytest.raises(ConfigError, match="min.*无效"):
+        _validate_validation_rules("单位A", {"value_ranges": {"金额": {"min": "abc"}}})
+
+    with pytest.raises(ConfigError, match="min/max 必须同为数值或同为日期"):
+        _validate_validation_rules(
+            "单位A",
+            {"value_ranges": {"金额": {"min": 1, "max": "2024-01-01"}}},
+        )
 
 
 def test_validate_legacy_unit_config_error_paths():
@@ -202,6 +213,30 @@ def test_validate_config_rejects_invalid_template_selector():
                         },
                         "crossbank": {
                             "template_path": "b.xlsx",
+                            "header_row": 1,
+                            "field_mappings": {},
+                            "transformations": {},
+                        },
+                    }
+                },
+            }
+        )
+
+
+def test_validate_config_requires_crossbank_when_template_selector_enabled():
+    with pytest.raises(ConfigError, match="启用 template_selector 时必须配置规则组 'crossbank'"):
+        validate_config(
+            {
+                "version": "2.0",
+                "organization_units": {
+                    "单位A": {
+                        "template_selector": {
+                            "enabled": True,
+                            "default_bank": "农业银行",
+                            "bank_column": "银行",
+                        },
+                        "default": {
+                            "template_path": "a.xlsx",
                             "header_row": 1,
                             "field_mappings": {},
                             "transformations": {},

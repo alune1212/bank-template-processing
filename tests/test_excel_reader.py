@@ -185,3 +185,27 @@ class TestExcelReader:
         reader = ExcelReader(header_row=0)
         with pytest.raises(ExcelError):
             reader.read_excel(str(file_path))
+
+    def test_read_csv_decodes_excel_text_wrapper(self, tmp_path):
+        """测试 CSV 会自动还原 Excel 文本包装值"""
+        file_path = tmp_path / "wrapped.csv"
+        file_path.write_text('姓名,用途,编号\n="张三",="01月收入",="00123"\n', encoding="utf-8")
+
+        result = ExcelReader().read_excel(str(file_path))
+
+        assert len(result) == 1
+        assert result[0]["姓名"] == "张三"
+        assert result[0]["用途"] == "01月收入"
+        assert result[0]["编号"] == "00123"
+
+    def test_read_csv_row_filter_works_after_decoding(self, tmp_path):
+        """测试 CSV 解码后 row_filter 仍按原值生效"""
+        file_path = tmp_path / "wrapped_filter.csv"
+        file_path.write_text('姓名,标记\n="张三",="跳过"\n="李四",="保留"\n', encoding="utf-8")
+
+        reader = ExcelReader(row_filter={"exclude_keywords": ["跳过"]})
+        result = reader.read_excel(str(file_path))
+
+        assert len(result) == 1
+        assert result[0]["姓名"] == "李四"
+        assert result[0]["标记"] == "保留"

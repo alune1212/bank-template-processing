@@ -65,7 +65,7 @@ def test_writer_consistent_mapping_features(tmp_path, ext):
     elif ext == ".csv":
         with open(output_path, "r", encoding="utf-8-sig", newline="") as file:
             rows = list(csv.reader(file))
-        assert rows[1] == ["1", "张三", "12.5", "01月收入", "固定"]
+        assert rows[1] == ['="1"', '="张三"', '="12.5"', '="01月收入"', '="固定"']
     else:
         import xlrd
 

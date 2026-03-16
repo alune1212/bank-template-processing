@@ -26,6 +26,7 @@ from .pipeline import (
 from .excel_writer import ExcelWriter
 from .sheet_utils import (
     convert_xls_cell,
+    decode_csv_text_value,
     extract_headers,
     get_cell_value,
     is_empty_value,
@@ -403,9 +404,25 @@ def _read_generated_file_rows(
     max_columns = max((len(row) for row in rows), default=0)
 
     header_row = group_config.get("header_row", 1)
+    clear_rows = group_config.get("clear_rows", {})
+    if clear_rows and not isinstance(clear_rows, dict):
+        raise MergeFolderError(f"文件 {file_path.name} 的 clear_rows 配置无效: {clear_rows}")
+
     start_row = group_config.get("start_row", header_row + 1)
+    if isinstance(clear_rows, dict):
+        start_row = clear_rows.get("start_row", start_row)
     if not isinstance(start_row, int) or start_row < 1:
         raise MergeFolderError(f"文件 {file_path.name} 的 start_row 配置无效: {start_row}")
+
+    end_row = len(rows)
+    if isinstance(clear_rows, dict):
+        clear_end = clear_rows.get("end_row", clear_rows.get("data_end_row"))
+        if clear_end is not None:
+            if not isinstance(clear_end, int) or clear_end < 1:
+                raise MergeFolderError(f"文件 {file_path.name} 的 clear_rows.end_row 配置无效: {clear_end}")
+            if clear_end < start_row:
+                raise MergeFolderError(f"文件 {file_path.name} 的 clear_rows.end_row 不能小于 start_row")
+            end_row = min(clear_end, len(rows))
 
     headers = _extract_headers(rows, header_row, file_path)
     field_mappings = group_config.get("field_mappings", {})
@@ -416,7 +433,7 @@ def _read_generated_file_rows(
     data_rows: list[dict] = []
     month_values: set[str] = set()
 
-    for row_number in range(start_row, len(rows) + 1):
+    for row_number in range(start_row, end_row + 1):
         row_values = rows[row_number - 1]
         row_dict: dict[str, Any] = {}
         has_data = False
@@ -539,7 +556,7 @@ def _read_xlsx_rows(file_path: Path) -> list[list[Any]]:
 def _read_csv_rows(file_path: Path) -> list[list[Any]]:
     with open(file_path, "r", encoding="utf-8-sig", newline="") as file:
         reader = csv.reader(file)
-        return [list(row) for row in reader]
+        return [[decode_csv_text_value(cell) for cell in row] for row in reader]
 
 
 def _read_xls_rows(file_path: Path) -> list[list[Any]]:

@@ -33,6 +33,7 @@ except ImportError:
 from .config_loader import ConfigError
 from .sheet_utils import (
     column_letter_to_index,
+    encode_csv_text_value,
     extract_headers_from_values,
     resolve_column_index,
     resolve_column_index_by_mode,
@@ -386,7 +387,7 @@ class ExcelWriter:
             row_output = [""] * max_columns
             for col_idx, cell in projection.items():
                 if 1 <= col_idx <= max_columns:
-                    row_output[col_idx - 1] = "" if cell.value is None else str(cell.value)
+                    row_output[col_idx - 1] = encode_csv_text_value(cell.value)
             rows.append(row_output)
         return rows
 
@@ -516,6 +517,22 @@ class ExcelWriter:
             logger_instance=logger,
         )
 
+    def _resolve_required_column(
+        self,
+        column_spec,
+        headers: Optional[dict],
+        max_columns: Optional[int],
+        mapping_mode: str,
+        error_label: str,
+    ) -> int | None:
+        try:
+            return self._resolve_column_index_by_mode(column_spec, headers, max_columns, mapping_mode)
+        except ValueError as exc:
+            if mapping_mode == "column_name":
+                raise ConfigError(f"{error_label}: {exc}") from exc
+            logger.warning(f"{error_label}: {exc}")
+            return None
+
     def _extract_headers_from_xlsx(self, worksheet, header_row: int) -> dict[str, int]:
         if header_row <= 0:
             logger.debug("header_row = 0，跳过读取表头（使用列标识符）")
@@ -583,10 +600,14 @@ class ExcelWriter:
             for template_column, mapping_config in field_mappings.items():
                 source_column, target_column, transform_type = self._normalize_field_mapping(template_column, mapping_config)
                 value = row_data.get(source_column, "")
-                try:
-                    col_idx = self._resolve_column_index_by_mode(target_column, headers, max_columns, mapping_mode)
-                except ValueError as exc:
-                    logger.warning(f"跳过字段 {template_column}: {exc}")
+                col_idx = self._resolve_required_column(
+                    target_column,
+                    headers,
+                    max_columns,
+                    mapping_mode,
+                    f"无法解析字段 '{template_column}' 的目标列 '{target_column}'",
+                )
+                if col_idx is None:
                     continue
                 self._set_projection_value(
                     row_projection,
@@ -598,10 +619,14 @@ class ExcelWriter:
 
             if fixed_values:
                 for column, value in fixed_values.items():
-                    try:
-                        col_idx = self._resolve_column_index_by_mode(column, headers, max_columns, mapping_mode)
-                    except ValueError as exc:
-                        logger.warning(f"跳过固定值列 {column}: {exc}")
+                    col_idx = self._resolve_required_column(
+                        column,
+                        headers,
+                        max_columns,
+                        mapping_mode,
+                        f"无法解析固定值列 '{column}'",
+                    )
+                    if col_idx is None:
                         continue
                     self._set_projection_value(
                         row_projection,
@@ -613,35 +638,43 @@ class ExcelWriter:
 
             if auto_number and auto_number.get("enabled"):
                 column = auto_number.get("column", auto_number.get("column_name", "A"))
-                try:
-                    col_idx = self._resolve_column_index_by_mode(column, headers, max_columns, mapping_mode)
-                except ValueError as exc:
-                    logger.warning(f"跳过自动编号列 {column}: {exc}")
-                else:
-                    self._set_projection_value(
-                        row_projection,
-                        col_idx,
-                        _CellProjection(value=current_number),
-                        max_columns=max_columns,
-                        bounded=bounded,
-                    )
-                    if current_number is not None:
-                        current_number += 1
+                col_idx = self._resolve_required_column(
+                    column,
+                    headers,
+                    max_columns,
+                    mapping_mode,
+                    f"无法解析自动编号列 '{column}'",
+                )
+                if col_idx is None:
+                    continue
+                self._set_projection_value(
+                    row_projection,
+                    col_idx,
+                    _CellProjection(value=current_number),
+                    max_columns=max_columns,
+                    bounded=bounded,
+                )
+                if current_number is not None:
+                    current_number += 1
 
             if month_value is not None and month_type_mapping:
                 target_column = month_type_mapping.get("target_column", "C")
-                try:
-                    col_idx = self._resolve_column_index_by_mode(target_column, headers, max_columns, mapping_mode)
-                except ValueError as exc:
-                    logger.warning(f"跳过月类型映射列 {target_column}: {exc}")
-                else:
-                    self._set_projection_value(
-                        row_projection,
-                        col_idx,
-                        _CellProjection(value=month_value),
-                        max_columns=max_columns,
-                        bounded=bounded,
-                    )
+                col_idx = self._resolve_required_column(
+                    target_column,
+                    headers,
+                    max_columns,
+                    mapping_mode,
+                    f"无法解析月类型映射列 '{target_column}'",
+                )
+                if col_idx is None:
+                    continue
+                self._set_projection_value(
+                    row_projection,
+                    col_idx,
+                    _CellProjection(value=month_value),
+                    max_columns=max_columns,
+                    bounded=bounded,
+                )
 
             projections.append(row_projection)
 

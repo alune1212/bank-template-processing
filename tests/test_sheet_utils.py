@@ -47,6 +47,16 @@ def test_resolve_column_index_helpers():
         == 2
     )
 
+    assert sheet_utils.resolve_column_index_by_mode("B", headers={"姓名": 1}, max_columns=2, mapping_mode="column_name") == 2
+
+    with pytest.raises(ValueError, match="超出最大列数"):
+        sheet_utils.resolve_column_index_by_mode(
+            "NAME",
+            headers={"Name": 1},
+            max_columns=2,
+            mapping_mode="column_name",
+        )
+
 
 def test_convert_xls_cell_branches(monkeypatch):
     empty_cell = SimpleNamespace(ctype=getattr(sheet_utils.xlrd, "XL_CELL_EMPTY", -1), value="")
@@ -64,3 +74,21 @@ def test_convert_xls_cell_branches(monkeypatch):
 
     broken_cell = SimpleNamespace(value="raw")
     assert sheet_utils.convert_xls_cell(broken_cell, 0) == "raw"
+
+
+def test_encode_decode_csv_text_value_roundtrip():
+    assert sheet_utils.encode_csv_text_value(None) == ""
+    assert sheet_utils.encode_csv_text_value("") == ""
+    assert sheet_utils.encode_csv_text_value("00123") == '="00123"'
+    assert sheet_utils.encode_csv_text_value("张三,李四") == '="张三,李四"'
+    assert sheet_utils.encode_csv_text_value('含"引号"') == '="含""引号"""'
+
+    assert sheet_utils.decode_csv_text_value('="00123"') == "00123"
+    assert sheet_utils.decode_csv_text_value('="张三,李四"') == "张三,李四"
+    assert sheet_utils.decode_csv_text_value('="含""引号"""') == '含"引号"'
+
+
+def test_decode_csv_text_value_non_wrapped_keeps_original():
+    assert sheet_utils.decode_csv_text_value("普通文本") == "普通文本"
+    assert sheet_utils.decode_csv_text_value("='123'") == "='123'"
+    assert sheet_utils.decode_csv_text_value('="缺少结束') == '="缺少结束'
