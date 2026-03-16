@@ -11,7 +11,7 @@ from typing import List, Dict, Optional, Any
 import openpyxl
 import xlrd
 
-from .sheet_utils import convert_xls_cell, is_empty_value
+from .sheet_utils import convert_xls_cell, decode_csv_text_value, is_empty_value
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +205,7 @@ class ExcelReader:
         try:
             with open(file_path, "r", encoding="utf-8-sig", newline="") as f:
                 reader = csv.reader(f)
-                rows = list(reader)
+                rows = [[decode_csv_text_value(cell) for cell in row] for row in reader]
 
             if not rows:
                 logger.warning("CSV文件为空")

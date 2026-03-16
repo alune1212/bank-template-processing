@@ -259,6 +259,16 @@ def test_read_csv_rows_reads_file(tmp_path):
     assert _read_csv_rows(file_path) == [["a", "b"], ["1", "2"]]
 
 
+def test_read_csv_rows_decodes_wrapped_values_and_keeps_month_inference(tmp_path):
+    file_path = tmp_path / "wrapped.csv"
+    file_path.write_text('姓名,用途\n="张三",="01月收入"\n', encoding="utf-8")
+
+    rows = _read_csv_rows(file_path)
+
+    assert rows == [["姓名", "用途"], ["张三", "01月收入"]]
+    assert infer_month_param_from_values({rows[1][1]}, {"month_format": "{month}月收入"}) == "01"
+
+
 def test_read_xls_rows_and_convert_number_exception_branch(monkeypatch):
     number_type = getattr(merge_folder_module.xlrd, "XL_CELL_NUMBER")
     text_type = getattr(merge_folder_module.xlrd, "XL_CELL_TEXT")

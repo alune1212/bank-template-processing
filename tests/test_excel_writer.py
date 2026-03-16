@@ -164,8 +164,8 @@ class TestExcelWriter:
             rows = list(reader)
             assert rows[0] == ["说明文字"]
             assert rows[1] == ["姓名", "年龄", "金额"]
-            assert rows[2] == ["张三", "25", "1000.0"]
-            assert rows[3] == ["李四", "30", "2000.0"]
+            assert rows[2] == ['="张三"', '="25"', '="1000.0"']
+            assert rows[3] == ['="李四"', '="30"', '="2000.0"']
 
     def test_write_csv_preserves_rows_before_start_row(self, tmp_path):
         """测试 CSV 写入会保留 start_row 之前的说明行"""
@@ -191,7 +191,7 @@ class TestExcelWriter:
         with open(output_path, "r", encoding="utf-8-sig", newline="") as f:
             rows = list(csv.reader(f))
 
-        assert rows == [["姓名"], ["说明行"], ["张三"]]
+        assert rows == [["姓名"], ["说明行"], ['="张三"']]
 
     def test_write_xls_file(self, tmp_path):
         """测试写入.xls文件"""
@@ -404,7 +404,7 @@ class TestExcelWriter:
 
         with open(output_path, "r", encoding="utf-8-sig", newline="") as f:
             rows = list(csv.reader(f))
-        assert rows[1][0] == "张三"
+        assert rows[1][0] == '="张三"'
         assert rows[3][0] == "合计"
 
     def test_clear_rows_csv_defaults_start_row_from_config(self, tmp_path):
@@ -433,7 +433,7 @@ class TestExcelWriter:
         with open(output_path, "r", encoding="utf-8-sig", newline="") as f:
             rows = list(csv.reader(f))
 
-        assert rows == [["姓名"], ["说明行"], ["张三"], [""], ["尾部"]]
+        assert rows == [["姓名"], ["说明行"], ['="张三"'], [""], ["尾部"]]
 
     def test_clear_rows_xls_insufficient_range(self, tmp_path):
         """测试 XLS clear_rows 范围不足时抛错"""

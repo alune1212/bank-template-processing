@@ -33,6 +33,7 @@ except ImportError:
 from .config_loader import ConfigError
 from .sheet_utils import (
     column_letter_to_index,
+    encode_csv_text_value,
     extract_headers_from_values,
     resolve_column_index,
     resolve_column_index_by_mode,
@@ -386,7 +387,7 @@ class ExcelWriter:
             row_output = [""] * max_columns
             for col_idx, cell in projection.items():
                 if 1 <= col_idx <= max_columns:
-                    row_output[col_idx - 1] = "" if cell.value is None else str(cell.value)
+                    row_output[col_idx - 1] = encode_csv_text_value(cell.value)
             rows.append(row_output)
         return rows
 

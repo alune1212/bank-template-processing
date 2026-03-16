@@ -14,6 +14,30 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+def encode_csv_text_value(value: Any) -> str:
+    """将值编码为 Excel 可识别的 CSV 文本表达式。"""
+    if value is None:
+        return ""
+
+    normalized = str(value)
+    if normalized == "":
+        return ""
+
+    escaped = normalized.replace('"', '""')
+    return f'="{escaped}"'
+
+
+def decode_csv_text_value(value: Any) -> Any:
+    """还原由 encode_csv_text_value 生成的文本表达式。"""
+    if not isinstance(value, str):
+        return value
+
+    if len(value) >= 3 and value.startswith('="') and value.endswith('"'):
+        inner = value[2:-1]
+        return inner.replace('""', '"')
+    return value
+
+
 def is_empty_value(value: Any) -> bool:
     """判断值是否为空。"""
     if value is None:

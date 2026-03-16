@@ -26,6 +26,7 @@ from .pipeline import (
 from .excel_writer import ExcelWriter
 from .sheet_utils import (
     convert_xls_cell,
+    decode_csv_text_value,
     extract_headers,
     get_cell_value,
     is_empty_value,
@@ -555,7 +556,7 @@ def _read_xlsx_rows(file_path: Path) -> list[list[Any]]:
 def _read_csv_rows(file_path: Path) -> list[list[Any]]:
     with open(file_path, "r", encoding="utf-8-sig", newline="") as file:
         reader = csv.reader(file)
-        return [list(row) for row in reader]
+        return [[decode_csv_text_value(cell) for cell in row] for row in reader]
 
 
 def _read_xls_rows(file_path: Path) -> list[list[Any]]:
