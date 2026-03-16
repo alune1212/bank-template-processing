@@ -118,6 +118,31 @@ def validate_rows(
             raise enrich_error_context(exc, "数据校验", row_context, row_number) from exc
 
 
+def split_validation_rules(
+    validation_rules: ValidationRules | dict | None,
+) -> tuple[ValidationRules, ValidationRules]:
+    """按“转换前/转换后”拆分校验规则。"""
+    if not validation_rules:
+        return {}, {}
+
+    pre_transform_rules: ValidationRules = {}
+    post_transform_rules: ValidationRules = {}
+
+    required_fields = validation_rules.get("required_fields")
+    if required_fields:
+        pre_transform_rules["required_fields"] = required_fields
+
+    data_types = validation_rules.get("data_types")
+    if data_types:
+        post_transform_rules["data_types"] = data_types
+
+    value_ranges = validation_rules.get("value_ranges")
+    if value_ranges:
+        post_transform_rules["value_ranges"] = value_ranges
+
+    return pre_transform_rules, post_transform_rules
+
+
 def needs_transformations(field_mappings: FieldMappings | dict) -> bool:
     """判断字段映射中是否包含转换规则。"""
     for mapping in field_mappings.values():

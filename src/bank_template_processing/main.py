@@ -23,6 +23,7 @@ from .pipeline import (
     calculate_stats as _calculate_stats,
     enrich_error_context,
     needs_transformations as _needs_transformations,
+    split_validation_rules,
     write_group_output,
 )
 from .template_selector import TemplateSelector
@@ -279,7 +280,8 @@ def _prepare_group_rows(
 ) -> tuple[list[dict], int, float]:
     """对单组数据执行校验、转换和统计。"""
     validation_rules = group_config.get("validation_rules", {})
-    _validate_rows(data, validation_rules, context, logger)
+    pre_transform_rules, post_transform_rules = split_validation_rules(validation_rules)
+    _validate_rows(data, pre_transform_rules, context, logger)
 
     transformations = group_config.get("transformations", {})
     field_mappings = group_config.get("field_mappings", {})
@@ -293,6 +295,7 @@ def _prepare_group_rows(
             data = apply_transformations(data, transformations, field_mappings)
         logger.info("数据转换完成")
 
+    _validate_rows(data, post_transform_rules, context, logger)
     count, amount = _calculate_stats(data, field_mappings, transformations)
     return data, count, amount
 

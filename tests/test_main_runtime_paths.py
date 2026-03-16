@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -103,6 +104,68 @@ def test_is_zero_salary_value_unknown_type_returns_false():
 
 def test_filter_zero_salary_rows_empty_input():
     assert main_module._filter_zero_salary_rows([]) == []
+
+
+def test_prepare_group_rows_transforms_before_type_validation():
+    context = main_module.ProcessingContext(unit_name="单位A", rule_group="default", template_name="模板A")
+    group_config = {
+        "field_mappings": {
+            "工资卡卡号": {
+                "source_column": "工资卡卡号",
+                "transform": "card_number",
+            }
+        },
+        "transformations": {
+            "card_number": {
+                "remove_formatting": True,
+                "luhn_validation": False,
+            }
+        },
+        "validation_rules": {
+            "required_fields": ["工资卡卡号"],
+            "data_types": {"工资卡卡号": "integer"},
+        },
+    }
+
+    prepared_rows, count, amount = main_module._prepare_group_rows(
+        [{"工资卡卡号": "6222 0212 3456 7890 128"}],
+        group_config,
+        context,
+        logging.getLogger(__name__),
+    )
+
+    assert prepared_rows[0]["工资卡卡号"] == "6222021234567890128"
+    assert count == 1
+    assert amount == 0.0
+
+
+def test_prepare_group_rows_validates_ranges_after_transform():
+    context = main_module.ProcessingContext(unit_name="单位A", rule_group="default", template_name="模板A")
+    group_config = {
+        "field_mappings": {
+            "金额": {
+                "source_column": "实发工资",
+                "transform": "amount_decimal",
+            }
+        },
+        "transformations": {
+            "amount_decimal": {
+                "decimal_places": 2,
+            }
+        },
+        "validation_rules": {
+            "required_fields": ["实发工资"],
+            "value_ranges": {"实发工资": {"max": 100.55}},
+        },
+    }
+
+    with pytest.raises(main_module.ValidationError, match="数据校验失败（单位=单位A，规则组=default，模板=模板A，第1条数据）"):
+        main_module._prepare_group_rows(
+            [{"实发工资": "100.556"}],
+            group_config,
+            context,
+            logging.getLogger(__name__),
+        )
 
 
 def test_apply_transformations_old_mapping_warns_once_and_skips_empty_values(caplog):

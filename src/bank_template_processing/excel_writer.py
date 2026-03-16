@@ -218,7 +218,6 @@ class ExcelWriter:
         clear_rows: Mapping[str, Any] | None = None,
     ) -> None:
         """使用 csv 模块写入 `.csv` 文件。"""
-        del start_row
         del bank_branch_mapping
         logger.debug(f"使用csv模块写入csv文件: {template_path}")
 
@@ -254,16 +253,20 @@ class ExcelWriter:
         clear_config = clear_rows or {}
         clear_end = clear_config.get("end_row", clear_config.get("data_end_row"))
         if clear_end is not None:
-            clear_start = clear_config.get("start_row", header_row + 1)
+            clear_start = clear_config.get("start_row", start_row)
             if clear_start > clear_end:
                 raise ExcelError("clear_rows.start_row 不能大于 end_row")
             clear_count = clear_end - clear_start + 1
             rows_before = rows[: clear_start - 1]
+            if len(rows_before) < clear_start - 1:
+                rows_before = rows_before + [[""] * max_columns for _ in range(clear_start - 1 - len(rows_before))]
             rows_after = rows[clear_end:] if clear_end < len(rows) else []
             filler_rows = [[""] * max_columns for _ in range(max(0, clear_count - len(data_rows)))]
             output_rows = rows_before + data_rows + filler_rows + rows_after
         else:
-            output_rows = rows[:header_row] if header_row > 0 else []
+            output_rows = rows[: start_row - 1]
+            if len(output_rows) < start_row - 1:
+                output_rows = output_rows + [[""] * max_columns for _ in range(start_row - 1 - len(output_rows))]
             output_rows.extend(data_rows)
 
         with open(output_path, "w", encoding="utf-8-sig", newline="") as file:
