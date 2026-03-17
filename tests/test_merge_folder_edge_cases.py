@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -34,12 +35,68 @@ from bank_template_processing.merge_folder import (
     prepare_merge_tasks,
     resolve_rule_group_for_template,
 )
+from tests.config_factories import make_basic_unit_config, make_config, make_field_mapping, make_multi_group_unit_config
 
 
 def _noop_logger() -> SimpleNamespace:
     return SimpleNamespace(
         info=lambda *_args, **_kwargs: None,
         warning=lambda *_args, **_kwargs: None,
+    )
+
+
+def _make_merge_rule_group(
+    template_path: str = "tpl.xlsx",
+    *,
+    field_mappings: object | None = None,
+    transformations: object | None = None,
+    **extra: Any,
+) -> dict[str, Any]:
+    return make_basic_unit_config(
+        template_path=template_path,
+        field_mappings={} if field_mappings is None else field_mappings,
+        transformations={} if transformations is None else transformations,
+        **extra,
+    )
+
+
+def _make_generated_rows_group_config(
+    *,
+    header_row: int = 1,
+    start_row: int = 2,
+    clear_rows: dict[str, int] | None = None,
+    month_target_column: str | None = None,
+) -> dict[str, Any]:
+    config = _make_merge_rule_group(
+        header_row=header_row,
+        start_row=start_row,
+        field_mappings={"姓名": make_field_mapping(source_column="姓名", target_column="姓名")},
+    )
+    if clear_rows is not None:
+        config["clear_rows"] = clear_rows
+    if month_target_column is not None:
+        config["month_type_mapping"] = {"enabled": True, "target_column": month_target_column}
+    return config
+
+
+def _call_prepare_merge_tasks(
+    merge_folder_path: Path | str,
+    config: dict[str, Any],
+    **overrides: Any,
+):
+    kwargs: dict[str, Any] = {
+        "resolve_path_fn": lambda path: path,
+        "apply_transformations_fn": lambda data, _t, _f: data,
+        "needs_transformations_fn": lambda _m: False,
+        "calculate_stats_fn": lambda data, _fm, _t: (len(data), 0.0),
+        "needs_month_for_filename": False,
+        "logger": _noop_logger(),
+    }
+    kwargs.update(overrides)
+    return prepare_merge_tasks(
+        merge_folder_path=str(merge_folder_path),
+        config=config,
+        **kwargs,
     )
 
 
@@ -67,95 +124,76 @@ def test_resolve_rule_group_for_template_error_paths():
     with pytest.raises(ConfigError, match="未找到单位配置"):
         resolve_rule_group_for_template({"organization_units": {}}, "单位A", "模板")
 
-    cfg_conflict = {
-        "organization_units": {
-            "单位A": {
-                "template_selector": {"default_group_name": "同名", "special_group_name": "同名"},
-                "default": {"template_path": "default.xlsx", "header_row": 1, "field_mappings": {}, "transformations": {}},
-                "crossbank": {
-                    "template_path": "cross.xlsx",
-                    "header_row": 1,
-                    "field_mappings": {},
-                    "transformations": {},
+    cfg_conflict = make_config(
+        organization_units={
+            "单位A": make_multi_group_unit_config(
+                {
+                    "default": _make_merge_rule_group("default.xlsx"),
+                    "crossbank": _make_merge_rule_group("cross.xlsx"),
                 },
-            }
+                template_selector={"default_group_name": "同名", "special_group_name": "同名"},
+            )
         }
-    }
+    )
     with pytest.raises(MergeFolderError, match="同时命中多个组名配置"):
         resolve_rule_group_for_template(cfg_conflict, "单位A", "同名")
 
-    cfg_legacy = {
-        "organization_units": {
-            "单位A": {
-                "template_path": "tpl.xlsx",
-                "header_row": 1,
-                "field_mappings": {},
-                "transformations": {},
-            }
-        }
-    }
+    cfg_legacy = make_config(organization_units={"单位A": _make_merge_rule_group("tpl.xlsx")})
     rule_group, _ = resolve_rule_group_for_template(cfg_legacy, "单位A", "tpl")
     assert rule_group == "default"
 
-    cfg_no_match = {
-        "organization_units": {
-            "单位A": {
-                "default": {"template_path": "d.xlsx", "header_row": 1, "field_mappings": {}, "transformations": {}},
-                "crossbank": {
-                    "template_path": "c.xlsx",
-                    "header_row": 1,
-                    "field_mappings": {},
-                    "transformations": {},
-                },
-            }
+    cfg_no_match = make_config(
+        organization_units={
+            "单位A": make_multi_group_unit_config(
+                {
+                    "default": _make_merge_rule_group("d.xlsx"),
+                    "crossbank": _make_merge_rule_group("c.xlsx"),
+                }
+            )
         }
-    }
+    )
     with pytest.raises(MergeFolderError, match="无法为单位"):
         resolve_rule_group_for_template(cfg_no_match, "单位A", "不存在模板")
 
-    cfg_multi_stem = {
-        "organization_units": {
-            "单位A": {
-                "default": {"template_path": "same.xlsx", "header_row": 1, "field_mappings": {}, "transformations": {}},
-                "crossbank": {
-                    "template_path": "same.xlsx",
-                    "header_row": 1,
-                    "field_mappings": {},
-                    "transformations": {},
-                },
-            }
+    cfg_multi_stem = make_config(
+        organization_units={
+            "单位A": make_multi_group_unit_config(
+                {
+                    "default": _make_merge_rule_group("same.xlsx"),
+                    "crossbank": _make_merge_rule_group("same.xlsx"),
+                }
+            )
         }
-    }
+    )
     with pytest.raises(MergeFolderError, match="匹配到多个规则组"):
         resolve_rule_group_for_template(cfg_multi_stem, "单位A", "same")
 
-    cfg_missing_crossbank = {
-        "organization_units": {
-            "单位A": {
-                "template_selector": {"special_group_name": "跨行模板"},
-                "default": {"template_path": "default.xlsx", "header_row": 1, "field_mappings": {}, "transformations": {}},
-            }
+    cfg_missing_crossbank = make_config(
+        organization_units={
+            "单位A": make_multi_group_unit_config(
+                {
+                    "default": _make_merge_rule_group("default.xlsx"),
+                },
+                template_selector={"special_group_name": "跨行模板"},
+            )
         }
-    }
+    )
     with pytest.raises(ConfigError, match="未找到规则组 'crossbank'"):
         resolve_rule_group_for_template(cfg_missing_crossbank, "单位A", "跨行模板")
 
 
 def test_resolve_rule_group_for_template_uses_selector_default_group_names():
-    cfg = {
-        "organization_units": {
-            "单位A": {
-                "template_selector": {"enabled": True, "default_bank": "农业银行"},
-                "default": {"template_path": "default.xlsx", "header_row": 1, "field_mappings": {}, "transformations": {}},
-                "crossbank": {
-                    "template_path": "cross.xlsx",
-                    "header_row": 1,
-                    "field_mappings": {},
-                    "transformations": {},
+    cfg = make_config(
+        organization_units={
+            "单位A": make_multi_group_unit_config(
+                {
+                    "default": _make_merge_rule_group("default.xlsx"),
+                    "crossbank": _make_merge_rule_group("cross.xlsx"),
                 },
-            }
+                template_selector={"enabled": True, "default_bank": "农业银行"},
+            )
         }
-    }
+    )
 
     default_group, _ = resolve_rule_group_for_template(cfg, "单位A", "default")
     crossbank_group, _ = resolve_rule_group_for_template(cfg, "单位A", "special")
@@ -326,11 +364,7 @@ def test_read_generated_file_rows_start_row_invalid(monkeypatch):
     with pytest.raises(MergeFolderError, match="start_row 配置无效"):
         _read_generated_file_rows(
             Path("a.xlsx"),
-            {
-                "header_row": 1,
-                "start_row": 0,
-                "field_mappings": {"姓名": {"source_column": "姓名", "target_column": "姓名"}},
-            },
+            _make_generated_rows_group_config(start_row=0),
         )
 
 
@@ -347,12 +381,7 @@ def test_read_generated_file_rows_skips_empty_rows_and_collects_month_values(mon
     )
     rows, month_values = _read_generated_file_rows(
         Path("a.xlsx"),
-        {
-            "header_row": 1,
-            "start_row": 2,
-            "field_mappings": {"姓名": {"source_column": "姓名", "target_column": "姓名"}},
-            "month_type_mapping": {"enabled": True, "target_column": "用途"},
-        },
+        _make_generated_rows_group_config(month_target_column="用途"),
     )
     assert [row["姓名"] for row in rows] == ["张三", "李四"]
     assert month_values == {"01月收入"}
@@ -372,13 +401,7 @@ def test_read_generated_file_rows_respects_clear_rows_boundary(monkeypatch):
 
     rows, month_values = _read_generated_file_rows(
         Path("a.xlsx"),
-        {
-            "header_row": 1,
-            "start_row": 2,
-            "clear_rows": {"end_row": 3},
-            "field_mappings": {"姓名": {"source_column": "姓名", "target_column": "姓名"}},
-            "month_type_mapping": {"enabled": True, "target_column": "用途"},
-        },
+        _make_generated_rows_group_config(clear_rows={"end_row": 3}, month_target_column="用途"),
     )
 
     assert [row["姓名"] for row in rows] == ["张三", "李四"]
@@ -400,12 +423,7 @@ def test_read_generated_file_rows_clear_rows_start_row_defaults_from_group(monke
 
     rows, _month_values = _read_generated_file_rows(
         Path("a.xlsx"),
-        {
-            "header_row": 2,
-            "start_row": 3,
-            "clear_rows": {"end_row": 4},
-            "field_mappings": {"姓名": {"source_column": "姓名", "target_column": "姓名"}},
-        },
+        _make_generated_rows_group_config(header_row=2, start_row=3, clear_rows={"end_row": 4}),
     )
 
     assert [row["姓名"] for row in rows] == ["张三", "李四"]
@@ -413,42 +431,15 @@ def test_read_generated_file_rows_clear_rows_start_row_defaults_from_group(monke
 
 def test_prepare_merge_tasks_precheck_error_paths(tmp_path, monkeypatch):
     with pytest.raises(FileNotFoundError, match="合并目录不存在"):
-        prepare_merge_tasks(
-            merge_folder_path=str(tmp_path / "not-exists"),
-            config={"organization_units": {"单位A": {}}},
-            resolve_path_fn=lambda path: path,
-            apply_transformations_fn=lambda data, _t, _f: data,
-            needs_transformations_fn=lambda _m: False,
-            calculate_stats_fn=lambda data, _fm, _t: (len(data), 0.0),
-            needs_month_for_filename=False,
-            logger=_noop_logger(),
-        )
+        _call_prepare_merge_tasks(tmp_path / "not-exists", {"organization_units": {"单位A": {}}})
 
     not_dir = tmp_path / "not_dir.txt"
     not_dir.write_text("x", encoding="utf-8")
     with pytest.raises(MergeFolderError, match="合并路径不是目录"):
-        prepare_merge_tasks(
-            merge_folder_path=str(not_dir),
-            config={"organization_units": {"单位A": {}}},
-            resolve_path_fn=lambda path: path,
-            apply_transformations_fn=lambda data, _t, _f: data,
-            needs_transformations_fn=lambda _m: False,
-            calculate_stats_fn=lambda data, _fm, _t: (len(data), 0.0),
-            needs_month_for_filename=False,
-            logger=_noop_logger(),
-        )
+        _call_prepare_merge_tasks(not_dir, {"organization_units": {"单位A": {}}})
 
     with pytest.raises(ConfigError, match="配置缺少 organization_units"):
-        prepare_merge_tasks(
-            merge_folder_path=str(tmp_path),
-            config={"organization_units": []},
-            resolve_path_fn=lambda path: path,
-            apply_transformations_fn=lambda data, _t, _f: data,
-            needs_transformations_fn=lambda _m: False,
-            calculate_stats_fn=lambda data, _fm, _t: (len(data), 0.0),
-            needs_month_for_filename=False,
-            logger=_noop_logger(),
-        )
+        _call_prepare_merge_tasks(tmp_path, {"organization_units": []})
 
     file_path = tmp_path / "单位A_模板A_1人_金额1.00元.xlsx"
     file_path.write_text("x", encoding="utf-8")
@@ -458,16 +449,7 @@ def test_prepare_merge_tasks_precheck_error_paths(tmp_path, monkeypatch):
         lambda *_args, **_kwargs: ("default", {"template_path": ""}),
     )
     with pytest.raises(ConfigError, match="未配置 template_path"):
-        prepare_merge_tasks(
-            merge_folder_path=str(tmp_path),
-            config={"organization_units": {"单位A": {"template_path": "a.xlsx"}}},
-            resolve_path_fn=lambda path: path,
-            apply_transformations_fn=lambda data, _t, _f: data,
-            needs_transformations_fn=lambda _m: False,
-            calculate_stats_fn=lambda data, _fm, _t: (len(data), 0.0),
-            needs_month_for_filename=False,
-            logger=_noop_logger(),
-        )
+        _call_prepare_merge_tasks(tmp_path, {"organization_units": {"单位A": {"template_path": "a.xlsx"}}})
 
 
 def test_prepare_merge_tasks_amount_mismatch_raises(tmp_path, monkeypatch):
@@ -484,11 +466,10 @@ def test_prepare_merge_tasks_amount_mismatch_raises(tmp_path, monkeypatch):
         "resolve_rule_group_for_template",
         lambda *_args, **_kwargs: (
             "default",
-            {
-                "template_path": "tpl.xlsx",
-                "field_mappings": {"金额": {"source_column": "金额", "transform": "amount_decimal"}},
-                "transformations": {},
-            },
+            _make_merge_rule_group(
+                "tpl.xlsx",
+                field_mappings={"金额": make_field_mapping(source_column="金额", transform="amount_decimal")},
+            ),
         ),
     )
     monkeypatch.setattr(
@@ -498,15 +479,10 @@ def test_prepare_merge_tasks_amount_mismatch_raises(tmp_path, monkeypatch):
     )
 
     with pytest.raises(MergeFolderError, match="金额校验失败"):
-        prepare_merge_tasks(
-            merge_folder_path=str(tmp_path),
-            config={"organization_units": {"单位A": {"template_path": "tpl.xlsx"}}},
-            resolve_path_fn=lambda path: path,
-            apply_transformations_fn=lambda data, _t, _f: data,
-            needs_transformations_fn=lambda _m: False,
+        _call_prepare_merge_tasks(
+            tmp_path,
+            {"organization_units": {"单位A": {"template_path": "tpl.xlsx"}}},
             calculate_stats_fn=lambda data, _fm, _t: (1, 999.0),
-            needs_month_for_filename=False,
-            logger=_noop_logger(),
         )
 
 
@@ -524,25 +500,25 @@ def test_prepare_merge_tasks_transforms_before_post_validation(tmp_path, monkeyp
         "resolve_rule_group_for_template",
         lambda *_args, **_kwargs: (
             "default",
-            {
-                "template_path": "tpl.xlsx",
-                "field_mappings": {
-                    "工资卡卡号": {
-                        "source_column": "工资卡卡号",
-                        "transform": "card_number",
-                    }
+            _make_merge_rule_group(
+                "tpl.xlsx",
+                field_mappings={
+                    "工资卡卡号": make_field_mapping(
+                        source_column="工资卡卡号",
+                        transform="card_number",
+                    )
                 },
-                "transformations": {
+                transformations={
                     "card_number": {
                         "remove_formatting": True,
                         "luhn_validation": False,
                     }
                 },
-                "validation_rules": {
+                validation_rules={
                     "required_fields": ["工资卡卡号"],
                     "data_types": {"工资卡卡号": "integer"},
                 },
-            },
+            ),
         ),
     )
     monkeypatch.setattr(
@@ -551,15 +527,11 @@ def test_prepare_merge_tasks_transforms_before_post_validation(tmp_path, monkeyp
         lambda *_args, **_kwargs: ([{"工资卡卡号": "6222 0212 3456 7890 128"}], set()),
     )
 
-    tasks = prepare_merge_tasks(
-        merge_folder_path=str(tmp_path),
-        config={"organization_units": {"单位A": {"template_path": "tpl.xlsx"}}},
-        resolve_path_fn=lambda path: path,
+    tasks = _call_prepare_merge_tasks(
+        tmp_path,
+        {"organization_units": {"单位A": {"template_path": "tpl.xlsx"}}},
         apply_transformations_fn=None,
         needs_transformations_fn=None,
-        calculate_stats_fn=lambda data, _fm, _t: (len(data), 0.0),
-        needs_month_for_filename=False,
-        logger=_noop_logger(),
     )
 
     assert len(tasks) == 1
