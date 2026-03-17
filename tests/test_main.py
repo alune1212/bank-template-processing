@@ -3,9 +3,94 @@
 import json
 import sys
 from decimal import Decimal
+from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from tests.config_factories import make_basic_unit_config, make_config, make_field_mapping
+
+
+def _write_json(path: Path, payload: dict[str, Any]) -> Path:
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
+def _create_xlsx_file(path: Path, rows: list[list[str]]) -> Path:
+    import openpyxl
+
+    workbook = openpyxl.Workbook()
+    worksheet = workbook.active
+    assert worksheet is not None
+    for row in rows:
+        worksheet.append(row)
+    workbook.save(path)
+    return path
+
+
+def _write_main_config(
+    tmp_path: Path,
+    *,
+    template_path: str,
+    filename: str = "config.json",
+    field_mappings: object | None = None,
+    transformations: object | None = None,
+    validation_rules: object | None = None,
+    extra_unit_config: dict[str, Any] | None = None,
+    extra_config: dict[str, Any] | None = None,
+) -> Path:
+    unit_config = make_basic_unit_config(
+        template_path=template_path,
+        field_mappings={} if field_mappings is None else field_mappings,
+        transformations={} if transformations is None else transformations,
+        validation_rules={} if validation_rules is None else validation_rules,
+        **(extra_unit_config or {}),
+    )
+    config = make_config(unit_name="unit1", unit_config=unit_config)
+    if extra_config:
+        config.update(extra_config)
+    return _write_json(tmp_path / filename, config)
+
+
+def _write_workflow_config(
+    tmp_path: Path,
+    *,
+    template_path: str,
+    filename: str = "config.json",
+    extra_unit_config: dict[str, Any] | None = None,
+    extra_config: dict[str, Any] | None = None,
+) -> Path:
+    workflow_defaults = {
+        "fixed_values": {},
+        "auto_number": {"enabled": False},
+        "bank_branch_mapping": {"enabled": False},
+        "month_type_mapping": {"enabled": False},
+    }
+    if extra_unit_config:
+        workflow_defaults.update(extra_unit_config)
+    return _write_main_config(
+        tmp_path,
+        template_path=template_path,
+        filename=filename,
+        extra_unit_config=workflow_defaults,
+        extra_config=extra_config,
+    )
+
+
+def _build_main_argv(
+    excel_path: str,
+    config_path: str,
+    *,
+    output_dir: str | None = None,
+    unit_name: str = "unit1",
+    month: str = "01",
+) -> list[str]:
+    argv = ["main.py", excel_path, unit_name, month]
+    if output_dir is not None:
+        argv.extend(["--output-dir", output_dir])
+    argv.extend(["--config", config_path])
+    return argv
 
 
 class TestMonthValidation:
@@ -270,59 +355,30 @@ class TestMainWorkflow:
 
     def create_test_config(self, tmp_path, template_path=None):
         """创建测试配置文件"""
-        config = {
-            "version": "1.0",
-            "organization_units": {
-                "unit1": {
-                    "template_path": template_path or str(tmp_path / "template.xlsx"),
-                    "header_row": 1,
-                    "start_row": 2,
-                    "field_mappings": {},
-                    "transformations": {},
-                    "validation_rules": {},
-                    "fixed_values": {},
-                    "auto_number": {"enabled": False},
-                    "bank_branch_mapping": {"enabled": False},
-                    "month_type_mapping": {"enabled": False},
-                }
-            },
-        }
-
-        config_path = tmp_path / "config.json"
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
-
-        return config_path
+        return _write_workflow_config(
+            tmp_path,
+            template_path=template_path or str(tmp_path / "template.xlsx"),
+        )
 
     def create_test_excel(self, tmp_path, filename="input.xlsx"):
         """创建测试Excel文件"""
-        import openpyxl
-
-        excel_path = tmp_path / filename
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        assert ws is not None
-
-        ws.append(["姓名", "卡号", "金额"])
-        ws.append(["张三", "6222021234567890128", "1000.00"])
-
-        wb.save(excel_path)
-        return excel_path
+        return _create_xlsx_file(
+            tmp_path / filename,
+            [
+                ["姓名", "卡号", "金额"],
+                ["张三", "6222021234567890128", "1000.00"],
+            ],
+        )
 
     def create_template_excel(self, tmp_path, filename="template.xlsx"):
         """创建模板Excel文件"""
-        import openpyxl
-
-        template_path = tmp_path / filename
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        assert ws is not None
-
-        ws.append(["姓名", "卡号", "金额"])
-        ws.append(["示例姓名", "示例卡号", "100.00"])
-
-        wb.save(template_path)
-        return template_path
+        return _create_xlsx_file(
+            tmp_path / filename,
+            [
+                ["姓名", "卡号", "金额"],
+                ["示例姓名", "示例卡号", "100.00"],
+            ],
+        )
 
     @patch("bank_template_processing.main.ExcelReader")
     @patch("bank_template_processing.main.ExcelWriter")
@@ -354,16 +410,7 @@ class TestMainWorkflow:
         with patch.object(
             sys,
             "argv",
-            [
-                "main.py",
-                str(input_excel),
-                "unit1",
-                "01",
-                "--output-dir",
-                str(output_dir),
-                "--config",
-                str(config_path),
-            ],
+            _build_main_argv(str(input_excel), str(config_path), output_dir=str(output_dir)),
         ):
             main()
 
@@ -389,34 +436,19 @@ class TestMainWorkflow:
         template_excel = self.create_template_excel(tmp_path, "template.xlsx")
         special_template = self.create_template_excel(tmp_path, "special_template.xlsx")
 
-        config = {
-            "version": "1.0",
-            "organization_units": {
-                "unit1": {
-                    "template_path": str(template_excel),
-                    "header_row": 1,
-                    "start_row": 2,
-                    "field_mappings": {},
-                    "transformations": {},
-                    "validation_rules": {},
-                    "fixed_values": {},
-                    "auto_number": {"enabled": False},
-                    "bank_branch_mapping": {"enabled": False},
-                    "month_type_mapping": {"enabled": False},
+        config_path = _write_workflow_config(
+            tmp_path,
+            template_path=str(template_excel),
+            extra_config={
+                "template_selection_rules": {
+                    "enabled": True,
+                    "bank_column": "开户银行",
+                    "default_bank": "工商银行",
+                    "default_template": str(template_excel),
+                    "special_template": str(special_template),
                 }
             },
-            "template_selection_rules": {
-                "enabled": True,
-                "bank_column": "开户银行",
-                "default_bank": "工商银行",
-                "default_template": str(template_excel),
-                "special_template": str(special_template),
-            },
-        }
-
-        config_path = tmp_path / "config.json"
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
+        )
 
         output_dir = tmp_path / "output"
         output_dir.mkdir()
@@ -469,16 +501,7 @@ class TestMainWorkflow:
         with patch.object(
             sys,
             "argv",
-            [
-                "main.py",
-                str(input_excel),
-                "unit1",
-                "01",
-                "--output-dir",
-                str(output_dir),
-                "--config",
-                str(config_path),
-            ],
+            _build_main_argv(str(input_excel), str(config_path), output_dir=str(output_dir)),
         ):
             main()
 
@@ -494,41 +517,14 @@ class TestMainWorkflow:
         """测试主流程：输入文件不存在"""
         from bank_template_processing.main import main
 
-        config = {
-            "version": "1.0",
-            "organization_units": {
-                "unit1": {
-                    "template_path": "template.xlsx",
-                    "header_row": 1,
-                    "start_row": 2,
-                    "field_mappings": {},
-                    "transformations": {},
-                    "validation_rules": {},
-                    "fixed_values": {},
-                    "auto_number": {"enabled": False},
-                    "bank_branch_mapping": {"enabled": False},
-                    "month_type_mapping": {"enabled": False},
-                }
-            },
-        }
-
-        config_path = tmp_path / "config.json"
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
+        config_path = _write_workflow_config(tmp_path, template_path="template.xlsx")
 
         with (
             patch("sys.exit") as mock_exit,
             patch.object(
                 sys,
                 "argv",
-                [
-                    "main.py",
-                    "nonexistent.xlsx",
-                    "unit1",
-                    "01",
-                    "--config",
-                    str(config_path),
-                ],
+                _build_main_argv("nonexistent.xlsx", str(config_path)),
             ),
         ):
             main()
@@ -541,24 +537,7 @@ class TestMainZeroSalaryFiltering:
     """测试主流程中的零工资筛选行为"""
 
     def _write_basic_config(self, tmp_path, template_path: str) -> str:
-        config = {
-            "version": "1.0",
-            "organization_units": {
-                "unit1": {
-                    "template_path": template_path,
-                    "header_row": 1,
-                    "start_row": 2,
-                    "field_mappings": {},
-                    "transformations": {},
-                    "validation_rules": {},
-                }
-            },
-        }
-
-        config_path = tmp_path / "config_basic.json"
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
-        return str(config_path)
+        return str(_write_main_config(tmp_path, template_path=template_path, filename="config_basic.json"))
 
     @patch("bank_template_processing.main.ExcelReader")
     @patch("bank_template_processing.main.ExcelWriter")
@@ -572,33 +551,25 @@ class TestMainZeroSalaryFiltering:
         """测试零工资行在验证/转换/写入前被过滤"""
         from bank_template_processing.main import main
 
-        config = {
-            "version": "1.0",
-            "organization_units": {
-                "unit1": {
-                    "template_path": str(tmp_path / "template.xlsx"),
-                    "header_row": 1,
-                    "start_row": 2,
-                    "field_mappings": {
-                        "金额": {
-                            "source_column": "实发工资",
-                            "transform": "amount_decimal",
-                        }
-                    },
-                    "transformations": {
-                        "amount_decimal": {
-                            "decimal_places": 2,
-                        }
-                    },
-                    "validation_rules": {
-                        "required_fields": ["姓名"],
-                    },
+        config_path = _write_main_config(
+            tmp_path,
+            template_path=str(tmp_path / "template.xlsx"),
+            filename="config_transform.json",
+            field_mappings={
+                "金额": make_field_mapping(
+                    source_column="实发工资",
+                    transform="amount_decimal",
+                )
+            },
+            transformations={
+                "amount_decimal": {
+                    "decimal_places": 2,
                 }
             },
-        }
-        config_path = tmp_path / "config_transform.json"
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
+            validation_rules={
+                "required_fields": ["姓名"],
+            },
+        )
 
         mock_reader_instance = MagicMock()
         mock_reader_instance.read_excel.return_value = [
@@ -620,16 +591,11 @@ class TestMainZeroSalaryFiltering:
             patch.object(
                 sys,
                 "argv",
-                [
-                    "main.py",
+                _build_main_argv(
                     str(tmp_path / "input.xlsx"),
-                    "unit1",
-                    "01",
-                    "--output-dir",
-                    str(tmp_path / "output"),
-                    "--config",
                     str(config_path),
-                ],
+                    output_dir=str(tmp_path / "output"),
+                ),
             ),
         ):
             main()
@@ -659,14 +625,7 @@ class TestMainZeroSalaryFiltering:
             patch.object(
                 sys,
                 "argv",
-                [
-                    "main.py",
-                    str(tmp_path / "input.xlsx"),
-                    "unit1",
-                    "01",
-                    "--config",
-                    config_path,
-                ],
+                _build_main_argv(str(tmp_path / "input.xlsx"), config_path),
             ),
         ):
             main()
@@ -715,23 +674,7 @@ class TestMainZeroSalaryFilteringByInputFormat:
         return str(file_path)
 
     def _create_config(self, tmp_path, template_path: str) -> str:
-        config = {
-            "version": "1.0",
-            "organization_units": {
-                "unit1": {
-                    "template_path": template_path,
-                    "header_row": 1,
-                    "start_row": 2,
-                    "field_mappings": {},
-                    "transformations": {},
-                    "validation_rules": {},
-                }
-            },
-        }
-        config_path = tmp_path / "config_formats.json"
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
-        return str(config_path)
+        return str(_write_main_config(tmp_path, template_path=template_path, filename="config_formats.json"))
 
     @pytest.mark.parametrize("suffix", [".xlsx", ".csv", ".xls"])
     @patch("bank_template_processing.main.ExcelWriter")
@@ -750,16 +693,7 @@ class TestMainZeroSalaryFilteringByInputFormat:
         with patch.object(
             sys,
             "argv",
-            [
-                "main.py",
-                input_path,
-                "unit1",
-                "01",
-                "--output-dir",
-                str(output_dir),
-                "--config",
-                config_path,
-            ],
+            _build_main_argv(input_path, config_path, output_dir=str(output_dir)),
         ):
             main()
 
