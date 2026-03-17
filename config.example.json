@@ -1245,6 +1245,15 @@
       }
     },
     "上海外服点嗨企业管理咨询有限公司": {
+      "input_filename_routing": {
+        "enabled": true,
+        "routes": [
+          {
+            "project_code": "B01153",
+            "rule_group": "b01153"
+          }
+        ]
+      },
       "default": {
         "template_path": "templates/招商银行混发模板.xlsx",
         "header_row": 6,
@@ -1278,6 +1287,65 @@
           "month_format": "{month}月收入",
           "bonus_value": "年终奖",
           "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      },
+      "b01153": {
+        "template_path": "templates/招商银行混发模板.xlsx",
+        "header_row": 6,
+        "start_row": 7,
+        "row_filter": {
+          "exclude_keywords": ["合计", "总计", "小计"]
+        },
+        "field_mappings": {
+          "户名": {
+            "source_column": "姓名",
+            "target_column": "户名",
+            "transform": "none",
+            "required": true
+          },
+          "账号": {
+            "source_column": "工资卡卡号",
+            "target_column": "账号",
+            "transform": "card_number",
+            "required": true
+          },
+          "金额": {
+            "source_column": "实发工资",
+            "target_column": "金额",
+            "transform": "amount_decimal",
+            "required": true
+          }
+        },
+        "fixed_values": {
+          "汇款备注": "工资"
+        },
+        "month_type_mapping": {
+          "enabled": false
         },
         "transformations": {
           "date_format": {

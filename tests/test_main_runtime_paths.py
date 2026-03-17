@@ -514,6 +514,94 @@ def test_main_input_filename_routing_multiple_match_exits(monkeypatch, tmp_path)
     assert exc_info.value.code == 1
 
 
+def test_main_b01153_routing_uses_fixed_salary_remark(monkeypatch, tmp_path):
+    args = argparse.Namespace(
+        excel_path="202604工资_B01153_批次.xlsx",
+        unit_name="上海外服点嗨企业管理咨询有限公司",
+        month="01",
+        output_dir=str(tmp_path / "out"),
+        config=str(tmp_path / "config.json"),
+        merge_folder=None,
+        output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
+    )
+
+    default_cfg = {
+        "template_path": "templates/招商银行混发模板.xlsx",
+        "header_row": 6,
+        "start_row": 7,
+        "row_filter": {"exclude_keywords": ["合计", "总计", "小计"]},
+        "field_mappings": {
+            "户名": {"source_column": "姓名", "target_column": "户名", "transform": "none"},
+            "账号": {"source_column": "工资卡卡号", "target_column": "账号", "transform": "card_number"},
+            "金额": {"source_column": "实发工资", "target_column": "金额", "transform": "amount_decimal"},
+        },
+        "month_type_mapping": {
+            "enabled": True,
+            "target_column": "汇款备注",
+            "month_format": "{month}月收入",
+        },
+        "transformations": {"amount_decimal": {"decimal_places": 2}},
+        "validation_rules": {"data_types": {"实发工资": "numeric"}},
+    }
+
+    config = {
+        "version": "2.0",
+        "organization_units": {
+            "上海外服点嗨企业管理咨询有限公司": {
+                "input_filename_routing": {
+                    "enabled": True,
+                    "routes": [{"project_code": "B01153", "rule_group": "b01153"}],
+                },
+                "default": dict(default_cfg),
+                "b01153": {
+                    **dict(default_cfg),
+                    "fixed_values": {"汇款备注": "工资"},
+                    "month_type_mapping": {"enabled": False},
+                },
+            }
+        },
+    }
+
+    called = {"process": 0}
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(main_module, "setup_logging", lambda: None)
+    monkeypatch.setattr(main_module, "parse_args", lambda _argv=None: args)
+    monkeypatch.setattr(main_module, "validate_cli_mode_args", lambda _args: None)
+    monkeypatch.setattr(main_module, "load_config", lambda _path: config)
+    monkeypatch.setattr(main_module, "validate_config", lambda _cfg: None)
+    monkeypatch.setattr(
+        main_module,
+        "ExcelReader",
+        lambda **_kwargs: SimpleNamespace(
+            read_excel=lambda _p: [{"姓名": "张三", "工资卡卡号": "6222021234567890128", "实发工资": "100"}]
+        ),
+    )
+    monkeypatch.setattr(
+        main_module,
+        "resolve_path",
+        lambda path, base_dir=None: str((tmp_path / path).resolve()),
+    )
+    monkeypatch.setattr(main_module.Validator, "validate_required", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module.Validator, "validate_data_types", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module.Validator, "validate_value_ranges", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module, "_needs_transformations", lambda _m: False)
+
+    def _capture_process_call(group_data, group_config, template_path, output_path, month_param, logger):
+        del group_data, template_path, output_path, month_param, logger
+        called["process"] += 1
+        captured["group_config"] = group_config
+
+    monkeypatch.setattr(main_module, "process_group", _capture_process_call)
+
+    main_module.main([])
+
+    assert called["process"] == 1
+    group_config = captured["group_config"]
+    assert group_config["fixed_values"] == {"汇款备注": "工资"}
+    assert group_config["month_type_mapping"] == {"enabled": False}
+
+
 def test_main_logs_unknown_error_when_logger_initialized(monkeypatch, caplog):
     caplog.set_level("ERROR")
     monkeypatch.setattr(main_module, "setup_logging", lambda: None)
