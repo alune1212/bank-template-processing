@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import TypedDict
-
 import pytest
 
 from bank_template_processing.config_loader import (
@@ -17,24 +15,7 @@ from bank_template_processing.config_loader import (
     get_unit_config,
     validate_config,
 )
-
-
-class UnitConfigSample(TypedDict):
-    template_path: object
-    header_row: object
-    start_row: object
-    field_mappings: object
-    transformations: object
-
-
-def _make_base_unit_config() -> UnitConfigSample:
-    return {
-        "template_path": "a.xlsx",
-        "header_row": 1,
-        "start_row": 2,
-        "field_mappings": {"姓名": {"source_column": "姓名"}},
-        "transformations": {},
-    }
+from tests.config_factories import make_basic_unit_config, make_config, make_multi_group_unit_config
 
 
 def test_validate_config_organization_units_must_be_dict():
@@ -43,14 +24,16 @@ def test_validate_config_organization_units_must_be_dict():
 
 
 def test_get_unit_config_multi_group_default_and_explicit_group():
-    config = {
-        "organization_units": {
-            "单位A": {
-                "default": {"template_path": "a.xlsx"},
-                "crossbank": {"template_path": "b.xlsx"},
-            }
+    config = make_config(
+        organization_units={
+            "单位A": make_multi_group_unit_config(
+                {
+                    "default": {"template_path": "a.xlsx"},
+                    "crossbank": {"template_path": "b.xlsx"},
+                }
+            )
         }
-    }
+    )
 
     assert get_unit_config(config, "单位A") == {"template_path": "a.xlsx"}
     assert get_unit_config(config, "单位A", "crossbank") == {"template_path": "b.xlsx"}
@@ -60,16 +43,15 @@ def test_get_unit_config_multi_group_default_and_explicit_group():
 
 
 def test_get_unit_config_legacy_with_template_key_warns(caplog):
-    config = {
-        "organization_units": {
-            "单位A": {
-                "template_path": "a.xlsx",
-                "header_row": 1,
-                "field_mappings": {},
-                "transformations": {},
-            }
+    config = make_config(
+        organization_units={
+            "单位A": make_basic_unit_config(
+                template_path="a.xlsx",
+                field_mappings={},
+                start_row=2,
+            )
         }
-    }
+    )
     resolved = get_unit_config(config, "单位A", "default")
     assert resolved["template_path"] == "a.xlsx"
     assert "使用旧配置结构，忽略 template_key" in caplog.text
@@ -113,7 +95,7 @@ def test_validate_validation_rules_error_paths():
 
 
 def test_validate_legacy_unit_config_error_paths():
-    base = _make_base_unit_config()
+    base = make_basic_unit_config(template_path="a.xlsx", field_mappings={"姓名": {"source_column": "姓名"}})
 
     cfg = {**base, "template_path": 123}
     with pytest.raises(ConfigError, match="template_path 必须是字符串"):
@@ -140,7 +122,7 @@ def test_validate_rule_group_config_error_paths_and_default_start_row(caplog):
     with pytest.raises(ConfigError, match="缺少必填字段"):
         _validate_rule_group_config("单位A", "default", {"header_row": 1, "field_mappings": {}, "transformations": {}})
 
-    base = _make_base_unit_config()
+    base = make_basic_unit_config(template_path="a.xlsx", field_mappings={"姓名": {"source_column": "姓名"}})
 
     with pytest.raises(ConfigError, match="template_path 必须须是字符串"):
         _validate_rule_group_config("单位A", "default", {**base, "template_path": 123})
@@ -204,54 +186,43 @@ def test_validate_template_selector_error_paths():
 def test_validate_config_rejects_invalid_template_selector():
     with pytest.raises(ConfigError, match="template_selector.bank_column 必须是非空字符串"):
         validate_config(
-            {
-                "version": "2.0",
-                "organization_units": {
-                    "单位A": {
-                        "template_selector": {
+            make_config(
+                version="2.0",
+                organization_units={
+                    "单位A": make_multi_group_unit_config(
+                        {
+                            "default": make_basic_unit_config(template_path="a.xlsx", field_mappings={}),
+                            "crossbank": make_basic_unit_config(template_path="b.xlsx", field_mappings={}),
+                        },
+                        template_selector={
                             "enabled": True,
                             "default_bank": "农业银行",
                             "bank_column": 123,
                         },
-                        "default": {
-                            "template_path": "a.xlsx",
-                            "header_row": 1,
-                            "field_mappings": {},
-                            "transformations": {},
-                        },
-                        "crossbank": {
-                            "template_path": "b.xlsx",
-                            "header_row": 1,
-                            "field_mappings": {},
-                            "transformations": {},
-                        },
-                    }
+                    )
                 },
-            }
+            )
         )
 
 
 def test_validate_config_requires_crossbank_when_template_selector_enabled():
     with pytest.raises(ConfigError, match="启用 template_selector 时必须配置规则组 'crossbank'"):
         validate_config(
-            {
-                "version": "2.0",
-                "organization_units": {
-                    "单位A": {
-                        "template_selector": {
+            make_config(
+                version="2.0",
+                organization_units={
+                    "单位A": make_multi_group_unit_config(
+                        {
+                            "default": make_basic_unit_config(template_path="a.xlsx", field_mappings={}),
+                        },
+                        template_selector={
                             "enabled": True,
                             "default_bank": "农业银行",
                             "bank_column": "银行",
                         },
-                        "default": {
-                            "template_path": "a.xlsx",
-                            "header_row": 1,
-                            "field_mappings": {},
-                            "transformations": {},
-                        },
-                    }
+                    )
                 },
-            }
+            )
         )
 
 
