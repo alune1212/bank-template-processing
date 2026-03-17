@@ -7,11 +7,70 @@ import logging
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import TypedDict
 
 import pytest
 
 from bank_template_processing import main as main_module
+
+
+class FieldMappingEntry(TypedDict, total=False):
+    source_column: str
+    target_column: str
+    transform: str
+
+
+class AutoNumberConfig(TypedDict, total=False):
+    enabled: bool
+    column_name: str
+    start_from: int
+
+
+class MonthTypeMappingConfig(TypedDict, total=False):
+    enabled: bool
+    target_column: str
+    month_format: str
+
+
+class ReaderOptionsConfig(TypedDict, total=False):
+    header_row: int
+    data_only: bool
+
+
+class RowFilterConfig(TypedDict, total=False):
+    exclude_keywords: list[str]
+
+
+class RuleGroupConfigSample(TypedDict, total=False):
+    template_path: str
+    header_row: int
+    start_row: int
+    field_mappings: dict[str, FieldMappingEntry | str]
+    transformations: dict[str, object]
+    validation_rules: dict[str, object]
+    month_type_mapping: MonthTypeMappingConfig
+    reader_options: ReaderOptionsConfig
+    row_filter: RowFilterConfig
+    auto_number: AutoNumberConfig
+    fixed_values: dict[str, str]
+
+
+class B01095ProcessCapture(TypedDict, total=False):
+    group_data: list[dict[str, str]]
+    group_config: RuleGroupConfigSample
+    template_path: str
+    output_path: str
+    month_param: str
+
+
+class ReaderSpyKwargs(TypedDict, total=False):
+    row_filter: dict[str, list[str]]
+    data_only: bool
+    header_row: int
+
+
+class GroupConfigCapture(TypedDict, total=False):
+    group_config: RuleGroupConfigSample
 
 
 def test_get_executable_dir_non_frozen_returns_project_root(monkeypatch):
@@ -259,7 +318,7 @@ def test_main_dynamic_selector_paths_with_template_fallback_and_transform(monkey
         output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
     )
 
-    base_group_cfg: dict[str, Any] = {
+    base_group_cfg: RuleGroupConfigSample = {
         "template_path": "templates/default.xlsx",
         "header_row": 1,
         "start_row": 2,
@@ -345,7 +404,7 @@ def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp
         output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
     )
 
-    base_group_cfg: dict[str, Any] = {
+    base_group_cfg: RuleGroupConfigSample = {
         "template_path": "templates/default.xlsx",
         "header_row": 1,
         "start_row": 2,
@@ -395,7 +454,7 @@ def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp
     }
 
     called = {"process": 0}
-    captured: dict[str, Any] = {}
+    captured: B01095ProcessCapture = {}
 
     monkeypatch.setattr(main_module, "setup_logging", lambda: None)
     monkeypatch.setattr(main_module, "parse_args", lambda _argv=None: args)
@@ -447,12 +506,18 @@ def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp
     assert str(captured["output_path"]).endswith("单位A_外服远茂进卡模版_2人_金额300.00元.xlsx")
 
     group_config = captured["group_config"]
+    payee_name_mapping = group_config["field_mappings"]["收款人姓名"]
+    payee_account_mapping = group_config["field_mappings"]["收款人账号"]
+    amount_mapping = group_config["field_mappings"]["交易金额"]
     assert group_config["header_row"] == 1
     assert group_config["start_row"] == 2
     assert group_config["auto_number"]["column_name"] == "明细序号"
-    assert group_config["field_mappings"]["收款人姓名"]["source_column"] == "姓名"
-    assert group_config["field_mappings"]["收款人账号"]["source_column"] == "工资卡卡号"
-    assert group_config["field_mappings"]["交易金额"]["source_column"] == "实发工资"
+    assert isinstance(payee_name_mapping, dict)
+    assert isinstance(payee_account_mapping, dict)
+    assert isinstance(amount_mapping, dict)
+    assert payee_name_mapping["source_column"] == "姓名"
+    assert payee_account_mapping["source_column"] == "工资卡卡号"
+    assert amount_mapping["source_column"] == "实发工资"
     assert group_config["month_type_mapping"]["target_column"] == "M"
 
 
@@ -502,7 +567,7 @@ def test_main_b01095_routing_reads_input_with_matched_rule_group_options(monkeyp
         },
     }
 
-    captured_reader_kwargs: dict[str, Any] = {}
+    captured_reader_kwargs: ReaderSpyKwargs = {}
 
     class ReaderSpy:
         def __init__(self, **kwargs):
@@ -545,7 +610,7 @@ def test_main_input_filename_routing_multiple_match_exits(monkeypatch, tmp_path)
         output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
     )
 
-    base_group_cfg: dict[str, Any] = {
+    base_group_cfg: RuleGroupConfigSample = {
         "template_path": "templates/default.xlsx",
         "header_row": 1,
         "start_row": 2,
@@ -642,7 +707,7 @@ def test_main_b01153_routing_uses_fixed_salary_remark(monkeypatch, tmp_path):
     }
 
     called = {"process": 0}
-    captured: dict[str, Any] = {}
+    captured: GroupConfigCapture = {}
 
     monkeypatch.setattr(main_module, "setup_logging", lambda: None)
     monkeypatch.setattr(main_module, "parse_args", lambda _argv=None: args)

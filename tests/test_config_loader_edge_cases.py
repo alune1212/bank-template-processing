@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TypedDict
 
 import pytest
 
@@ -17,6 +17,24 @@ from bank_template_processing.config_loader import (
     get_unit_config,
     validate_config,
 )
+
+
+class UnitConfigSample(TypedDict):
+    template_path: object
+    header_row: object
+    start_row: object
+    field_mappings: object
+    transformations: object
+
+
+def _make_base_unit_config() -> UnitConfigSample:
+    return {
+        "template_path": "a.xlsx",
+        "header_row": 1,
+        "start_row": 2,
+        "field_mappings": {"姓名": {"source_column": "姓名"}},
+        "transformations": {},
+    }
 
 
 def test_validate_config_organization_units_must_be_dict():
@@ -95,13 +113,7 @@ def test_validate_validation_rules_error_paths():
 
 
 def test_validate_legacy_unit_config_error_paths():
-    base: dict[str, Any] = {
-        "template_path": "a.xlsx",
-        "header_row": 1,
-        "start_row": 2,
-        "field_mappings": {"姓名": {"source_column": "姓名"}},
-        "transformations": {},
-    }
+    base = _make_base_unit_config()
 
     cfg = {**base, "template_path": 123}
     with pytest.raises(ConfigError, match="template_path 必须是字符串"):
@@ -128,13 +140,7 @@ def test_validate_rule_group_config_error_paths_and_default_start_row(caplog):
     with pytest.raises(ConfigError, match="缺少必填字段"):
         _validate_rule_group_config("单位A", "default", {"header_row": 1, "field_mappings": {}, "transformations": {}})
 
-    base: dict[str, Any] = {
-        "template_path": "a.xlsx",
-        "header_row": 1,
-        "start_row": 2,
-        "field_mappings": {"姓名": {"source_column": "姓名"}},
-        "transformations": {},
-    }
+    base = _make_base_unit_config()
 
     with pytest.raises(ConfigError, match="template_path 必须须是字符串"):
         _validate_rule_group_config("单位A", "default", {**base, "template_path": 123})
