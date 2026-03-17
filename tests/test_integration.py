@@ -16,6 +16,7 @@ from bank_template_processing.excel_reader import ExcelReader
 from bank_template_processing.excel_writer import ExcelWriter
 from bank_template_processing.template_selector import TemplateSelector, ValidationError
 from bank_template_processing.transformer import Transformer, TransformError
+from tests.config_factories import make_basic_unit_config, make_config, make_field_mapping
 
 
 class TestEndToEndWorkflow:
@@ -110,7 +111,7 @@ class TestErrorHandling:
             writer.write_excel(
                 template_path="tests/fixtures/nonexistent.xlsx",
                 data=[],
-                field_mappings={"姓名": {"source_column": "姓名"}},
+                field_mappings={"姓名": make_field_mapping(source_column="姓名")},
                 output_path=str(output_path),
                 header_row=3,
                 start_row=4,
@@ -119,17 +120,12 @@ class TestErrorHandling:
 
     def test_invalid_config(self, tmp_path):
         """测试无效配置"""
-        invalid_config = {
-            "version": "1.0",
-            "organization_units": {
-                "测试单位": {
-                    "header_row": 3,
-                    "start_row": 4,
-                    "field_mappings": {"姓名": {"source_column": "姓名"}},
-                    "transformations": {},
-                }
-            },
-        }
+        del tmp_path
+        invalid_unit_config = make_basic_unit_config(
+            field_mappings={"姓名": make_field_mapping(source_column="姓名")},
+        )
+        invalid_unit_config.pop("template_path")
+        invalid_config = make_config(unit_name="测试单位", unit_config=invalid_unit_config)
 
         with pytest.raises(ConfigError, match="缺少必填字段.*template_path"):
             validate_config(invalid_config)

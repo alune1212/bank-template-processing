@@ -2,31 +2,23 @@
 
 from __future__ import annotations
 
-import csv
 from pathlib import Path
 from types import SimpleNamespace
 
-import openpyxl
 import pytest
 
 import bank_template_processing.excel_writer as excel_writer_module
 from bank_template_processing.config_loader import ConfigError
 from bank_template_processing.excel_writer import ExcelError, ExcelWriter
+from tests.spreadsheet_factories import write_csv_rows, write_xls_rows, write_xlsx_rows
 
 
 def _create_csv_template(path: Path) -> None:
-    with open(path, "w", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["姓名", "金额"])
+    write_csv_rows(path, [["姓名", "金额"]])
 
 
 def _create_xlsx_template(path: Path) -> None:
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    assert ws is not None
-    ws.cell(1, 1, "姓名")
-    ws.cell(1, 2, "金额")
-    wb.save(path)
+    write_xlsx_rows(path, [["姓名", "金额"]])
 
 
 def test_write_excel_wraps_unexpected_exception(tmp_path, monkeypatch):
@@ -276,15 +268,8 @@ def test_write_xlsx_header_row_zero_with_invalid_clear_range_raises(tmp_path):
 
 
 def test_write_xls_header_row_zero_and_clear_rows_success(tmp_path):
-    import xlwt
-
     template_path = tmp_path / "template.xls"
-    workbook = xlwt.Workbook(encoding="utf-8")
-    sheet = workbook.add_sheet("Sheet1")
-    sheet.write(0, 0, "说明")
-    sheet.write(1, 0, "姓名")
-    sheet.write(2, 0, "旧数据")
-    workbook.save(template_path)
+    write_xls_rows(template_path, [["说明"], ["姓名"], ["旧数据"]])
 
     ExcelWriter()._write_xls(
         template_path=str(template_path),

@@ -7,6 +7,7 @@ import openpyxl
 import pytest
 
 from bank_template_processing.excel_writer import ExcelWriter
+from tests.spreadsheet_factories import write_xlsx_rows
 
 
 def test_chinese_column_name_with_xlsx_save_integration():
@@ -18,32 +19,14 @@ def test_chinese_column_name_with_xlsx_save_integration():
         tmpdir = Path(tmpdir)
 
         # Create a template file with Chinese headers (like config.json "crossbank" template)
-        template_path = tmpdir / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-
-        # Add header row as in config: header_row = 2
-        ws.cell(1, 1, "说明文字")
-        ws.cell(1, 2, "填表说明")
-
-        # Header row with Chinese column names
-        ws.cell(2, 1, "编号")
-        ws.cell(2, 2, "收款方账号")
-        ws.cell(2, 3, "收款方户名")
-        ws.cell(2, 4, "金额")
-        ws.cell(2, 5, "开户行支行名称")
-        ws.cell(2, 6, "用途（附言）")
-        ws.cell(2, 7, "是否农行账户")
-
-        # Add some old data that should be cleared
-        ws.cell(3, 1, "1")
-        ws.cell(3, 2, "1234567890123456")
-        ws.cell(3, 3, "张三")
-        ws.cell(3, 4, 1000.0)
-        ws.cell(3, 5, "北京支行")
-        ws.cell(3, 6, "01月收入")
-
-        wb.save(template_path)
+        template_path = write_xlsx_rows(
+            tmpdir / "template.xlsx",
+            [
+                ["说明文字", "填表说明"],
+                ["编号", "收款方账号", "收款方户名", "金额", "开户行支行名称", "用途（附言）", "是否农行账户"],
+                ["1", "1234567890123456", "张三", 1000.0, "北京支行", "01月收入"],
+            ],
+        )
 
         # Prepare data
         data = [

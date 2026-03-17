@@ -49,7 +49,7 @@ class RuleGroupConfigSample(TypedDict, total=False):
     transformations: dict[str, object]
     validation_rules: dict[str, object]
     month_type_mapping: MonthTypeMappingConfig
-    reader_options: ReaderOptionsConfig
+    reader_options: object
     row_filter: RowFilterConfig
     auto_number: AutoNumberConfig
     fixed_values: dict[str, str]
@@ -71,6 +71,58 @@ class ReaderSpyKwargs(TypedDict, total=False):
 
 class GroupConfigCapture(TypedDict, total=False):
     group_config: RuleGroupConfigSample
+
+
+def _make_runtime_args(
+    tmp_path: Path,
+    *,
+    excel_path: str = "input.xlsx",
+    unit_name: str = "单位A",
+    month: str = "01",
+) -> argparse.Namespace:
+    return argparse.Namespace(
+        excel_path=excel_path,
+        unit_name=unit_name,
+        month=month,
+        output_dir=str(tmp_path / "out"),
+        config=str(tmp_path / "config.json"),
+        merge_folder=None,
+        output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
+    )
+
+
+def _make_amount_rule_group_config(
+    *,
+    template_path: str = "templates/default.xlsx",
+    header_row: int = 1,
+    start_row: int = 2,
+    validation_rules: dict[str, object] | None = None,
+    month_type_mapping: MonthTypeMappingConfig | None = None,
+    reader_options: object | None = None,
+    row_filter: RowFilterConfig | None = None,
+    **extra: object,
+) -> RuleGroupConfigSample:
+    config: RuleGroupConfigSample = {
+        "template_path": template_path,
+        "header_row": header_row,
+        "start_row": start_row,
+        "field_mappings": {"金额": {"source_column": "实发工资", "transform": "amount_decimal"}},
+        "transformations": {"amount_decimal": {"decimal_places": 2}},
+        "validation_rules": validation_rules
+        if validation_rules is not None
+        else {
+            "required_fields": ["实发工资"],
+            "data_types": {"实发工资": "numeric"},
+            "value_ranges": {"实发工资": {"min": 0}},
+        },
+        "month_type_mapping": month_type_mapping if month_type_mapping is not None else {"enabled": False},
+    }
+    if reader_options is not None:
+        config["reader_options"] = reader_options
+    if row_filter is not None:
+        config["row_filter"] = row_filter
+    config.update(extra)
+    return config
 
 
 def test_get_executable_dir_non_frozen_returns_project_root(monkeypatch):
@@ -246,32 +298,12 @@ def test_needs_transformations_ignores_non_dict_mapping():
 
 
 def test_main_non_selector_runtime_paths_and_validation(monkeypatch, tmp_path):
-    args = argparse.Namespace(
-        excel_path="input.xlsx",
-        unit_name="单位A",
-        month="01",
-        output_dir=str(tmp_path / "out"),
-        config="config.json",
-        merge_folder=None,
-        output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
-    )
+    args = _make_runtime_args(tmp_path)
 
-    default_cfg = {
-        "template_path": "templates/default.xlsx",
-        "header_row": 1,
-        "start_row": 2,
-        "field_mappings": {
-            "金额": {"source_column": "实发工资", "transform": "amount_decimal"},
-        },
-        "transformations": {},
-        "validation_rules": {
-            "required_fields": ["实发工资"],
-            "data_types": {"实发工资": "numeric"},
-            "value_ranges": {"实发工资": {"min": 0}},
-        },
-        "reader_options": "invalid",  # 触发运行时保护分支
-        "month_type_mapping": {"enabled": False},
-    }
+    default_cfg = _make_amount_rule_group_config(
+        reader_options="invalid",  # 触发运行时保护分支
+        transformations={},
+    )
 
     config = {
         "version": "2.0",
@@ -308,29 +340,9 @@ def test_main_non_selector_runtime_paths_and_validation(monkeypatch, tmp_path):
 
 
 def test_main_dynamic_selector_paths_with_template_fallback_and_transform(monkeypatch, tmp_path):
-    args = argparse.Namespace(
-        excel_path="input.xlsx",
-        unit_name="单位A",
-        month="01",
-        output_dir=str(tmp_path / "out"),
-        config=str(tmp_path / "config.json"),
-        merge_folder=None,
-        output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
-    )
+    args = _make_runtime_args(tmp_path)
 
-    base_group_cfg: RuleGroupConfigSample = {
-        "template_path": "templates/default.xlsx",
-        "header_row": 1,
-        "start_row": 2,
-        "field_mappings": {"金额": {"source_column": "实发工资", "transform": "amount_decimal"}},
-        "transformations": {"amount_decimal": {"decimal_places": 2}},
-        "validation_rules": {
-            "required_fields": ["实发工资"],
-            "data_types": {"实发工资": "numeric"},
-            "value_ranges": {"实发工资": {"min": 0}},
-        },
-        "month_type_mapping": {"enabled": False},
-    }
+    base_group_cfg = _make_amount_rule_group_config()
 
     config = {
         "version": "2.0",
@@ -394,29 +406,11 @@ def test_main_dynamic_selector_paths_with_template_fallback_and_transform(monkey
 
 
 def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp_path):
-    args = argparse.Namespace(
-        excel_path="202603工资_B01095_批次.xlsx",
-        unit_name="单位A",
-        month="01",
-        output_dir=str(tmp_path / "out"),
-        config=str(tmp_path / "config.json"),
-        merge_folder=None,
-        output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
-    )
+    args = _make_runtime_args(tmp_path, excel_path="202603工资_B01095_批次.xlsx")
 
-    base_group_cfg: RuleGroupConfigSample = {
-        "template_path": "templates/default.xlsx",
-        "header_row": 1,
-        "start_row": 2,
-        "field_mappings": {"金额": {"source_column": "实发工资", "transform": "amount_decimal"}},
-        "transformations": {"amount_decimal": {"decimal_places": 2}},
-        "validation_rules": {
-            "required_fields": ["实发工资"],
-            "data_types": {"实发工资": "numeric"},
-            "value_ranges": {"实发工资": {"min": 0}},
-        },
-        "month_type_mapping": {"enabled": True, "month_format": "{month}月收入"},
-    }
+    base_group_cfg = _make_amount_rule_group_config(
+        month_type_mapping={"enabled": True, "month_format": "{month}月收入"}
+    )
 
     config = {
         "version": "2.0",
@@ -522,37 +516,18 @@ def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp
 
 
 def test_main_b01095_routing_reads_input_with_matched_rule_group_options(monkeypatch, tmp_path):
-    args = argparse.Namespace(
-        excel_path="202603工资_B01095_批次.xlsx",
-        unit_name="单位A",
-        month="01",
-        output_dir=str(tmp_path / "out"),
-        config=str(tmp_path / "config.json"),
-        merge_folder=None,
-        output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
-    )
+    args = _make_runtime_args(tmp_path, excel_path="202603工资_B01095_批次.xlsx")
 
-    default_cfg = {
-        "template_path": "templates/default.xlsx",
-        "header_row": 1,
-        "start_row": 2,
-        "reader_options": {"header_row": 1, "data_only": False},
-        "field_mappings": {"金额": {"source_column": "实发工资", "transform": "amount_decimal"}},
-        "transformations": {"amount_decimal": {"decimal_places": 2}},
-        "validation_rules": {},
-        "month_type_mapping": {"enabled": False},
-    }
-    routed_cfg = {
-        "template_path": "templates/b01095.xlsx",
-        "header_row": 1,
-        "start_row": 2,
-        "reader_options": {"header_row": 3, "data_only": True},
-        "row_filter": {"exclude_keywords": ["合计"]},
-        "field_mappings": {"金额": {"source_column": "实发工资", "transform": "amount_decimal"}},
-        "transformations": {"amount_decimal": {"decimal_places": 2}},
-        "validation_rules": {},
-        "month_type_mapping": {"enabled": False},
-    }
+    default_cfg = _make_amount_rule_group_config(
+        validation_rules={},
+        reader_options={"header_row": 1, "data_only": False},
+    )
+    routed_cfg = _make_amount_rule_group_config(
+        template_path="templates/b01095.xlsx",
+        validation_rules={},
+        reader_options={"header_row": 3, "data_only": True},
+        row_filter={"exclude_keywords": ["合计"]},
+    )
     config = {
         "version": "2.0",
         "organization_units": {
@@ -600,29 +575,9 @@ def test_main_b01095_routing_reads_input_with_matched_rule_group_options(monkeyp
 
 
 def test_main_input_filename_routing_multiple_match_exits(monkeypatch, tmp_path):
-    args = argparse.Namespace(
-        excel_path="202603工资_B01095_B01096_批次.xlsx",
-        unit_name="单位A",
-        month="01",
-        output_dir=str(tmp_path / "out"),
-        config=str(tmp_path / "config.json"),
-        merge_folder=None,
-        output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
-    )
+    args = _make_runtime_args(tmp_path, excel_path="202603工资_B01095_B01096_批次.xlsx")
 
-    base_group_cfg: RuleGroupConfigSample = {
-        "template_path": "templates/default.xlsx",
-        "header_row": 1,
-        "start_row": 2,
-        "field_mappings": {"金额": {"source_column": "实发工资", "transform": "amount_decimal"}},
-        "transformations": {"amount_decimal": {"decimal_places": 2}},
-        "validation_rules": {
-            "required_fields": ["实发工资"],
-            "data_types": {"实发工资": "numeric"},
-            "value_ranges": {"实发工资": {"min": 0}},
-        },
-        "month_type_mapping": {"enabled": False},
-    }
+    base_group_cfg = _make_amount_rule_group_config()
 
     config = {
         "version": "2.0",
@@ -659,14 +614,10 @@ def test_main_input_filename_routing_multiple_match_exits(monkeypatch, tmp_path)
 
 
 def test_main_b01153_routing_uses_fixed_salary_remark(monkeypatch, tmp_path):
-    args = argparse.Namespace(
+    args = _make_runtime_args(
+        tmp_path,
         excel_path="202604工资_B01153_批次.xlsx",
         unit_name="上海外服点嗨企业管理咨询有限公司",
-        month="01",
-        output_dir=str(tmp_path / "out"),
-        config=str(tmp_path / "config.json"),
-        merge_folder=None,
-        output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
     )
 
     default_cfg = {
@@ -758,15 +709,9 @@ def test_main_logs_unknown_error_when_logger_initialized(monkeypatch, caplog):
 
 
 def test_main_unit_not_found_exits(monkeypatch):
-    args = argparse.Namespace(
-        excel_path="input.xlsx",
-        unit_name="不存在单位",
-        month="01",
-        output_dir="output",
-        config="config.json",
-        merge_folder=None,
-        output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
-    )
+    args = _make_runtime_args(Path("."), unit_name="不存在单位")
+    args.output_dir = "output"
+    args.config = "config.json"
     monkeypatch.setattr(main_module, "setup_logging", lambda: None)
     monkeypatch.setattr(main_module, "parse_args", lambda _argv=None: args)
     monkeypatch.setattr(main_module, "validate_cli_mode_args", lambda _args: None)

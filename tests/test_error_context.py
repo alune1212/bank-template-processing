@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from bank_template_processing import main as main_module
 from bank_template_processing.merge_folder import MergeInputFile, MergeFolderError, prepare_merge_tasks
+from tests.config_factories import make_basic_unit_config, make_config, make_field_mapping
 
 
-def test_main_missing_salary_column_reports_context(monkeypatch, tmp_path, caplog):
-    args = argparse.Namespace(
+def _make_main_args(tmp_path):
+    return argparse.Namespace(
         excel_path="input.xlsx",
         unit_name="单位A",
         month="01",
@@ -21,17 +23,22 @@ def test_main_missing_salary_column_reports_context(monkeypatch, tmp_path, caplo
         merge_folder=None,
         output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
     )
-    config = {
-        "version": "2.0",
-        "organization_units": {
-            "单位A": {
-                "template_path": "tpl.xlsx",
-                "header_row": 1,
-                "field_mappings": {},
-                "transformations": {},
-            }
-        },
-    }
+
+
+def _noop_logger() -> SimpleNamespace:
+    return SimpleNamespace(
+        info=lambda *_args, **_kwargs: None,
+        warning=lambda *_args, **_kwargs: None,
+    )
+
+
+def test_main_missing_salary_column_reports_context(monkeypatch, tmp_path, caplog):
+    args = _make_main_args(tmp_path)
+    config = make_config(
+        version="2.0",
+        unit_name="单位A",
+        unit_config=make_basic_unit_config(template_path="tpl.xlsx", field_mappings={}),
+    )
 
     monkeypatch.setattr(main_module, "setup_logging", lambda: None)
     monkeypatch.setattr(main_module, "parse_args", lambda _argv=None: args)
@@ -50,27 +57,17 @@ def test_main_missing_salary_column_reports_context(monkeypatch, tmp_path, caplo
 
 
 def test_main_card_number_transform_reports_context(monkeypatch, tmp_path, caplog):
-    args = argparse.Namespace(
-        excel_path="input.xlsx",
+    args = _make_main_args(tmp_path)
+    config = make_config(
+        version="2.0",
         unit_name="单位A",
-        month="01",
-        output_dir=str(tmp_path / "out"),
-        config="config.json",
-        merge_folder=None,
-        output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
+        unit_config=make_basic_unit_config(
+            template_path="tpl.xlsx",
+            field_mappings={"卡号": make_field_mapping(source_column="卡号", transform="card_number")},
+            transformations={"card_number": {"luhn_validation": True}},
+            validation_rules={},
+        ),
     )
-    config = {
-        "version": "2.0",
-        "organization_units": {
-            "单位A": {
-                "template_path": "tpl.xlsx",
-                "header_row": 1,
-                "field_mappings": {"卡号": {"source_column": "卡号", "transform": "card_number"}},
-                "transformations": {"card_number": {"luhn_validation": True}},
-                "validation_rules": {},
-            }
-        },
-    }
 
     monkeypatch.setattr(main_module, "setup_logging", lambda: None)
     monkeypatch.setattr(main_module, "parse_args", lambda _argv=None: args)
@@ -127,5 +124,5 @@ def test_prepare_merge_tasks_stats_mismatch_reports_context(tmp_path, monkeypatc
             needs_transformations_fn=lambda _m: False,
             calculate_stats_fn=lambda data, _fm, _t: (1, 999.0),
             needs_month_for_filename=False,
-            logger=type("L", (), {"info": lambda *_a, **_k: None, "warning": lambda *_a, **_k: None})(),
+            logger=_noop_logger(),
         )

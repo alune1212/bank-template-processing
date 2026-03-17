@@ -16,6 +16,7 @@ from bank_template_processing.pipeline import (
 )
 from bank_template_processing.transformer import TransformError
 from bank_template_processing.validator import ValidationError
+from tests.spreadsheet_factories import write_xlsx_rows
 
 
 def test_build_reader_falls_back_for_invalid_reader_options(caplog):
@@ -47,12 +48,7 @@ def test_transform_rows_adds_context():
 
 
 def test_write_group_output_uses_shared_writer(tmp_path):
-    template_path = tmp_path / "template.xlsx"
-    workbook = openpyxl.Workbook()
-    sheet = workbook.active
-    assert sheet is not None
-    sheet.append(["姓名", "金额"])
-    workbook.save(template_path)
+    template_path = write_xlsx_rows(tmp_path / "template.xlsx", [["姓名", "金额"]])
 
     output_path = tmp_path / "out.xlsx"
     write_group_output(

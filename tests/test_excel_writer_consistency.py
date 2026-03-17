@@ -8,6 +8,7 @@ import openpyxl
 import pytest
 
 from bank_template_processing.excel_writer import ExcelWriter
+from tests.spreadsheet_factories import write_csv_rows, write_xls_rows, write_xlsx_rows
 
 
 @pytest.mark.parametrize("ext", [".xlsx", ".csv", ".xls"])
@@ -16,23 +17,11 @@ def test_writer_consistent_mapping_features(tmp_path, ext):
     output_path = tmp_path / f"output{ext}"
 
     if ext == ".xlsx":
-        workbook = openpyxl.Workbook()
-        sheet = workbook.active
-        assert sheet is not None
-        sheet.append(["序号", "姓名", "金额", "用途", "备注"])
-        workbook.save(template_path)
+        write_xlsx_rows(template_path, [["序号", "姓名", "金额", "用途", "备注"]])
     elif ext == ".csv":
-        with open(template_path, "w", encoding="utf-8", newline="") as file:
-            writer = csv.writer(file)
-            writer.writerow(["序号", "姓名", "金额", "用途", "备注"])
+        write_csv_rows(template_path, [["序号", "姓名", "金额", "用途", "备注"]])
     else:
-        import xlwt
-
-        workbook = xlwt.Workbook(encoding="utf-8")
-        sheet = workbook.add_sheet("Sheet1")
-        for col_idx, value in enumerate(["序号", "姓名", "金额", "用途", "备注"]):
-            sheet.write(0, col_idx, value)
-        workbook.save(template_path)
+        write_xls_rows(template_path, [["序号", "姓名", "金额", "用途", "备注"]])
 
     ExcelWriter().write_excel(
         template_path=str(template_path),

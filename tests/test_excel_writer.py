@@ -6,6 +6,7 @@ import openpyxl
 import pytest
 
 from bank_template_processing.excel_writer import ExcelError, ExcelWriter
+from tests.spreadsheet_factories import write_csv_rows, write_xls_rows, write_xlsx_rows
 
 
 class TestExcelWriter:
@@ -13,15 +14,7 @@ class TestExcelWriter:
 
     def test_write_xlsx_file(self, tmp_path):
         """测试写入.xlsx文件"""
-        # 创建模板文件
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "说明文字")
-        ws.cell(2, 1, "姓名")
-        ws.cell(2, 2, "年龄")
-        ws.cell(2, 3, "金额")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(tmp_path / "template.xlsx", [["说明文字"], ["姓名", "年龄", "金额"]])
 
         # 准备数据
         data = [
@@ -67,12 +60,7 @@ class TestExcelWriter:
 
     def test_amount_written_as_number(self, tmp_path):
         """测试金额字段以数字类型写入，而不是字符串"""
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "姓名")
-        ws.cell(1, 2, "金额")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(tmp_path / "template.xlsx", [["姓名", "金额"]])
 
         data = [
             {"姓名": "张三", "金额": 1000.50},
@@ -120,12 +108,7 @@ class TestExcelWriter:
 
     def test_write_csv_file(self, tmp_path):
         """测试写入.csv文件"""
-        # 创建模板文件
-        template_path = tmp_path / "template.csv"
-        with open(template_path, "w", encoding="utf-8", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["说明文字"])
-            writer.writerow(["姓名", "年龄", "金额"])
+        template_path = write_csv_rows(tmp_path / "template.csv", [["说明文字"], ["姓名", "年龄", "金额"]])
 
         # 准备数据
         data = [
@@ -169,13 +152,10 @@ class TestExcelWriter:
 
     def test_write_csv_preserves_rows_before_start_row(self, tmp_path):
         """测试 CSV 写入会保留 start_row 之前的说明行"""
-        template_path = tmp_path / "template.csv"
-        with open(template_path, "w", encoding="utf-8", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["姓名"])
-            writer.writerow(["说明行"])
-            writer.writerow(["旧数据"])
-            writer.writerow(["尾部"])
+        template_path = write_csv_rows(
+            tmp_path / "template.csv",
+            [["姓名"], ["说明行"], ["旧数据"], ["尾部"]],
+        )
 
         output_path = tmp_path / "output.csv"
         ExcelWriter().write_excel(
@@ -195,16 +175,7 @@ class TestExcelWriter:
 
     def test_write_xls_file(self, tmp_path):
         """测试写入.xls文件"""
-        import xlwt
-
-        # 创建模板文件（使用xlwt创建真正的xls格式）
-        template_path = tmp_path / "template.xls"
-        wb = xlwt.Workbook(encoding="utf-8")
-        ws = wb.add_sheet("Sheet1")
-        ws.write(0, 0, "说明文字")
-        ws.write(1, 0, "姓名")
-        ws.write(1, 1, "年龄")
-        wb.save(template_path)
+        template_path = write_xls_rows(tmp_path / "template.xls", [["说明文字"], ["姓名", "年龄"]])
 
         # 准备数据
         data = [{"姓名": "张三", "年龄": 25}, {"姓名": "李四", "年龄": 30}]
@@ -235,13 +206,7 @@ class TestExcelWriter:
 
     def test_fixed_values(self, tmp_path):
         """测试固定值功能"""
-        # 创建模板文件
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "姓名")
-        ws.cell(1, 2, "部门")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(tmp_path / "template.xlsx", [["姓名", "部门"]])
 
         # 准备数据
         data = [{"姓名": "张三"}, {"姓名": "李四"}]
@@ -270,12 +235,7 @@ class TestExcelWriter:
 
     def test_month_format_custom(self, tmp_path):
         """测试 month_format 生效"""
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "姓名")
-        ws.cell(1, 2, "用途")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(tmp_path / "template.xlsx", [["姓名", "用途"]])
 
         data = [{"姓名": "张三"}]
         field_mappings = {"姓名": {"source_column": "姓名"}}
@@ -308,15 +268,10 @@ class TestExcelWriter:
 
     def test_clear_rows_preserve_tail(self, tmp_path):
         """测试 clear_rows 仅清理数据区并保留尾部"""
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "姓名")
-        ws.cell(2, 1, "旧数据1")
-        ws.cell(3, 1, "旧数据2")
-        ws.cell(4, 1, "旧数据3")
-        ws.cell(5, 1, "合计")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(
+            tmp_path / "template.xlsx",
+            [["姓名"], ["旧数据1"], ["旧数据2"], ["旧数据3"], ["合计"]],
+        )
 
         data = [{"姓名": "张三"}, {"姓名": "李四"}]
         field_mappings = {"姓名": {"source_column": "姓名"}}
@@ -343,14 +298,10 @@ class TestExcelWriter:
 
     def test_clear_rows_insert_rows_when_data_exceeds(self, tmp_path):
         """测试 clear_rows 数据超过范围时插入行"""
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "姓名")
-        ws.cell(2, 1, "旧数据1")
-        ws.cell(3, 1, "旧数据2")
-        ws.cell(4, 1, "合计")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(
+            tmp_path / "template.xlsx",
+            [["姓名"], ["旧数据1"], ["旧数据2"], ["合计"]],
+        )
 
         data = [{"姓名": "张三"}, {"姓名": "李四"}, {"姓名": "王五"}]
         field_mappings = {"姓名": {"source_column": "姓名"}}
@@ -378,13 +329,10 @@ class TestExcelWriter:
 
     def test_clear_rows_csv_preserve_tail(self, tmp_path):
         """测试 CSV clear_rows 保留尾部"""
-        template_path = tmp_path / "template.csv"
-        with open(template_path, "w", encoding="utf-8", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["姓名"])
-            writer.writerow(["旧数据1"])
-            writer.writerow(["旧数据2"])
-            writer.writerow(["合计"])
+        template_path = write_csv_rows(
+            tmp_path / "template.csv",
+            [["姓名"], ["旧数据1"], ["旧数据2"], ["合计"]],
+        )
 
         data = [{"姓名": "张三"}]
         field_mappings = {"姓名": {"source_column": "姓名"}}
@@ -409,14 +357,10 @@ class TestExcelWriter:
 
     def test_clear_rows_csv_defaults_start_row_from_config(self, tmp_path):
         """测试 CSV clear_rows 未写 start_row 时回退到 start_row 配置"""
-        template_path = tmp_path / "template.csv"
-        with open(template_path, "w", encoding="utf-8", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["姓名"])
-            writer.writerow(["说明行"])
-            writer.writerow(["旧数据1"])
-            writer.writerow(["旧数据2"])
-            writer.writerow(["尾部"])
+        template_path = write_csv_rows(
+            tmp_path / "template.csv",
+            [["姓名"], ["说明行"], ["旧数据1"], ["旧数据2"], ["尾部"]],
+        )
 
         output_path = tmp_path / "output.csv"
         ExcelWriter().write_excel(
@@ -437,15 +381,9 @@ class TestExcelWriter:
 
     def test_clear_rows_xls_insufficient_range(self, tmp_path):
         """测试 XLS clear_rows 范围不足时抛错"""
-        import xlwt
         from bank_template_processing.config_loader import ConfigError
 
-        template_path = tmp_path / "template.xls"
-        wb = xlwt.Workbook(encoding="utf-8")
-        ws = wb.add_sheet("Sheet1")
-        ws.write(0, 0, "姓名")
-        ws.write(1, 0, "旧数据1")
-        wb.save(template_path)
+        template_path = write_xls_rows(tmp_path / "template.xls", [["姓名"], ["旧数据1"]])
 
         data = [{"姓名": "张三"}, {"姓名": "李四"}]
         field_mappings = {"姓名": {"source_column": "姓名"}}
@@ -465,13 +403,7 @@ class TestExcelWriter:
 
     def test_auto_number(self, tmp_path):
         """测试自动编号功能"""
-        # 创建模板文件
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "序号")
-        ws.cell(1, 2, "姓名")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(tmp_path / "template.xlsx", [["序号", "姓名"]])
 
         # 准备数据
         data = [{"姓名": "张三"}, {"姓名": "李四"}, {"姓名": "王五"}]
@@ -509,13 +441,7 @@ class TestExcelWriter:
 
     def test_bank_branch_mapping(self, tmp_path):
         """测试银行支行映射功能（已废弃，现在使用 field_mappings 替代）"""
-        # 创建模板文件
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "姓名")
-        ws.cell(1, 2, "部门")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(tmp_path / "template.xlsx", [["姓名", "部门"]])
 
         # 准备数据
         data = [
@@ -556,13 +482,7 @@ class TestExcelWriter:
 
     def test_month_type_mapping_month_number(self, tmp_path):
         """测试月类型映射功能 - 月份数字"""
-        # 创建模板文件
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "姓名")
-        ws.cell(1, 2, "月份")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(tmp_path / "template.xlsx", [["姓名", "月份"]])
 
         # 准备数据
         data = [{"姓名": "张三"}, {"姓名": "李四"}]
@@ -602,13 +522,7 @@ class TestExcelWriter:
 
     def test_month_type_mapping_bonus(self, tmp_path):
         """测试月类型映射功能 - 年终奖"""
-        # 创建模板文件
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "姓名")
-        ws.cell(1, 2, "类型")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(tmp_path / "template.xlsx", [["姓名", "类型"]])
 
         # 准备数据
         data = [{"姓名": "张三"}]
@@ -650,13 +564,7 @@ class TestExcelWriter:
 
     def test_column_index_mapping(self, tmp_path):
         """测试使用列索引的映射模式"""
-        # 创建模板文件
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "姓名")
-        ws.cell(1, 2, "年龄")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(tmp_path / "template.xlsx", [["姓名", "年龄"]])
 
         # 准备数据
         data = [{"name": "张三", "age": 25}, {"name": "李四", "age": 30}]
@@ -694,12 +602,7 @@ class TestExcelWriter:
 
     def test_old_format_field_mappings_xlsx(self, tmp_path):
         """测试旧格式field_mappings在xlsx中可用"""
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "姓名")
-        ws.cell(1, 2, "年龄")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(tmp_path / "template.xlsx", [["姓名", "年龄"]])
 
         data = [{"name": "张三", "age": 25}, {"name": "李四", "age": 30}]
 
@@ -728,15 +631,10 @@ class TestExcelWriter:
 
     def test_clear_existing_data(self, tmp_path):
         """测试清除现有数据"""
-        # 创建包含现有数据的模板文件
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "姓名")
-        ws.cell(2, 1, "旧数据1")
-        ws.cell(3, 1, "旧数据2")
-        ws.cell(4, 1, "旧数据3")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(
+            tmp_path / "template.xlsx",
+            [["姓名"], ["旧数据1"], ["旧数据2"], ["旧数据3"]],
+        )
 
         # 准备新数据
         data = [{"姓名": "新数据1"}, {"姓名": "新数据2"}]
@@ -771,12 +669,7 @@ class TestExcelWriter:
 
     def test_config_validation_invalid_start_row(self, tmp_path):
         """测试配置验证 - 无效的start_row"""
-        # 创建模板文件
-        template_path = tmp_path / "template.xlsx"
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.cell(1, 1, "姓名")
-        wb.save(template_path)
+        template_path = write_xlsx_rows(tmp_path / "template.xlsx", [["姓名"]])
 
         # 准备数据
         data = [{"姓名": "张三"}]
