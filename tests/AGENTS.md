@@ -1,21 +1,21 @@
 # TESTS KNOWLEDGE BASE
 
-**Generated:** 2026-02-24  
-**Commit:** f728266  
+**Generated:** 2026-03-19  
+**Commit:** 71c8a33  
 **Branch:** main  
 **Scope:** `tests/` 测试与回归规范
 
 ## OVERVIEW
-基于 `pytest`/`pytest-cov` 的完整测试套件，覆盖配置加载、主流程编排、Excel 三格式读写、数据转换/校验、模板分组及历史缺陷回归。
+基于 `pytest`/`pytest-cov` 的完整测试套件，覆盖配置加载、主流程编排、运行时路径保护、共享管线、Excel 三格式读写、数据转换/校验、模板分组、批量合并以及文档同步。
 
 ## CURRENT SNAPSHOT
-- 测试模块：13 个 `test_*.py`。
-- 测试用例：约 203 个 `test_*` 函数/方法。
-- 夹具目录：`tests/fixtures/`（`xlsx/csv/xls/json`）。
+- 测试模块：28 个 `test_*.py`。
+- 夹具目录：`tests/fixtures/`（输入样例、公式样例、集成配置等）。
 - 质量门槛：总覆盖率 `>=92%`，分支覆盖率 `>=85%`（由 `scripts/check_branch_coverage.py` 校验）。
 - 组织方式：
-  - 以 `Test*` 类组织为主
-  - 以函数式测试补充关键回归（如公式读取、文件名统计、中文列名问题）
+  - 模块化回归为主
+  - 边界/错误路径测试单独拆文件维护
+  - 通过 `tests/test_docs_sync.py` 约束 README 与配置说明的默认值同步
 
 ## STRUCTURE
 ```text
@@ -25,32 +25,51 @@ tests/
 │   ├── test_input.xlsx/.csv/.xls
 │   ├── test_formula.xlsx
 │   └── integration_*.xlsx/.json
-├── test_main.py                    # CLI 参数、主流程、transform 应用
-├── test_config_loader.py           # 配置结构/规则校验（含新旧键兼容）
-├── test_excel_reader.py            # 三格式读取、row_filter、header_row
-├── test_excel_reader_formula.py    # data_only 公式读取行为
-├── test_excel_writer.py            # 三格式写入、clear_rows、mapping_mode、自动编号
-├── test_transformer.py             # 日期/金额/卡号/Luhn
-├── test_validator.py               # required/data_types/value_ranges
-├── test_template_selector.py       # 分组逻辑、全角归一化、自定义列名
-├── test_integration.py             # 端到端流程与错误处理
-├── test_filename_stats.py          # 输出文件名与统计逻辑
-├── test_chinese_column_bug.py      # 中文列名误判回归
+├── test_branch_coverage_script.py
+├── test_chinese_column_bug.py
 ├── test_chinese_column_integration.py
-└── test_example.py                 # 最小示例测试
+├── test_config_loader.py
+├── test_config_loader_edge_cases.py
+├── test_docs_sync.py
+├── test_error_context.py
+├── test_example.py
+├── test_excel_reader.py
+├── test_excel_reader_error_paths.py
+├── test_excel_reader_formula.py
+├── test_excel_writer.py
+├── test_excel_writer_consistency.py
+├── test_excel_writer_error_paths.py
+├── test_filename_stats.py
+├── test_integration.py
+├── test_main.py
+├── test_main_runtime_paths.py
+├── test_merge_folder.py
+├── test_merge_folder_edge_cases.py
+├── test_module_entrypoint.py
+├── test_pipeline.py
+├── test_properties.py
+├── test_sheet_utils.py
+├── test_template_selector.py
+├── test_transformer.py
+├── test_validator.py
+└── test_validator_edge_cases.py
 ```
 
 ## WHERE TO LOOK
 | 场景 | 文件 | 重点 |
 |------|------|------|
-| 配置新规则校验 | `test_config_loader.py` | `reader_options`、`clear_rows`、禁止 `type_rules/range_rules` |
-| 读取策略回归 | `test_excel_reader.py` | `.xlsx/.csv/.xls`、过滤、`reader_options.header_row` |
+| 配置新规则校验 | `test_config_loader.py` / `test_config_loader_edge_cases.py` | `reader_options`、`clear_rows`、禁止 `type_rules/range_rules` |
+| 运行时路径分支 | `test_main_runtime_paths.py` | 配置/模板相对路径解析、保护分支 |
+| 批量合并主路径 | `test_merge_folder.py` | 分组、月份推断、文件名统计校验 |
+| 批量合并边界 | `test_merge_folder_edge_cases.py` | 规则组匹配、行读取边界、异常路径 |
+| 共享管线 | `test_pipeline.py` | reader 构建、转换判断、上下文错误 |
+| 文档默认值同步 | `test_docs_sync.py` | README/配置说明与运行时默认值一致 |
+| 读取策略回归 | `test_excel_reader.py` / `test_excel_reader_error_paths.py` | `.xlsx/.csv/.xls`、过滤、`reader_options.header_row` |
 | 公式缓存行为 | `test_excel_reader_formula.py` | `data_only=True/False` 差异 |
-| 写入复杂路径 | `test_excel_writer.py` | `clear_rows`、`column_index`、XLS 范围校验 |
+| 写入复杂路径 | `test_excel_writer.py` / `test_excel_writer_error_paths.py` | `clear_rows`、列解析、XLS/XLSX/CSV 边界 |
 | 输出命名逻辑 | `test_filename_stats.py` | `count/amount/ext` 模板变量行为 |
-| 银行分组边界 | `test_template_selector.py` | 全角空格/全角字母归一化、空值校验 |
 | 中文列名历史缺陷 | `test_chinese_column_bug.py` | 防止中文列名被当作列字母解析 |
-| 端到端流程 | `test_integration.py` | 典型成功流、异常流、动态模板选择 |
+| 属性测试 | `test_properties.py` | 关键不变量与随机输入回归 |
 
 ## CONVENTIONS
 - 测试文件命名保持 `test_*.py`。
@@ -61,8 +80,8 @@ tests/
 - 属性测试使用 `Hypothesis`，并统一走 `tests/conftest.py` 的 `ci` profile（可复现、禁用 deadline）。
 
 ## ANTI-PATTERNS
-- 不要只测 happy path，涉及配置解析与写入逻辑需同时覆盖失败分支。
-- 不要删除中文列名与公式读取相关回归测试，这两类问题已有历史缺陷。
+- 不要只测 happy path，涉及配置解析、写入逻辑和合并逻辑时需同时覆盖失败分支。
+- 不要删除中文列名、公式读取、运行时路径和批量合并相关回归测试，这几类都是已落地的历史问题或关键新功能。
 - 不要在测试里依赖本地 `config.json` 或 `templates/` 实目录，使用 `tests/fixtures` 与临时目录。
 - 不要引入与现有结构重复的“超大综合测试”，优先在对应模块追加聚焦用例。
 
@@ -71,21 +90,22 @@ tests/
 # 全量测试
 uv run pytest tests/ -v
 
-# 关键回归（配置 + 写入 + 中文列名）
-uv run pytest tests/test_config_loader.py tests/test_excel_writer.py tests/test_chinese_column_bug.py -v
+# 关键回归（主流程 + 合并 + 共享管线）
+uv run pytest tests/test_main.py tests/test_merge_folder.py tests/test_pipeline.py -v --no-cov
 
-# 读取策略回归（公式）
-uv run pytest tests/test_excel_reader.py tests/test_excel_reader_formula.py -v
+# 读取策略回归（含公式）
+uv run pytest tests/test_excel_reader.py tests/test_excel_reader_formula.py -v --no-cov
+
+# 文档同步
+uv run pytest tests/test_docs_sync.py -v --no-cov
 
 # 含覆盖率
-uv run pytest --cov=src --cov-report=term-missing
-
-# 上线前门槛（总覆盖率 + 分支覆盖）
 uv run pytest tests/ --cov=src --cov-branch --cov-report=xml --cov-fail-under=92
 uv run python scripts/check_branch_coverage.py --min-branch 85 --xml coverage.xml
 ```
 
 ## NOTES
 - `tests/test_main.py` 中自定义文件名模板用例仍包含 `{timestamp}`，用于验证“模板透传”而非默认模板值。
-- `tests/test_excel_writer.py` 对 `clear_rows` 在三种格式中的行为差异都有覆盖。
+- `tests/test_docs_sync.py` 只校验文档与默认值同步；单独运行时请配合 `--no-cov`，否则会被仓库全局覆盖率门槛拦下。
+- `tests/test_excel_writer.py` 与 `tests/test_excel_writer_consistency.py` 对 `clear_rows` 在三种格式中的行为差异都有覆盖。
 - `tests/test_validator.py` 对 `allowed_values` 的日期/数值归一化比较已有覆盖，修改校验逻辑时需优先回归。
