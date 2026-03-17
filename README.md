@@ -1,114 +1,117 @@
 # 银行卡进卡模板处理系统
 
-处理OA系统审批流程中的数据，将数据处理为银行模板对应的格式。
+将 OA 审批导出的发薪数据清洗、校验、转换后写入银行模板，支持单文件处理和已生成结果文件的批量合并。
 
-## 功能特性
+## 功能概览
 
-- **多格式支持**：支持 `.xlsx`、`.csv`、`.xls` 三种Excel格式
-- **数据转换**：
-  - 日期格式转换（支持多种输入格式）
-  - 金额舍入（保留指定位数）
-  - 卡号格式化（移除分隔符，Luhn校验）
-- **数据筛选**：在读取后、转换前默认过滤 `实发工资 = 0` 的行
-- **动态模板选择**：根据"开户银行"字段自动选择默认模板或特殊模板
-- **项目编码路由**：可按输入文件名中的项目编码（如 `B01095`）直连到指定规则组模板
-- **批量合并汇总**：按文件名中的“单位+模板”分组，批量合并目录下已生成模板文件
-- **高级功能**：
-  - 自动编号
-  - 固定值填写
-  - 银行支行映射
-  - 月份类型映射（月收入、年终奖、补偿金）
+- 支持 `.xlsx`、`.xls`、`.csv` 三种输入与模板格式。
+- 默认在读取后过滤 `实发工资 = 0` 的数据行。
+- 支持多规则组配置，常见结构为 `default`、`crossbank` 和自定义项目组。
+- 支持按“开户银行”自动分组输出到不同模板。
+- 支持按输入文件名中的项目编码直接路由到指定规则组。
+- 支持日期、金额、卡号转换，以及必填、类型、范围校验。
+- 支持 `fixed_values`、`auto_number`、`month_type_mapping`、`clear_rows` 等模板写入能力。
+- 支持对已生成文件按“单位 + 模板”分组再汇总输出。
+- 默认输出文件名模板为 `{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}`。
 
-## 安装
+## 运行要求
 
-### 方式一：Windows 可执行文件（推荐普通用户）
+- Python `>=3.13`
+- 仓库当前 `.python-version` 为 `3.14`
+- 包管理器使用 [`uv`](https://docs.astral.sh/uv/)
 
-下载 `bank-template-processing-win.zip` 压缩包，解压后即可使用，无需安装 Python。
+普通使用者也可以直接使用 Windows 打包产物；开发与日常维护建议直接从源码运行。
 
-解压后目录结构：
-```
-bank-template-processing/
-├── bank-template-processing.exe  # 主程序
-├── config.example.json           # 配置示例
-├── README.md                     # 说明文档
-├── 配置文件说明.md               # 配置说明
-├── 快速使用指南.txt              # 快速指南
-├── templates/                    # 模板目录（放入银行模板文件）
-└── output/                       # 输出目录（处理结果保存在这里）
-```
+## 快速开始
 
-**首次使用步骤：**
-1. 将 `config.example.json` 复制为 `config.json`
-2. 根据实际需求修改 `config.json` 中的配置
-3. 将银行模板文件放入 `templates/` 目录
-4. 打开命令提示符（CMD）或 PowerShell 运行程序
-
-### 方式二：从源码安装（开发者）
-
-本项目使用 `uv` 作为包管理器，并采用标准的 `src` 目录结构。
+### 从源码运行
 
 ```bash
-# 克隆仓库
-git clone <repository-url>
-cd bank-template-processing
-
-# 安装依赖
 uv sync
-
-# 激活虚拟环境 (可选，uv run 会自动处理)
-# source .venv/bin/activate  # Linux/macOS
-# .venv\Scripts\activate     # Windows
+cp config.example.json config.json
+mkdir -p templates
 ```
 
-## 使用示例
+然后：
 
-### Windows 可执行文件用法
+1. 按需编辑 `config.json`
+2. 将银行模板放入 `templates/`
+3. 运行 CLI
 
-```cmd
-# 处理1月份数据
-bank-template-processing.exe input.xlsx 单位名称 01
-
-# 处理年终奖数据
-bank-template-processing.exe input.xlsx 单位名称 年终奖
-
-# 处理补偿金数据
-bank-template-processing.exe input.xlsx 单位名称 补偿金
-
-# 自定义输出目录
-bank-template-processing.exe input.xlsx 单位名称 01 --output-dir custom_output/
-
-# 使用自定义配置文件
-bank-template-processing.exe input.xlsx 单位名称 01 --config custom_config.json
-
-# 批量合并目录中的已生成模板文件（结果输出到目录下 result/）
-bank-template-processing.exe --merge-folder output --config config.json
-```
-
-### Python 源码用法
-
-推荐使用 `uv run` 或 `python -m` 方式运行：
+### 普通处理模式
 
 ```bash
-# 处理1月份数据
-uv run python -m bank_template_processing input.xlsx 单位名称 01
-# 或者如果安装了项目脚本：
-# uv run bank-process input.xlsx 单位名称 01
+uv run python -m bank_template_processing input.xlsx "单位名称" 01
 
-# 处理年终奖数据
-uv run python -m bank_template_processing input.xlsx 单位名称 年终奖
+# 或使用项目脚本入口
+uv run bank-process input.xlsx "单位名称" 01
+```
 
-# 自定义输出目录
-uv run python -m bank_template_processing input.xlsx 单位名称 01 --output-dir custom_output/
+月份参数支持：
 
-# 批量合并目录中的已生成模板文件（结果输出到目录下 result/）
+- `1` 到 `12`
+- `01` 到 `09`
+- `年终奖`
+- `补偿金`
+
+### 批量合并模式
+
+```bash
 uv run python -m bank_template_processing --merge-folder output --config config.json
 ```
 
-## 配置文件说明
+该模式会读取 `output/` 目录第一层中的已生成文件，并将汇总结果写到 `output/result/`。
 
-配置文件使用 JSON 格式，包含以下主要部分：
+## 命令行参数
 
-### 基本结构
+### 普通模式
+
+```bash
+uv run python -m bank_template_processing <excel_path> "<unit_name>" <month> [options]
+```
+
+常用参数：
+
+- `--output-dir`：输出目录，默认 `output/`
+- `--config`：配置文件路径，默认 `config.json`
+- `--output-filename-template`：自定义输出文件名模板
+
+### 合并模式
+
+```bash
+uv run python -m bank_template_processing --merge-folder <folder> [options]
+```
+
+约束：
+
+- 使用 `--merge-folder` 时，不能同时提供 `excel_path`、`unit_name`、`month`
+- 合并模式只扫描目标目录第一层文件，不递归子目录
+
+### 输出文件名模板
+
+默认值：
+
+```text
+{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}
+```
+
+可用变量：
+
+- `{unit_name}`
+- `{month}`
+- `{template_name}`
+- `{count}`
+- `{amount}`
+- `{ext}`
+
+说明：
+
+- 如果模板中没有使用 `{ext}`，程序会自动追加模板扩展名。
+- 合并模式只有在规则组启用了 `month_type_mapping` 且输出模板实际使用 `{month}` 时，才会尝试推断月份值。
+
+## 配置速览
+
+配置文件为 JSON，推荐使用多规则组结构。顶层至少包含 `"version": "2.0"` 和 `organization_units`。
 
 ```json
 {
@@ -129,380 +132,189 @@ uv run python -m bank_template_processing --merge-folder output --config config.
         ]
       },
       "default": {
-        "template_path": "templates/农业银行模板.csv",
-        "header_row": 0,
-        "start_row": 1,
+        "template_path": "templates/default.xlsx",
+        "header_row": 1,
+        "start_row": 2,
         "reader_options": {
           "data_only": false,
           "header_row": 1
         },
         "clear_rows": {
-          "start_row": 1,
+          "start_row": 2,
           "end_row": 200
         },
-        "field_mappings": { ... },
-        "transformations": { ... },
-        "validation_rules": { ... }
+        "field_mappings": {
+          "姓名": {
+            "source_column": "姓名",
+            "target_column": "姓名",
+            "transform": "none",
+            "required": true
+          },
+          "金额": {
+            "source_column": "实发工资",
+            "target_column": "金额",
+            "transform": "amount_decimal",
+            "required": true
+          }
+        },
+        "transformations": {
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          }
+        },
+        "validation_rules": {
+          "required_fields": ["姓名", "实发工资"],
+          "data_types": {
+            "实发工资": "numeric"
+          }
+        }
       },
       "crossbank": {
-        "template_path": "templates/农业银行跨行进卡模板.xlsx",
+        "template_path": "templates/crossbank.xlsx",
         "header_row": 2,
         "start_row": 3,
-        "field_mappings": { ... },
-        "transformations": { ... }
+        "field_mappings": {},
+        "transformations": {}
       },
       "b01095": {
-        "template_path": "templates/外服远茂进卡模版.xlsx",
+        "template_path": "templates/b01095.xlsx",
         "header_row": 1,
         "start_row": 2,
-        "field_mappings": { ... },
-        "transformations": { ... }
+        "field_mappings": {},
+        "transformations": {}
       }
     }
   }
 }
 ```
 
-### 配置项说明
+关键点：
 
-| 配置项 | 说明 | 默认值 |
-|---------|------|---------|
-| `version` | 配置文件版本号 | `"2.0"` |
-| `template_path` | 模板文件路径 | 必填 |
-| `header_row` | 输出模板表头所在行（从1开始，可为0） | 必填，≥ 0 |
-| `start_row` | 输出数据起始行（从1开始） | `max(1, header_row + 1)` |
-| `field_mappings` | 字段映射配置 | 必填 |
-| `fixed_values` | 固定值配置 | 可选 |
-| `auto_number` | 自动编号配置 | 可选 |
-| `clear_rows` | 输出数据区清理范围 | 可选 |
-| `month_type_mapping` | 月份类型映射 | 可选 |
-| `reader_options` | 读取器选项 | 可选 |
-| `template_selector` | 动态模板选择 | 可选 |
-| `input_filename_routing` | 输入文件名项目编码路由 | 可选 |
+- 多规则组结构中必须有 `default`
+- `input_filename_routing` 只支持多规则组结构
+- `header_row` 是输出模板表头行，允许为 `0`
+- `reader_options.header_row` 是输入文件表头行，必须 `>= 1`
+- `start_row` 必须大于 `header_row`
+- `field_mappings`、`transformations` 为规则组必填项
 
-### 字段映射配置
+更完整的字段说明见 [配置文件说明.md](/Users/alune/Documents/code/bank-template-processing/配置文件说明.md)。
 
-```json
-"field_mappings": {
-  "模板列名": {
-    "source_column": "输入列名",
-    "transform": "date_format|amount_decimal|card_number|none",
-    "required": true
-  }
-}
-```
+## 关键运行时行为
 
-### 固定值配置
+### 路径解析
 
-```json
-"fixed_values": {
-  "模板列名": "固定值"
-}
-```
+- 相对 `config` 路径会解析到程序运行目录
+- 相对 `template_path` 也会解析到程序运行目录
+- 源码运行时，这个目录通常是项目根目录
+- PyInstaller 打包运行时，这个目录是可执行文件所在目录
 
-示例：
-```json
-"fixed_values": {
-  "省份": "浙江省",
-  "业务类型": "工资代发"
-}
-```
+### 数据读取与筛选
 
-### 自动编号配置
+- 程序会先读取输入文件，再执行 `实发工资 = 0` 行过滤
+- 当前实现固定依赖输入数据存在 `实发工资` 列；若缺失会直接报错
+- `row_filter.exclude_keywords` 会在读取阶段跳过包含关键字的整行
+- `reader_options.data_only=true` 时，`.xlsx` 会读取公式缓存值而不是公式文本
 
-```json
-"auto_number": {
-  "enabled": true,
-  "column_name": "序号",
-  "start_from": 1
-}
-```
+### 动态模板选择
 
-### 银行支行映射
+- `input_filename_routing` 命中时，优先于 `template_selector`
+- `template_selector` 使用 `bank_column` 与 `default_bank` 对比
+- 对比前会做全角转半角和首尾空白归一化，减少银行名称格式差异造成的误分组
+- `special_template`、`default_template` 可选；未配置时会回退到对应规则组的 `template_path`
 
-```json
-"bank_branch_mapping": {
-  "enabled": true,
-  "source_column": "开户银行",
-  "target_column": "开户支行"
-}
-```
+### 批量合并
 
-### 月份类型映射
+- 程序优先按默认命名 `{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}` 解析文件
+- 若文件名不完全符合默认命名，会尝试根据配置中的单位名与模板名回推
+- 输入文件按修改时间升序处理；若修改时间相同，按文件名升序处理
+- 文件名中若带有人数和金额，合并时会与数据重算结果做一致性校验
+- 启用 `month_type_mapping` 时，合并输出会保留每行原始月类型值，不会统一改写为同一个月份文案
 
-```json
-"month_type_mapping": {
-  "enabled": true,
-  "target_column": "收入类型",
-  "month_format": "{month}月收入",
-  "bonus_value": "年终奖",
-  "compensation_value": "补偿金"
-}
-```
+## 配置能力摘要
 
-### 读取器选项（reader_options）
+### `field_mappings`
 
-用于控制读取 Excel 时的策略。
+- 推荐使用字典格式，显式声明 `source_column`、`target_column`、`transform`
+- `target_column` 支持三种写法：
+  - 模板表头列名
+  - Excel 列字母，例如 `A`、`B`、`AA`
+  - 从 `1` 开始的列索引
+- 中文列名会按“列名”处理，不会误判成 Excel 列字母
 
-```json
-"reader_options": {
-  "data_only": true,
-  "header_row": 1
-}
-```
+### `transformations`
 
-说明：
-- `data_only`: 当为 `true` 时，读取公式单元格的**缓存结果**；为 `false` 时读取公式文本。
-  - 注意：`openpyxl` 不会计算公式，只有在 Excel 中保存过计算结果时才有缓存值。
-- `header_row`: 输入文件表头行号（从 1 开始），用于跳过输入中的标题/说明行。
+- `date_format`：支持多种日期输入，当前仅输出 `YYYY-MM-DD`
+- `amount_decimal`：支持 `round`、`half_up`、`floor`、`ceil`、`down`、`up`
+- `card_number`：支持去格式化和 Luhn 校验
 
-### 输出数据区清理（clear_rows）
+### `validation_rules`
 
-用于在写入前清空模板中的固定数据区，同时保留模板尾部统计/公式区域。
+- 仅支持 `required_fields`、`data_types`、`value_ranges`
+- 旧键名 `type_rules`、`range_rules` 会被直接拒绝
+- `required_fields` 在转换前执行
+- `data_types` 和 `value_ranges` 在转换后执行
 
-```json
-"clear_rows": {
-  "start_row": 2,
-  "end_row": 200
-}
-```
+### 其他常用项
 
-说明：
-- `end_row` 为推荐字段。
-- `data_end_row` 仍兼容旧配置，但不能与 `end_row` 同时出现。
-- `.xlsx` 在数据超出清理区间时会自动插入行；`.xls` 要求区间足够容纳全部数据。
+- `clear_rows`：控制模板中预清空的数据区域；支持 `end_row`，兼容 `data_end_row`
+- `fixed_values`：向模板列写固定值
+- `auto_number`：自动写序号，支持 `column` 或 `column_name`
+- `month_type_mapping`：根据月份参数写用途/摘要等字段
+- `bank_branch_mapping`：仍兼容，但已废弃，建议直接改用 `field_mappings`
 
-### 动态模板选择配置
-
-`template_selector` 配置用于根据"开户银行"字段自动选择模板：
-
-```json
-"template_selector": {
-  "enabled": true,
-  "default_bank": "中国农业银行",
-  "bank_column": "开户银行",
-  "default_group_name": "农业银行",
-  "special_group_name": "农行跨行"
-}
-```
-
-当启用时：
-- "开户银行" == "中国农业银行" → 使用默认模板
-- "开户银行" ≠ "中国农业银行" → 使用特殊模板
-
-### 输入文件名项目编码路由
-
-`input_filename_routing` 用于根据输入文件名（basename）中的项目编码直接选择规则组：
-
-```json
-"input_filename_routing": {
-  "enabled": true,
-  "routes": [
-    { "project_code": "B01095", "rule_group": "b01095" }
-  ]
-}
-```
-
-行为说明：
-- 文件名命中 `project_code`（contains，不区分大小写）时，直接使用对应 `rule_group` 输出单文件。
-- 文件名未命中任何编码时，继续走原有 `template_selector/default` 逻辑。
-- 同一文件名命中多个编码时，程序报错并终止，避免路由歧义。
-
-**输出文件命名规则**：
-- 默认模板：`{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}`
-- 可通过 `--output-filename-template` 自定义，支持变量：
-  - `{unit_name}` `{month}` `{template_name}` `{count}` `{amount}` `{ext}`
-
-## 数据转换规则
-
-### 日期格式转换
-
-支持以下输入日期格式，统一输出为 `YYYY-MM-DD`：
-- `YYYY-MM-DD`
-- `DD/MM/YYYY`
-- `MM/DD/YYYY`
-- `YYYY年MM月DD日`
-- `YYYY-M-D`
-
-### 金额格式转换
-
-使用标准舍入，保留指定位数：
-- 默认：2位小数
-- 示例：`123.4567` → `123.46`
-
-### 卡号格式转换
-
-1. 移除非数字字符（空格、横杠等）
-2. 执行 Luhn 校验，确保卡号有效性
-
-**Luhn 算法**：
-- 从右向左遍历
-- 偶数位乘以2，如果乘积大于9则减去9
-- 所有数字相加，总和能被10整除则有效
-
-## 模板文件结构
-
-### 简单模板（`example_template.xlsx`）
-
-```
-第1行（表头）：序号 | 姓名 | 卡号 | 金额 | 日期 | 开户支行 | 收入类型
-第2行开始：数据行
-```
-
-### 复杂模板（`complex_template.xlsx`）
-
-```
-第1-3行：说明文字、标题
-第4行（表头）：序号 | 姓名 | 卡号 | 金额 | 日期 | ...
-第5行开始：数据行
-```
-
-配置示例：
-```json
-{
-  "header_row": 4,
-  "start_row": 5
-}
-```
-
-## 错误处理
-
-系统会捕获并记录以下错误：
-
-| 错误类型 | 说明 | 处理方式 |
-|----------|------|----------|
-| `ConfigError` | 配置文件错误 | 记录错误消息，退出 |
-| `ExcelError` | Excel文件错误 | 记录错误消息，退出 |
-| `ValidationError` | 数据验证错误 | 记录错误消息，退出 |
-| `TransformError` | 数据转换错误 | 记录错误消息，退出 |
-| `FileNotFoundError` | 文件未找到 | 记录错误消息，退出 |
-| `ValueError` | 参数值错误 | 记录错误消息，退出 |
-
-## 开发指南
-
-### 代码规范
-本项目采用现代化工具链：
-- **包管理**: `uv`
-- **代码格式/检查**: `ruff`
-- **类型检查**: `ty` (Astral) 或 `mypy`
-
-### 运行测试
+## 开发与测试
 
 ```bash
-# 运行所有测试
-uv run pytest
+# 运行测试
+uv run pytest tests/ -v
 
-# 运行测试并生成覆盖率报告
-uv run pytest --cov=src --cov-report=html
+# 文档同步检查
+uv run pytest tests/test_docs_sync.py -v
 
-# 上线前质量门槛（总覆盖率>=92%，分支覆盖率>=85%）
-uv run pytest tests/ --cov=src --cov-branch --cov-report=xml --cov-fail-under=92
-uv run python scripts/check_branch_coverage.py --min-branch 85 --xml coverage.xml
-```
-
-### 代码检查
-
-```bash
-# 格式化代码
+# 代码格式化与检查
 uv run ruff format .
-
-# 静态检查
 uv run ruff check . --fix
 
 # 类型检查
 uv run ty check
 ```
 
-## Windows 打包（开发者）
+当前测试配置要求总覆盖率不低于 `92%`。
 
-如需自行构建 Windows 可执行文件：
-
-### 前置条件
-
-- Windows 操作系统
-- Python 3.13+
-- `uv` 包管理器
-
-### 构建步骤
-
-**方式一：使用 PowerShell 脚本（推荐）**
+## Windows 打包
 
 ```powershell
-# 在项目根目录执行
-.\scripts\build_windows.ps1
+pwsh ./scripts/build_windows.ps1
 ```
 
-**方式二：手动执行 PyInstaller**
+或：
 
 ```bash
-# 安装依赖
-uv sync
-
-# 执行打包（使用 uv 环境）
-uv run pyinstaller bank_template_processing.spec --noconfirm
-
-# 打包结果在 dist\bank-template-processing\ 目录
+uv run pyinstaller bank_template_processing.spec
 ```
-
-### 构建产物
-
-- `dist/bank-template-processing/` - 可分发目录
-- `dist/bank-template-processing-win.zip` - 压缩包（可直接分发）
-
-## 日志
-
-日志格式：`%(asctime)s - %(name)s - %(levelname)s - %(message)s`
-
-日志级别：
-- `INFO`：常规操作信息
-- `WARNING`：警告信息
-- `ERROR`：错误信息
-- `DEBUG`：调试信息
 
 ## 项目结构
 
-```
+```text
 bank-template-processing/
-├── src/                          # 源代码目录
-│   └── bank_template_processing/ # Python 包
-│       ├── __init__.py
-│       ├── __main__.py           # 模块入口
-│       ├── main.py               # 命令行入口逻辑
-│       ├── config_loader.py      # 配置加载器
-│       ├── excel_reader.py       # Excel读取器
-│       ├── excel_writer.py       # Excel写入器
-│       ├── merge_folder.py       # 批量合并目录模式
-│       ├── pipeline.py           # 共享处理管线
-│       ├── sheet_utils.py        # 表格共享工具
-│       ├── transformer.py        # 数据转换器
-│       ├── validator.py          # 数据验证器
-│       └── template_selector.py  # 模板选择器
-├── config.json                   # 配置文件（用户创建）
-├── config.example.json           # 配置文件示例
-├── README.md                     # 项目文档
-├── 配置文件说明.md               # 配置说明（中文）
-├── pyproject.toml                # 项目配置 (依赖, 构建, 工具配置)
-├── bank_template_processing.spec # PyInstaller 打包规格
-├── run_for_pyinstaller.py        # PyInstaller 入口脚本
-├── scripts/                      # 构建脚本
-│   ├── build_windows.ps1         # PowerShell 打包脚本
-│   └── build_windows.bat         # 批处理打包脚本
-├── tests/                        # 测试目录
-│   ├── __init__.py
-│   ├── test_*.py                 # 测试文件
-│   └── fixtures/                 # 测试fixtures
-└── templates/                    # 模板文件目录（用户创建）
-    └── ...                       # 银行模板文件
+├── src/bank_template_processing/
+│   ├── __main__.py
+│   ├── main.py
+│   ├── config_loader.py
+│   ├── excel_reader.py
+│   ├── excel_writer.py
+│   ├── merge_folder.py
+│   ├── pipeline.py
+│   ├── sheet_utils.py
+│   ├── template_selector.py
+│   ├── transformer.py
+│   └── validator.py
+├── tests/
+├── config.example.json
+├── README.md
+├── 配置文件说明.md
+├── templates.example/
+├── bank_template_processing.spec
+└── run_for_pyinstaller.py
 ```
-
-## 许可证
-
-MIT License
-
-## 贡献者
-
-欢迎提交 Pull Request！
-
-## 联系方式
-
-如有问题或建议，请提交 Issue。
