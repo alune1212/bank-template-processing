@@ -1845,6 +1845,15 @@
         "default_group_name": "招行混发",
         "special_group_name": "农行混发"
       },
+      "input_filename_routing": {
+        "enabled": true,
+        "routes": [
+          {
+            "project_code": "B01095",
+            "rule_group": "b01095"
+          }
+        ]
+      },
       "default": {
         "template_path": "templates/招商银行混发模板.xlsx",
         "header_row": 6,
@@ -1946,6 +1955,71 @@
         "month_type_mapping": {
           "enabled": true,
           "target_column": "备注（附言）",
+          "month_format": "{month}月收入",
+          "bonus_value": "年终奖",
+          "compensation_value": "补偿金"
+        },
+        "transformations": {
+          "date_format": {
+            "output_format": "YYYY-MM-DD"
+          },
+          "amount_decimal": {
+            "decimal_places": 2,
+            "rounding": "round"
+          },
+          "card_number": {
+            "remove_formatting": true,
+            "luhn_validation": true
+          }
+        },
+        "validation_rules": {
+          "data_types": {
+            "实发工资": "numeric",
+            "工资卡卡号": "integer"
+          },
+          "value_ranges": {
+            "实发工资": {
+              "min": 0,
+              "max": 999999.99
+            }
+          }
+        }
+      },
+      "b01095": {
+        "template_path": "templates/外服远茂进卡模版.xlsx",
+        "header_row": 1,
+        "start_row": 2,
+        "row_filter": {
+          "exclude_keywords": ["合计", "总计", "小计"]
+        },
+        "field_mappings": {
+          "收款人姓名": {
+            "source_column": "姓名",
+            "target_column": "收款人姓名",
+            "transform": "none",
+            "required": true
+          },
+          "收款人账号": {
+            "source_column": "工资卡卡号",
+            "target_column": "收款人账号",
+            "transform": "card_number",
+            "required": true
+          },
+          "交易金额": {
+            "source_column": "实发工资",
+            "target_column": "交易金额",
+            "transform": "amount_decimal",
+            "required": true
+          }
+        },
+        "auto_number": {
+          "enabled": true,
+          "column_name": "明细序号",
+          "start_from": 1
+        },
+        "month_type_mapping": {
+          "enabled": true,
+          "target_column": "M",
           "month_format": "{month}月收入",
           "bonus_value": "年终奖",
           "compensation_value": "补偿金"

@@ -11,6 +11,7 @@
   - 卡号格式化（移除分隔符，Luhn校验）
 - **数据筛选**：在读取后、转换前默认过滤 `实发工资 = 0` 的行
 - **动态模板选择**：根据"开户银行"字段自动选择默认模板或特殊模板
+- **项目编码路由**：可按输入文件名中的项目编码（如 `B01095`）直连到指定规则组模板
 - **批量合并汇总**：按文件名中的“单位+模板”分组，批量合并目录下已生成模板文件
 - **高级功能**：
   - 自动编号
@@ -121,6 +122,12 @@ uv run python -m bank_template_processing --merge-folder output --config config.
         "default_group_name": "农业银行",
         "special_group_name": "农行跨行"
       },
+      "input_filename_routing": {
+        "enabled": true,
+        "routes": [
+          { "project_code": "B01095", "rule_group": "b01095" }
+        ]
+      },
       "default": {
         "template_path": "templates/农业银行模板.csv",
         "header_row": 0,
@@ -141,6 +148,13 @@ uv run python -m bank_template_processing --merge-folder output --config config.
         "template_path": "templates/农业银行跨行进卡模板.xlsx",
         "header_row": 2,
         "start_row": 3,
+        "field_mappings": { ... },
+        "transformations": { ... }
+      },
+      "b01095": {
+        "template_path": "templates/外服远茂进卡模版.xlsx",
+        "header_row": 1,
+        "start_row": 2,
         "field_mappings": { ... },
         "transformations": { ... }
       }
@@ -164,6 +178,7 @@ uv run python -m bank_template_processing --merge-folder output --config config.
 | `month_type_mapping` | 月份类型映射 | 可选 |
 | `reader_options` | 读取器选项 | 可选 |
 | `template_selector` | 动态模板选择 | 可选 |
+| `input_filename_routing` | 输入文件名项目编码路由 | 可选 |
 
 ### 字段映射配置
 
@@ -274,6 +289,24 @@ uv run python -m bank_template_processing --merge-folder output --config config.
 当启用时：
 - "开户银行" == "中国农业银行" → 使用默认模板
 - "开户银行" ≠ "中国农业银行" → 使用特殊模板
+
+### 输入文件名项目编码路由
+
+`input_filename_routing` 用于根据输入文件名（basename）中的项目编码直接选择规则组：
+
+```json
+"input_filename_routing": {
+  "enabled": true,
+  "routes": [
+    { "project_code": "B01095", "rule_group": "b01095" }
+  ]
+}
+```
+
+行为说明：
+- 文件名命中 `project_code`（contains，不区分大小写）时，直接使用对应 `rule_group` 输出单文件。
+- 文件名未命中任何编码时，继续走原有 `template_selector/default` 逻辑。
+- 同一文件名命中多个编码时，程序报错并终止，避免路由歧义。
 
 **输出文件命名规则**：
 - 默认模板：`{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}`

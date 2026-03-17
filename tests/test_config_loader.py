@@ -505,6 +505,149 @@ class TestValidateConfig:
         with pytest.raises(ConfigError, match="organization_units.*不能为空"):
             validate_config(config)
 
+    def test_validate_input_filename_routing_valid(self):
+        """测试 input_filename_routing 合法配置"""
+        config = {
+            "version": "2.0",
+            "organization_units": {
+                "test_unit": {
+                    "input_filename_routing": {
+                        "enabled": True,
+                        "routes": [{"project_code": "B01095", "rule_group": "b01095"}],
+                    },
+                    "default": {
+                        "template_path": "templates/default.xlsx",
+                        "header_row": 1,
+                        "start_row": 2,
+                        "field_mappings": {"姓名": {"source_column": "name"}},
+                        "transformations": {},
+                    },
+                    "b01095": {
+                        "template_path": "templates/b01095.xlsx",
+                        "header_row": 1,
+                        "start_row": 2,
+                        "field_mappings": {"姓名": {"source_column": "name"}},
+                        "transformations": {},
+                    },
+                }
+            },
+        }
+        validate_config(config)
+
+    def test_validate_input_filename_routing_routes_must_be_list(self):
+        """测试 input_filename_routing.routes 非列表触发错误"""
+        config = {
+            "version": "2.0",
+            "organization_units": {
+                "test_unit": {
+                    "input_filename_routing": {
+                        "enabled": True,
+                        "routes": "B01095",
+                    },
+                    "default": {
+                        "template_path": "templates/default.xlsx",
+                        "header_row": 1,
+                        "start_row": 2,
+                        "field_mappings": {"姓名": {"source_column": "name"}},
+                        "transformations": {},
+                    },
+                    "b01095": {
+                        "template_path": "templates/b01095.xlsx",
+                        "header_row": 1,
+                        "start_row": 2,
+                        "field_mappings": {"姓名": {"source_column": "name"}},
+                        "transformations": {},
+                    },
+                }
+            },
+        }
+        with pytest.raises(ConfigError, match="routes 必须是列表"):
+            validate_config(config)
+
+    def test_validate_input_filename_routing_duplicate_project_code(self):
+        """测试 input_filename_routing 中 project_code 重复"""
+        config = {
+            "version": "2.0",
+            "organization_units": {
+                "test_unit": {
+                    "input_filename_routing": {
+                        "enabled": True,
+                        "routes": [
+                            {"project_code": "B01095", "rule_group": "b01095"},
+                            {"project_code": "b01095", "rule_group": "b01096"},
+                        ],
+                    },
+                    "default": {
+                        "template_path": "templates/default.xlsx",
+                        "header_row": 1,
+                        "start_row": 2,
+                        "field_mappings": {"姓名": {"source_column": "name"}},
+                        "transformations": {},
+                    },
+                    "b01095": {
+                        "template_path": "templates/b01095.xlsx",
+                        "header_row": 1,
+                        "start_row": 2,
+                        "field_mappings": {"姓名": {"source_column": "name"}},
+                        "transformations": {},
+                    },
+                    "b01096": {
+                        "template_path": "templates/b01096.xlsx",
+                        "header_row": 1,
+                        "start_row": 2,
+                        "field_mappings": {"姓名": {"source_column": "name"}},
+                        "transformations": {},
+                    },
+                }
+            },
+        }
+        with pytest.raises(ConfigError, match="project_code 重复"):
+            validate_config(config)
+
+    def test_validate_input_filename_routing_rule_group_must_exist(self):
+        """测试 input_filename_routing.rule_group 不存在时触发错误"""
+        config = {
+            "version": "2.0",
+            "organization_units": {
+                "test_unit": {
+                    "input_filename_routing": {
+                        "enabled": True,
+                        "routes": [{"project_code": "B01095", "rule_group": "not_exists"}],
+                    },
+                    "default": {
+                        "template_path": "templates/default.xlsx",
+                        "header_row": 1,
+                        "start_row": 2,
+                        "field_mappings": {"姓名": {"source_column": "name"}},
+                        "transformations": {},
+                    },
+                }
+            },
+        }
+        with pytest.raises(ConfigError, match="rule_group 'not_exists' 未在单位配置中定义"):
+            validate_config(config)
+
+    def test_validate_input_filename_routing_not_supported_in_legacy_unit(self):
+        """测试旧结构配置不支持 input_filename_routing"""
+        config = {
+            "version": "2.0",
+            "organization_units": {
+                "test_unit": {
+                    "template_path": "templates/default.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {"姓名": {"source_column": "name"}},
+                    "transformations": {},
+                    "input_filename_routing": {
+                        "enabled": True,
+                        "routes": [{"project_code": "B01095", "rule_group": "b01095"}],
+                    },
+                }
+            },
+        }
+        with pytest.raises(ConfigError, match="旧配置结构时不支持 input_filename_routing"):
+            validate_config(config)
+
 
 class TestConfigError:
     """测试ConfigError异常类"""

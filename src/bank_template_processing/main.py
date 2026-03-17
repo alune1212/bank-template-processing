@@ -350,6 +350,79 @@ def _write_output_group(
     process_group(data, group_config, template_path, output_path, month, logger)
 
 
+def _resolve_input_filename_rule_group(
+    unit_config: Mapping[str, Any],
+    excel_path: str,
+) -> str | None:
+    """根据输入文件名匹配项目编码路由，返回命中的规则组。"""
+    routing = unit_config.get("input_filename_routing")
+    if not isinstance(routing, dict):
+        return None
+    if not routing.get("enabled", False):
+        return None
+
+    routes = routing.get("routes", [])
+    if not isinstance(routes, list):
+        return None
+
+    file_name = Path(excel_path).name.casefold()
+    matched_routes: list[tuple[str, str]] = []
+    for route in routes:
+        if not isinstance(route, dict):
+            continue
+        project_code = route.get("project_code")
+        rule_group = route.get("rule_group")
+        if not isinstance(project_code, str) or not project_code.strip():
+            continue
+        if not isinstance(rule_group, str) or not rule_group.strip():
+            continue
+        if project_code.strip().casefold() in file_name:
+            matched_routes.append((project_code.strip(), rule_group.strip()))
+
+    if not matched_routes:
+        return None
+    if len(matched_routes) > 1:
+        matched_codes = "、".join(project_code for project_code, _ in matched_routes)
+        raise ConfigError(f"输入文件名同时命中多个项目编码路由: {matched_codes}")
+
+    return matched_routes[0][1]
+
+
+def _handle_routed_rule_group_mode(
+    args: argparse.Namespace,
+    config: AppConfig | dict[str, Any],
+    logger: logging.Logger,
+    validated_month: str,
+    data: list[dict],
+    matched_rule_group: str,
+) -> None:
+    """处理输入文件名路由命中的单规则组输出模式。"""
+    logger.info(f"输入文件名命中项目编码路由，使用规则组：{matched_rule_group}")
+    matched_group_config = get_unit_config(config, args.unit_name, matched_rule_group)
+    template_path = _resolve_runtime_path(matched_group_config["template_path"], logger)
+
+    context = ProcessingContext(
+        unit_name=args.unit_name,
+        rule_group=matched_rule_group,
+        template_name=Path(template_path).stem,
+    )
+    prepared_rows, _, _ = _prepare_group_rows(data, matched_group_config, context, logger)
+
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    _write_output_group(
+        prepared_rows,
+        matched_group_config,
+        args.unit_name,
+        validated_month,
+        None,
+        template_path,
+        output_dir,
+        args.output_filename_template,
+        logger,
+    )
+
+
 def _handle_merge_mode(args: argparse.Namespace, config: AppConfig | dict[str, Any], logger: logging.Logger) -> None:
     """处理批量合并模式。"""
     logger.info(f"开始批量合并目录：{args.merge_folder}")
@@ -520,12 +593,15 @@ def main(argv=None) -> None:
         raw_unit_config = config["organization_units"][args.unit_name]
         template_selection_rules = raw_unit_config.get("template_selector", config.get("template_selection_rules", {}))
         selector_enabled = template_selection_rules.get("enabled", False)
+        matched_rule_group = _resolve_input_filename_rule_group(raw_unit_config, args.excel_path)
 
         default_unit_config = get_unit_config(config, args.unit_name, "default")
         read_context = ProcessingContext(unit_name=args.unit_name, rule_group="default")
         data = _read_input_rows(args.excel_path, default_unit_config, read_context, logger)
 
-        if not selector_enabled:
+        if matched_rule_group:
+            _handle_routed_rule_group_mode(args, config, logger, validated_month, data, matched_rule_group)
+        elif not selector_enabled:
             _handle_default_mode(args, logger, validated_month, data, default_unit_config)
         else:
             _handle_selector_mode(args, config, logger, validated_month, data, template_selection_rules)

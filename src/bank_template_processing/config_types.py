@@ -81,6 +81,20 @@ class TemplateSelectorConfig(TypedDict, total=False):
     special_group_name: str
 
 
+class InputFilenameRouteConfig(TypedDict):
+    """输入文件名路由规则。"""
+
+    project_code: str
+    rule_group: str
+
+
+class InputFilenameRoutingConfig(TypedDict, total=False):
+    """输入文件名路由配置。"""
+
+    enabled: bool
+    routes: list[InputFilenameRouteConfig]
+
+
 class RuleGroupConfig(TypedDict, total=False):
     """规则组配置。"""
 
@@ -103,6 +117,7 @@ class MultiRuleUnitConfig(TypedDict, total=False):
     """多规则组单位配置。"""
 
     template_selector: TemplateSelectorConfig
+    input_filename_routing: InputFilenameRoutingConfig
     default: RuleGroupConfig
     crossbank: RuleGroupConfig
 

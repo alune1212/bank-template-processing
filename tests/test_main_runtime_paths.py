@@ -333,6 +333,187 @@ def test_main_dynamic_selector_paths_with_template_fallback_and_transform(monkey
     assert called["process"] == 2
 
 
+def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp_path):
+    args = argparse.Namespace(
+        excel_path="202603工资_B01095_批次.xlsx",
+        unit_name="单位A",
+        month="01",
+        output_dir=str(tmp_path / "out"),
+        config=str(tmp_path / "config.json"),
+        merge_folder=None,
+        output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
+    )
+
+    base_group_cfg = {
+        "template_path": "templates/default.xlsx",
+        "header_row": 1,
+        "start_row": 2,
+        "field_mappings": {"金额": {"source_column": "实发工资", "transform": "amount_decimal"}},
+        "transformations": {"amount_decimal": {"decimal_places": 2}},
+        "validation_rules": {
+            "required_fields": ["实发工资"],
+            "data_types": {"实发工资": "numeric"},
+            "value_ranges": {"实发工资": {"min": 0}},
+        },
+        "month_type_mapping": {"enabled": True, "month_format": "{month}月收入"},
+    }
+
+    config = {
+        "version": "2.0",
+        "organization_units": {
+            "单位A": {
+                "input_filename_routing": {
+                    "enabled": True,
+                    "routes": [
+                        {"project_code": "B01095", "rule_group": "b01095"},
+                    ],
+                },
+                "template_selector": {"enabled": True, "default_bank": "A", "bank_column": "开户银行"},
+                "default": dict(base_group_cfg),
+                "crossbank": dict(base_group_cfg, template_path="templates/crossbank.xlsx"),
+                "b01095": {
+                    "template_path": "templates/外服远茂进卡模版.xlsx",
+                    "header_row": 1,
+                    "start_row": 2,
+                    "field_mappings": {
+                        "收款人姓名": {"source_column": "姓名", "target_column": "收款人姓名", "transform": "none"},
+                        "收款人账号": {"source_column": "工资卡卡号", "target_column": "收款人账号", "transform": "card_number"},
+                        "交易金额": {"source_column": "实发工资", "target_column": "交易金额", "transform": "amount_decimal"},
+                    },
+                    "auto_number": {"enabled": True, "column_name": "明细序号", "start_from": 1},
+                    "month_type_mapping": {"enabled": True, "target_column": "M", "month_format": "{month}月收入"},
+                    "transformations": {"amount_decimal": {"decimal_places": 2}},
+                    "validation_rules": {
+                        "required_fields": ["姓名", "工资卡卡号", "实发工资"],
+                        "data_types": {"实发工资": "numeric"},
+                        "value_ranges": {"实发工资": {"min": 0}},
+                    },
+                },
+            }
+        },
+    }
+
+    called = {"process": 0}
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(main_module, "setup_logging", lambda: None)
+    monkeypatch.setattr(main_module, "parse_args", lambda _argv=None: args)
+    monkeypatch.setattr(main_module, "validate_cli_mode_args", lambda _args: None)
+    monkeypatch.setattr(main_module, "load_config", lambda _path: config)
+    monkeypatch.setattr(main_module, "validate_config", lambda _cfg: None)
+    monkeypatch.setattr(
+        main_module,
+        "ExcelReader",
+        lambda **_kwargs: SimpleNamespace(
+            read_excel=lambda _p: [
+                {"姓名": "张三", "工资卡卡号": "6222021234567890128", "实发工资": "100", "开户银行": "A"},
+                {"姓名": "李四", "工资卡卡号": "6222021234567890128", "实发工资": "200", "开户银行": "B"},
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        main_module.TemplateSelector,
+        "group_data",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("命中 B01095 时不应进入 selector 分组")),
+    )
+    monkeypatch.setattr(
+        main_module,
+        "resolve_path",
+        lambda path, base_dir=None: str((tmp_path / path).resolve()),
+    )
+    monkeypatch.setattr(main_module.Validator, "validate_required", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module.Validator, "validate_data_types", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module.Validator, "validate_value_ranges", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module, "_needs_transformations", lambda _m: False)
+
+    def _capture_process_call(group_data, group_config, template_path, output_path, month_param, logger):
+        del logger
+        called["process"] += 1
+        captured["group_data"] = group_data
+        captured["group_config"] = group_config
+        captured["template_path"] = template_path
+        captured["output_path"] = output_path
+        captured["month_param"] = month_param
+
+    monkeypatch.setattr(main_module, "process_group", _capture_process_call)
+
+    main_module.main([])
+
+    assert called["process"] == 1
+    assert len(captured["group_data"]) == 2
+    assert captured["month_param"] == "01"
+    assert str(captured["template_path"]).endswith("templates/外服远茂进卡模版.xlsx")
+    assert str(captured["output_path"]).endswith("单位A_外服远茂进卡模版_2人_金额300.00元.xlsx")
+
+    group_config = captured["group_config"]
+    assert group_config["header_row"] == 1
+    assert group_config["start_row"] == 2
+    assert group_config["auto_number"]["column_name"] == "明细序号"
+    assert group_config["field_mappings"]["收款人姓名"]["source_column"] == "姓名"
+    assert group_config["field_mappings"]["收款人账号"]["source_column"] == "工资卡卡号"
+    assert group_config["field_mappings"]["交易金额"]["source_column"] == "实发工资"
+    assert group_config["month_type_mapping"]["target_column"] == "M"
+
+
+def test_main_input_filename_routing_multiple_match_exits(monkeypatch, tmp_path):
+    args = argparse.Namespace(
+        excel_path="202603工资_B01095_B01096_批次.xlsx",
+        unit_name="单位A",
+        month="01",
+        output_dir=str(tmp_path / "out"),
+        config=str(tmp_path / "config.json"),
+        merge_folder=None,
+        output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
+    )
+
+    base_group_cfg = {
+        "template_path": "templates/default.xlsx",
+        "header_row": 1,
+        "start_row": 2,
+        "field_mappings": {"金额": {"source_column": "实发工资", "transform": "amount_decimal"}},
+        "transformations": {"amount_decimal": {"decimal_places": 2}},
+        "validation_rules": {
+            "required_fields": ["实发工资"],
+            "data_types": {"实发工资": "numeric"},
+            "value_ranges": {"实发工资": {"min": 0}},
+        },
+        "month_type_mapping": {"enabled": False},
+    }
+
+    config = {
+        "version": "2.0",
+        "organization_units": {
+            "单位A": {
+                "input_filename_routing": {
+                    "enabled": True,
+                    "routes": [
+                        {"project_code": "B01095", "rule_group": "b01095"},
+                        {"project_code": "B01096", "rule_group": "b01096"},
+                    ],
+                },
+                "default": dict(base_group_cfg),
+                "b01095": dict(base_group_cfg, template_path="templates/b01095.xlsx"),
+                "b01096": dict(base_group_cfg, template_path="templates/b01096.xlsx"),
+            }
+        },
+    }
+
+    monkeypatch.setattr(main_module, "setup_logging", lambda: None)
+    monkeypatch.setattr(main_module, "parse_args", lambda _argv=None: args)
+    monkeypatch.setattr(main_module, "validate_cli_mode_args", lambda _args: None)
+    monkeypatch.setattr(main_module, "load_config", lambda _path: config)
+    monkeypatch.setattr(main_module, "validate_config", lambda _cfg: None)
+    monkeypatch.setattr(
+        main_module,
+        "ExcelReader",
+        lambda **_kwargs: SimpleNamespace(read_excel=lambda _p: [{"实发工资": "100"}]),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main_module.main([])
+    assert exc_info.value.code == 1
+
+
 def test_main_logs_unknown_error_when_logger_initialized(monkeypatch, caplog):
     caplog.set_level("ERROR")
     monkeypatch.setattr(main_module, "setup_logging", lambda: None)

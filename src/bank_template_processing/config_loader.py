@@ -189,6 +189,9 @@ def _validate_unit_config(unit_name: str, unit_config: dict[str, Any]) -> None:
             if rule_name == "template_selector":
                 _validate_template_selector(unit_name, rule_config)
                 continue
+            if rule_name == "input_filename_routing":
+                _validate_input_filename_routing(unit_name, rule_config, unit_config)
+                continue
             _validate_rule_group_config(unit_name, rule_name, rule_config)
         selector_config = unit_config.get("template_selector")
         if isinstance(selector_config, dict) and selector_config.get("enabled") and "crossbank" not in unit_config:
@@ -382,6 +385,10 @@ def _validate_legacy_unit_config(unit_name: str, unit_config: RuleGroupConfig | 
 
     if "template_selector" in unit_config:
         _validate_template_selector(unit_name, unit_config["template_selector"])
+    if "input_filename_routing" in unit_config:
+        raise ConfigError(
+            f"单位 '{unit_name}' 使用旧配置结构时不支持 input_filename_routing，请迁移为多规则组结构（包含 default）"
+        )
 
     _validate_reader_options(unit_name, unit_config)
 
@@ -498,6 +505,62 @@ def _validate_template_selector(unit_name: str, template_selector: Any) -> None:
 
     if enabled and "default_bank" not in template_selector:
         raise ConfigError(f"{prefix}.enabled=true 时必须配置 default_bank")
+
+
+def _validate_input_filename_routing(
+    unit_name: str,
+    input_filename_routing: Any,
+    unit_config: Mapping[str, Any],
+) -> None:
+    """验证 input_filename_routing 配置。"""
+    prefix = f"单位 '{unit_name}' 的 input_filename_routing"
+
+    if not isinstance(input_filename_routing, dict):
+        raise ConfigError(f"{prefix} 必须是字典")
+
+    enabled = input_filename_routing.get("enabled", False)
+    if "enabled" in input_filename_routing and not isinstance(enabled, bool):
+        raise ConfigError(f"{prefix}.enabled 必须是布尔值")
+
+    routes = input_filename_routing.get("routes")
+    if routes is None:
+        if enabled:
+            raise ConfigError(f"{prefix}.enabled=true 时必须配置 routes")
+        return
+
+    if not isinstance(routes, list):
+        raise ConfigError(f"{prefix}.routes 必须是列表")
+    if enabled and not routes:
+        raise ConfigError(f"{prefix}.enabled=true 时 routes 不能为空")
+
+    seen_project_codes: set[str] = set()
+    reserved_keys = {"template_selector", "input_filename_routing"}
+
+    for index, route in enumerate(routes, start=1):
+        route_prefix = f"{prefix}.routes[{index}]"
+        if not isinstance(route, dict):
+            raise ConfigError(f"{route_prefix} 必须是字典")
+
+        project_code = route.get("project_code")
+        rule_group = route.get("rule_group")
+
+        if not isinstance(project_code, str) or not project_code.strip():
+            raise ConfigError(f"{route_prefix}.project_code 必须是非空字符串")
+        if not isinstance(rule_group, str) or not rule_group.strip():
+            raise ConfigError(f"{route_prefix}.rule_group 必须是非空字符串")
+
+        normalized_code = project_code.strip().lower()
+        if normalized_code in seen_project_codes:
+            raise ConfigError(f"{prefix}.routes 中 project_code 重复: {project_code.strip()}")
+        seen_project_codes.add(normalized_code)
+
+        normalized_group = rule_group.strip()
+        if normalized_group in reserved_keys:
+            raise ConfigError(f"{route_prefix}.rule_group 不能引用保留字段: {normalized_group}")
+        if normalized_group not in unit_config:
+            raise ConfigError(f"{route_prefix}.rule_group '{normalized_group}' 未在单位配置中定义")
+        if not isinstance(unit_config[normalized_group], dict):
+            raise ConfigError(f"{route_prefix}.rule_group '{normalized_group}' 对应配置必须是字典")
 
 
 def _validate_reader_options(
