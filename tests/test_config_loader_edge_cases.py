@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from bank_template_processing.config_loader import (
@@ -93,7 +95,7 @@ def test_validate_validation_rules_error_paths():
 
 
 def test_validate_legacy_unit_config_error_paths():
-    base = {
+    base: dict[str, Any] = {
         "template_path": "a.xlsx",
         "header_row": 1,
         "start_row": 2,
@@ -101,23 +103,23 @@ def test_validate_legacy_unit_config_error_paths():
         "transformations": {},
     }
 
-    cfg = dict(base, template_path=123)
+    cfg = {**base, "template_path": 123}
     with pytest.raises(ConfigError, match="template_path 必须是字符串"):
         _validate_legacy_unit_config("单位A", cfg)
 
-    cfg = dict(base, header_row="1")
+    cfg = {**base, "header_row": "1"}
     with pytest.raises(ConfigError, match="header_row 必须是整数"):
         _validate_legacy_unit_config("单位A", cfg)
 
-    cfg = dict(base, start_row="2")
+    cfg = {**base, "start_row": "2"}
     with pytest.raises(ConfigError, match="start_row 必须是整数"):
         _validate_legacy_unit_config("单位A", cfg)
 
-    cfg = dict(base, field_mappings={"姓名": {"target_column": "A"}})
+    cfg = {**base, "field_mappings": {"姓名": {"target_column": "A"}}}
     with pytest.raises(ConfigError, match="缺少 source_column"):
         _validate_legacy_unit_config("单位A", cfg)
 
-    cfg = dict(base, transformations=[])
+    cfg = {**base, "transformations": []}
     with pytest.raises(ConfigError, match="transformations 必须是字典"):
         _validate_legacy_unit_config("单位A", cfg)
 
@@ -126,7 +128,7 @@ def test_validate_rule_group_config_error_paths_and_default_start_row(caplog):
     with pytest.raises(ConfigError, match="缺少必填字段"):
         _validate_rule_group_config("单位A", "default", {"header_row": 1, "field_mappings": {}, "transformations": {}})
 
-    base = {
+    base: dict[str, Any] = {
         "template_path": "a.xlsx",
         "header_row": 1,
         "start_row": 2,
@@ -135,19 +137,19 @@ def test_validate_rule_group_config_error_paths_and_default_start_row(caplog):
     }
 
     with pytest.raises(ConfigError, match="template_path 必须须是字符串"):
-        _validate_rule_group_config("单位A", "default", dict(base, template_path=123))
+        _validate_rule_group_config("单位A", "default", {**base, "template_path": 123})
 
     with pytest.raises(ConfigError, match="header_row 必须须是整数"):
-        _validate_rule_group_config("单位A", "default", dict(base, header_row="1"))
+        _validate_rule_group_config("单位A", "default", {**base, "header_row": "1"})
 
     with pytest.raises(ConfigError, match="header_row 必须须大于或等于 0"):
-        _validate_rule_group_config("单位A", "default", dict(base, header_row=-1))
+        _validate_rule_group_config("单位A", "default", {**base, "header_row": -1})
 
     with pytest.raises(ConfigError, match="start_row 必须须是整数"):
-        _validate_rule_group_config("单位A", "default", dict(base, start_row="2"))
+        _validate_rule_group_config("单位A", "default", {**base, "start_row": "2"})
 
     with pytest.raises(ConfigError, match="start_row .*必须大于 header_row"):
-        _validate_rule_group_config("单位A", "default", dict(base, start_row=1))
+        _validate_rule_group_config("单位A", "default", {**base, "start_row": 1})
 
     cfg = {
         "template_path": "a.xlsx",
@@ -160,25 +162,25 @@ def test_validate_rule_group_config_error_paths_and_default_start_row(caplog):
     assert "使用旧格式，建议迁移" in caplog.text
 
     with pytest.raises(ConfigError, match="field_mappings 必须须是字典"):
-        _validate_rule_group_config("单位A", "default", dict(base, field_mappings=[]))
+        _validate_rule_group_config("单位A", "default", {**base, "field_mappings": []})
 
     with pytest.raises(ConfigError, match="缺少 source_column"):
         _validate_rule_group_config(
             "单位A",
             "default",
-            dict(base, field_mappings={"姓名": {"target_column": "A"}}),
+            {**base, "field_mappings": {"姓名": {"target_column": "A"}}},
         )
 
     with pytest.raises(ConfigError, match="配置必须是字典或字符串"):
-        _validate_rule_group_config("单位A", "default", dict(base, field_mappings={"姓名": []}))
+        _validate_rule_group_config("单位A", "default", {**base, "field_mappings": {"姓名": []}})
 
     with pytest.raises(ConfigError, match="transformations 必须须是字典"):
-        _validate_rule_group_config("单位A", "default", dict(base, transformations=[]))
+        _validate_rule_group_config("单位A", "default", {**base, "transformations": []})
 
 
 def test_validate_template_selector_error_paths():
     with pytest.raises(ConfigError, match="template_selector 必须是字典"):
-        _validate_template_selector("单位A", [])  # type: ignore[arg-type]
+        _validate_template_selector("单位A", [])
 
     with pytest.raises(ConfigError, match="template_selector.enabled 必须是布尔值"):
         _validate_template_selector("单位A", {"enabled": "yes"})

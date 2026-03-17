@@ -7,6 +7,7 @@ import logging
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -258,7 +259,7 @@ def test_main_dynamic_selector_paths_with_template_fallback_and_transform(monkey
         output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
     )
 
-    base_group_cfg = {
+    base_group_cfg: dict[str, Any] = {
         "template_path": "templates/default.xlsx",
         "header_row": 1,
         "start_row": 2,
@@ -278,7 +279,7 @@ def test_main_dynamic_selector_paths_with_template_fallback_and_transform(monkey
             "单位A": {
                 "template_selector": {"enabled": True, "default_bank": "A", "bank_column": "开户银行"},
                 "default": dict(base_group_cfg),
-                "crossbank": dict(base_group_cfg, template_path="templates/crossbank.xlsx"),
+                "crossbank": {**base_group_cfg, "template_path": "templates/crossbank.xlsx"},
             }
         },
     }
@@ -344,7 +345,7 @@ def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp
         output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
     )
 
-    base_group_cfg = {
+    base_group_cfg: dict[str, Any] = {
         "template_path": "templates/default.xlsx",
         "header_row": 1,
         "start_row": 2,
@@ -370,7 +371,7 @@ def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp
                 },
                 "template_selector": {"enabled": True, "default_bank": "A", "bank_column": "开户银行"},
                 "default": dict(base_group_cfg),
-                "crossbank": dict(base_group_cfg, template_path="templates/crossbank.xlsx"),
+                "crossbank": {**base_group_cfg, "template_path": "templates/crossbank.xlsx"},
                 "b01095": {
                     "template_path": "templates/外服远茂进卡模版.xlsx",
                     "header_row": 1,
@@ -394,7 +395,7 @@ def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp
     }
 
     called = {"process": 0}
-    captured: dict[str, object] = {}
+    captured: dict[str, Any] = {}
 
     monkeypatch.setattr(main_module, "setup_logging", lambda: None)
     monkeypatch.setattr(main_module, "parse_args", lambda _argv=None: args)
@@ -501,7 +502,7 @@ def test_main_b01095_routing_reads_input_with_matched_rule_group_options(monkeyp
         },
     }
 
-    captured_reader_kwargs: dict[str, object] = {}
+    captured_reader_kwargs: dict[str, Any] = {}
 
     class ReaderSpy:
         def __init__(self, **kwargs):
@@ -544,7 +545,7 @@ def test_main_input_filename_routing_multiple_match_exits(monkeypatch, tmp_path)
         output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
     )
 
-    base_group_cfg = {
+    base_group_cfg: dict[str, Any] = {
         "template_path": "templates/default.xlsx",
         "header_row": 1,
         "start_row": 2,
@@ -570,8 +571,8 @@ def test_main_input_filename_routing_multiple_match_exits(monkeypatch, tmp_path)
                     ],
                 },
                 "default": dict(base_group_cfg),
-                "b01095": dict(base_group_cfg, template_path="templates/b01095.xlsx"),
-                "b01096": dict(base_group_cfg, template_path="templates/b01096.xlsx"),
+                "b01095": {**base_group_cfg, "template_path": "templates/b01095.xlsx"},
+                "b01096": {**base_group_cfg, "template_path": "templates/b01096.xlsx"},
             }
         },
     }
@@ -641,7 +642,7 @@ def test_main_b01153_routing_uses_fixed_salary_remark(monkeypatch, tmp_path):
     }
 
     called = {"process": 0}
-    captured: dict[str, object] = {}
+    captured: dict[str, Any] = {}
 
     monkeypatch.setattr(main_module, "setup_logging", lambda: None)
     monkeypatch.setattr(main_module, "parse_args", lambda _argv=None: args)
