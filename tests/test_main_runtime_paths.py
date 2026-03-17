@@ -455,6 +455,84 @@ def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp
     assert group_config["month_type_mapping"]["target_column"] == "M"
 
 
+def test_main_b01095_routing_reads_input_with_matched_rule_group_options(monkeypatch, tmp_path):
+    args = argparse.Namespace(
+        excel_path="202603工资_B01095_批次.xlsx",
+        unit_name="单位A",
+        month="01",
+        output_dir=str(tmp_path / "out"),
+        config=str(tmp_path / "config.json"),
+        merge_folder=None,
+        output_filename_template="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
+    )
+
+    default_cfg = {
+        "template_path": "templates/default.xlsx",
+        "header_row": 1,
+        "start_row": 2,
+        "reader_options": {"header_row": 1, "data_only": False},
+        "field_mappings": {"金额": {"source_column": "实发工资", "transform": "amount_decimal"}},
+        "transformations": {"amount_decimal": {"decimal_places": 2}},
+        "validation_rules": {},
+        "month_type_mapping": {"enabled": False},
+    }
+    routed_cfg = {
+        "template_path": "templates/b01095.xlsx",
+        "header_row": 1,
+        "start_row": 2,
+        "reader_options": {"header_row": 3, "data_only": True},
+        "row_filter": {"exclude_keywords": ["合计"]},
+        "field_mappings": {"金额": {"source_column": "实发工资", "transform": "amount_decimal"}},
+        "transformations": {"amount_decimal": {"decimal_places": 2}},
+        "validation_rules": {},
+        "month_type_mapping": {"enabled": False},
+    }
+    config = {
+        "version": "2.0",
+        "organization_units": {
+            "单位A": {
+                "input_filename_routing": {
+                    "enabled": True,
+                    "routes": [{"project_code": "B01095", "rule_group": "b01095"}],
+                },
+                "default": default_cfg,
+                "b01095": routed_cfg,
+            }
+        },
+    }
+
+    captured_reader_kwargs: dict[str, object] = {}
+
+    class ReaderSpy:
+        def __init__(self, **kwargs):
+            captured_reader_kwargs.update(kwargs)
+
+        @staticmethod
+        def read_excel(_path):
+            return [{"实发工资": "100"}]
+
+    monkeypatch.setattr(main_module, "setup_logging", lambda: None)
+    monkeypatch.setattr(main_module, "parse_args", lambda _argv=None: args)
+    monkeypatch.setattr(main_module, "validate_cli_mode_args", lambda _args: None)
+    monkeypatch.setattr(main_module, "load_config", lambda _path: config)
+    monkeypatch.setattr(main_module, "validate_config", lambda _cfg: None)
+    monkeypatch.setattr(main_module, "ExcelReader", ReaderSpy)
+    monkeypatch.setattr(main_module, "resolve_path", lambda path, base_dir=None: str((tmp_path / path).resolve()))
+    monkeypatch.setattr(main_module.Validator, "validate_required", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module.Validator, "validate_data_types", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module.Validator, "validate_value_ranges", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module, "_needs_transformations", lambda _m: False)
+    monkeypatch.setattr(main_module, "process_group", lambda *_args, **_kwargs: None)
+
+    main_module.main([])
+
+    assert captured_reader_kwargs == {
+        "row_filter": {"exclude_keywords": ["合计"]},
+        "data_only": True,
+        "header_row": 3,
+    }
+
+
 def test_main_input_filename_routing_multiple_match_exits(monkeypatch, tmp_path):
     args = argparse.Namespace(
         excel_path="202603工资_B01095_B01096_批次.xlsx",

@@ -465,3 +465,33 @@ def test_main_merge_folder_with_escaped_month_literal_template_skips_month_infer
 
     output_path = merge_dir / "result" / "苏州悦鸣服务外包有限公司_{month}_农行跨行_2人_金额300.00元.xlsx"
     assert output_path.exists()
+
+
+def test_main_merge_folder_supports_custom_named_input_files(tmp_path):
+    default_template = tmp_path / "default_template.xlsx"
+    crossbank_template = tmp_path / "crossbank_template.xlsx"
+    _create_template_file(default_template)
+    _create_template_file(crossbank_template)
+
+    config = _build_test_config(default_template, crossbank_template)
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    merge_dir = tmp_path / "merge_input"
+    merge_dir.mkdir()
+    _create_generated_file(
+        merge_dir / "202603批次_苏州悦鸣服务外包有限公司_农行跨行.xlsx",
+        [("张三", 100.0, "01月收入"), ("李四", 200.0, "01月收入")],
+    )
+
+    main(
+        [
+            "--merge-folder",
+            str(merge_dir),
+            "--config",
+            str(config_path),
+        ]
+    )
+
+    output_path = merge_dir / "result" / "苏州悦鸣服务外包有限公司_农行跨行_2人_金额300.00元.xlsx"
+    assert output_path.exists()

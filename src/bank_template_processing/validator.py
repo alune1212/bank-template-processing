@@ -6,7 +6,7 @@
 
 from datetime import datetime, date, time
 from decimal import Decimal, InvalidOperation
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Mapping
 import logging
 
 from .transformer import Transformer
@@ -296,7 +296,7 @@ class Validator:
         logger.info(f"必填字段验证通过: {required_fields}")
 
     @staticmethod
-    def validate_data_types(row: Dict[str, Any], type_rules: Dict[str, str]) -> None:
+    def validate_data_types(row: Dict[str, Any], type_rules: Mapping[str, Any]) -> None:
         """
         验证数据类型
 

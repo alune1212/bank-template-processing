@@ -61,7 +61,7 @@ def load_config(config_path: str) -> AppConfig:
     return config
 
 
-def validate_config(config: AppConfig | dict[str, Any]) -> None:
+def validate_config(config: Mapping[str, Any]) -> None:
     """
     验证配置结构的完整性
 
@@ -98,7 +98,7 @@ def validate_config(config: AppConfig | dict[str, Any]) -> None:
     logger.info("配置验证成功")
 
 
-def get_unit_config(config: AppConfig | dict[str, Any], unit_name: str, template_key: str | None = None) -> RuleGroupConfig:
+def get_unit_config(config: Mapping[str, Any], unit_name: str, template_key: str | None = None) -> RuleGroupConfig:
     """
     获取单位配置，支持多规则组结构
 
@@ -311,7 +311,7 @@ def _validate_validation_rules(
                 )
 
 
-def _validate_legacy_unit_config(unit_name: str, unit_config: RuleGroupConfig | dict[str, Any]) -> None:
+def _validate_legacy_unit_config(unit_name: str, unit_config: dict[str, Any]) -> None:
     """
     验证旧结构的单位配置（向后兼容）
 
@@ -393,7 +393,7 @@ def _validate_legacy_unit_config(unit_name: str, unit_config: RuleGroupConfig | 
     _validate_reader_options(unit_name, unit_config)
 
 
-def _validate_rule_group_config(unit_name: str, rule_name: str, rule_config: RuleGroupConfig | dict[str, Any]) -> None:
+def _validate_rule_group_config(unit_name: str, rule_name: str, rule_config: dict[str, Any]) -> None:
     """
     验证规则组配置
 
@@ -565,7 +565,7 @@ def _validate_input_filename_routing(
 
 def _validate_reader_options(
     unit_name: str,
-    config: RuleGroupConfig | dict[str, Any],
+    config: Mapping[str, Any],
     rule_name: str | None = None,
 ) -> None:
     """验证 reader_options 配置"""

@@ -141,6 +141,29 @@ def test_resolve_rule_group_for_template_error_paths():
         resolve_rule_group_for_template(cfg_missing_crossbank, "单位A", "跨行模板")
 
 
+def test_resolve_rule_group_for_template_uses_selector_default_group_names():
+    cfg = {
+        "organization_units": {
+            "单位A": {
+                "template_selector": {"enabled": True, "default_bank": "农业银行"},
+                "default": {"template_path": "default.xlsx", "header_row": 1, "field_mappings": {}, "transformations": {}},
+                "crossbank": {
+                    "template_path": "cross.xlsx",
+                    "header_row": 1,
+                    "field_mappings": {},
+                    "transformations": {},
+                },
+            }
+        }
+    }
+
+    default_group, _ = resolve_rule_group_for_template(cfg, "单位A", "default")
+    crossbank_group, _ = resolve_rule_group_for_template(cfg, "单位A", "special")
+
+    assert default_group == "default"
+    assert crossbank_group == "crossbank"
+
+
 def test_infer_month_param_from_values_empty_raises():
     with pytest.raises(MergeFolderError, match="未在输入文件中读取到月类型值"):
         infer_month_param_from_values(set(), {"month_format": "{month}月收入"})

@@ -7,13 +7,13 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 import openpyxl
 import xlrd
 
 from .config_loader import ConfigError, get_unit_config
-from .config_types import AppConfig, RuleGroupConfig
+from .config_types import RuleGroupConfig
 from .pipeline import (
     ProcessingContext,
     calculate_stats as pipeline_calculate_stats,
@@ -37,6 +37,8 @@ from .sheet_utils import (
 MERGE_FILE_PATTERN = re.compile(
     r"^(?P<prefix>.+)_(?P<count>\d+)人_金额(?P<amount>-?\d+(?:\.\d+)?)元$"
 )
+MERGE_COUNT_PATTERN = re.compile(r"(?P<count>\d+)人")
+MERGE_AMOUNT_PATTERN = re.compile(r"金额(?P<amount>-?\d+(?:\.\d+)?)元")
 SUPPORTED_EXTENSIONS = {".xlsx", ".xls", ".csv"}
 MERGE_MONTH_SOURCE_COLUMN = "__merge_month_value__"
 MERGE_SOURCE_FILE_COLUMN = "__merge_source_file__"
@@ -58,8 +60,8 @@ class MergeInputFile:
     path: Path
     unit_name: str
     template_name: str
-    count: int
-    amount: float
+    count: int | None
+    amount: float | None
 
 
 @dataclass
@@ -77,31 +79,43 @@ class MergeTask:
     amount: float
 
 
-def parse_merge_filename(file_path: Path, unit_names: list[str]) -> MergeInputFile:
+def parse_merge_filename(
+    file_path: Path,
+    unit_names: list[str],
+    template_names_by_unit: Mapping[str, set[str]] | None = None,
+) -> MergeInputFile:
     """解析合并输入文件名并提取元信息。"""
     if file_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
         raise MergeFolderError(f"不支持的合并文件格式: {file_path.name}")
 
     match = MERGE_FILE_PATTERN.match(file_path.stem)
     if not match:
-        raise MergeFolderError(f"文件名不符合合并命名规则: {file_path.name}")
+        if template_names_by_unit is None:
+            raise MergeFolderError(f"文件名不符合合并命名规则: {file_path.name}")
+        return _infer_merge_input_file_from_name(file_path, unit_names, template_names_by_unit)
 
     prefix = match.group("prefix")
     count = int(match.group("count"))
     amount = float(match.group("amount"))
 
-    unit_name, template_name = _split_prefix_to_unit_and_template(prefix, unit_names)
-    return MergeInputFile(
-        path=file_path,
-        unit_name=unit_name,
-        template_name=template_name,
-        count=count,
-        amount=amount,
-    )
+    try:
+        unit_name, template_name = _split_prefix_to_unit_and_template(prefix, unit_names)
+    except MergeFolderError:
+        if template_names_by_unit is None:
+            raise
+        return _infer_merge_input_file_from_name(
+            file_path,
+            unit_names,
+            template_names_by_unit,
+            parsed_count=count,
+            parsed_amount=amount,
+        )
+
+    return MergeInputFile(path=file_path, unit_name=unit_name, template_name=template_name, count=count, amount=amount)
 
 
 def resolve_rule_group_for_template(
-    config: AppConfig | dict[str, Any],
+    config: Mapping[str, Any],
     unit_name: str,
     template_name: str,
 ) -> tuple[str, RuleGroupConfig]:
@@ -120,8 +134,8 @@ def resolve_rule_group_for_template(
 
     # 第一步：按组名匹配（优先）
     selector_config = unit_config.get("template_selector", {}) if isinstance(unit_config, dict) else {}
-    default_group_name = selector_config.get("default_group_name")
-    special_group_name = selector_config.get("special_group_name")
+    default_group_name = selector_config.get("default_group_name", "default")
+    special_group_name = selector_config.get("special_group_name", "special")
 
     group_name_candidates: list[str] = []
     if template_name == default_group_name:
@@ -172,7 +186,7 @@ def infer_month_param_from_values(
     month_values: set[str],
     month_type_mapping: dict,
     allow_conflict: bool = False,
-    logger: logging.Logger | None = None,
+    logger: Any | None = None,
 ) -> str:
     """根据文件中月类型列值推断 month 参数。"""
     if not month_values:
@@ -197,13 +211,13 @@ def infer_month_param_from_values(
 
 def prepare_merge_tasks(
     merge_folder_path: str,
-    config: AppConfig | dict[str, Any],
+    config: Mapping[str, Any],
     resolve_path_fn: Callable[[str], str],
     apply_transformations_fn: Callable[[list, dict, dict], list] | None,
     needs_transformations_fn: Callable[[dict], bool] | None,
     calculate_stats_fn: Callable[[list, dict, dict], tuple[int, float]] | None,
     needs_month_for_filename: bool,
-    logger: logging.Logger,
+    logger: Any,
 ) -> list[MergeTask]:
     """扫描并准备批量合并任务。"""
     transform_fn = apply_transformations_fn or pipeline_transform_rows
@@ -221,7 +235,8 @@ def prepare_merge_tasks(
         raise ConfigError("配置缺少 organization_units，无法执行批量合并")
 
     unit_names = list(organization_units.keys())
-    input_files = _scan_merge_input_files(merge_folder, unit_names)
+    template_names_by_unit = _build_template_name_candidates_by_unit(config)
+    input_files = _scan_merge_input_files(merge_folder, unit_names, template_names_by_unit)
     logger.info(
         "批量合并扫描完成：目录 %s 共发现 %s 个输入文件（排序规则=mtime asc, tie=name asc）",
         merge_folder,
@@ -252,6 +267,8 @@ def prepare_merge_tasks(
         merged_month_values: set[str] = set()
         count_from_name = 0
         amount_from_name = 0.0
+        has_complete_name_count = True
+        has_complete_name_amount = True
 
         for file_meta in files:
             file_context = context.with_source_file(file_meta.path.name)
@@ -261,15 +278,23 @@ def prepare_merge_tasks(
                 raise enrich_error_context(exc, "批量合并读取", file_context) from exc
             merged_group_data.extend(file_rows)
             merged_month_values.update(month_values)
-            count_from_name += file_meta.count
-            amount_from_name += file_meta.amount
             logger.info(
                 "已读取文件 %s：提取 %s 行，文件名统计 人数=%s 金额=%.2f",
                 file_meta.path.name,
                 len(file_rows),
-                file_meta.count,
-                file_meta.amount,
+                file_meta.count if file_meta.count is not None else "未提供",
+                file_meta.amount if file_meta.amount is not None else 0.0,
             )
+
+            if file_meta.count is None:
+                has_complete_name_count = False
+            else:
+                count_from_name += file_meta.count
+
+            if file_meta.amount is None:
+                has_complete_name_amount = False
+            else:
+                amount_from_name += file_meta.amount
 
         validation_rules = group_config.get("validation_rules", {})
         pre_transform_rules, post_transform_rules = pipeline_split_validation_rules(validation_rules)
@@ -312,12 +337,15 @@ def prepare_merge_tasks(
             )
         count_from_data, amount_from_data = stats_fn(merged_group_data, field_mappings, transformations)
 
-        if count_from_data != count_from_name:
+        if has_complete_name_count and count_from_data != count_from_name:
             error = MergeFolderError(
                 f"分组 '{unit_name}_{template_name}' 人数校验失败：文件名累加={count_from_name}，数据重算={count_from_data}"
             )
             raise enrich_error_context(error, "批量合并统计校验", context) from error
-        if abs(amount_from_data - amount_from_name) > 0.01:
+        if not has_complete_name_count:
+            logger.info("分组 %s_%s 跳过文件名人数校验：输入文件名未提供完整人数信息", unit_name, template_name)
+
+        if has_complete_name_amount and abs(amount_from_data - amount_from_name) > 0.01:
             error = MergeFolderError(
                 "分组 '{0}_{1}' 金额校验失败：文件名累加={2:.2f}，数据重算={3:.2f}".format(
                     unit_name,
@@ -327,6 +355,8 @@ def prepare_merge_tasks(
                 )
             )
             raise enrich_error_context(error, "批量合并统计校验", context) from error
+        if not has_complete_name_amount:
+            logger.info("分组 %s_%s 跳过文件名金额校验：输入文件名未提供完整金额信息", unit_name, template_name)
 
         month_param = ""
         month_type_mapping = group_config.get("month_type_mapping", {})
@@ -364,7 +394,11 @@ def prepare_merge_tasks(
     return merge_tasks
 
 
-def _scan_merge_input_files(merge_folder: Path, unit_names: list[str]) -> list[MergeInputFile]:
+def _scan_merge_input_files(
+    merge_folder: Path,
+    unit_names: list[str],
+    template_names_by_unit: Mapping[str, set[str]] | None = None,
+) -> list[MergeInputFile]:
     excel_files = [path for path in merge_folder.iterdir() if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS]
     if not excel_files:
         raise MergeFolderError(f"目录中未找到可合并的 Excel 文件: {merge_folder}")
@@ -372,8 +406,48 @@ def _scan_merge_input_files(merge_folder: Path, unit_names: list[str]) -> list[M
 
     parsed_files: list[MergeInputFile] = []
     for file_path in excel_files:
-        parsed_files.append(parse_merge_filename(file_path, unit_names))
+        parsed_files.append(parse_merge_filename(file_path, unit_names, template_names_by_unit))
     return parsed_files
+
+
+def _build_template_name_candidates_by_unit(
+    config: Mapping[str, Any],
+) -> dict[str, set[str]]:
+    """按单位收集合并文件名中可识别的模板名候选。"""
+    organization_units = config.get("organization_units", {})
+    if not isinstance(organization_units, dict):
+        return {}
+
+    candidates_by_unit: dict[str, set[str]] = {}
+    for unit_name, unit_config in organization_units.items():
+        candidates: set[str] = set()
+        if not isinstance(unit_config, dict):
+            candidates_by_unit[unit_name] = candidates
+            continue
+
+        selector_config = unit_config.get("template_selector", {})
+        if isinstance(selector_config, dict) and selector_config.get("enabled", False):
+            candidates.add(str(selector_config.get("default_group_name", "default")))
+            if "crossbank" in unit_config:
+                candidates.add(str(selector_config.get("special_group_name", "special")))
+
+        if "default" in unit_config:
+            for rule_name, rule_config in unit_config.items():
+                if rule_name in {"template_selector", "input_filename_routing"}:
+                    continue
+                if not isinstance(rule_config, dict):
+                    continue
+                template_path = rule_config.get("template_path")
+                if isinstance(template_path, str) and template_path.strip():
+                    candidates.add(Path(template_path).stem)
+        else:
+            template_path = unit_config.get("template_path")
+            if isinstance(template_path, str) and template_path.strip():
+                candidates.add(Path(template_path).stem)
+
+        candidates_by_unit[unit_name] = {candidate for candidate in candidates if candidate}
+
+    return candidates_by_unit
 
 
 def _merge_input_file_sort_key(file_path: Path) -> tuple[float, str]:
@@ -394,6 +468,76 @@ def _split_prefix_to_unit_and_template(prefix: str, unit_names: list[str]) -> tu
             return str(unit_name), str(template_name)
 
     raise MergeFolderError(f"文件名前缀无法匹配单位名称: {prefix}")
+
+
+def _infer_merge_input_file_from_name(
+    file_path: Path,
+    unit_names: list[str],
+    template_names_by_unit: Mapping[str, set[str]],
+    *,
+    parsed_count: int | None = None,
+    parsed_amount: float | None = None,
+) -> MergeInputFile:
+    """在默认命名规则之外，按配置中的单位/模板名称回推文件元信息。"""
+    stem = file_path.stem
+    unit_name = _select_unique_filename_candidate(stem, unit_names, "单位名称", file_path.name)
+    template_candidates = template_names_by_unit.get(unit_name, set())
+    if not template_candidates:
+        raise MergeFolderError(f"文件名无法匹配模板名称: {file_path.name}")
+
+    remainder = stem.replace(unit_name, " ", 1)
+    template_name = _select_unique_filename_candidate(remainder, template_candidates, "模板名称", file_path.name)
+
+    count = parsed_count if parsed_count is not None else _extract_count_from_name(stem)
+    amount = parsed_amount if parsed_amount is not None else _extract_amount_from_name(stem)
+    return MergeInputFile(
+        path=file_path,
+        unit_name=unit_name,
+        template_name=template_name,
+        count=count,
+        amount=amount,
+    )
+
+
+def _select_unique_filename_candidate(
+    text: str,
+    candidates: list[str] | set[str],
+    label: str,
+    file_name: str,
+) -> str:
+    unique_matches: set[str] = set()
+    for candidate in candidates:
+        if isinstance(candidate, str) and candidate and candidate in text:
+            unique_matches.add(candidate)
+
+    matches: list[str] = sorted(unique_matches, key=lambda value: len(value), reverse=True)
+    if not matches:
+        raise MergeFolderError(f"文件名无法匹配{label}: {file_name}")
+
+    primary = matches[0]
+    conflicts: list[str] = []
+    for candidate in matches[1:]:
+        if candidate not in primary and primary not in candidate:
+            conflicts.append(candidate)
+
+    if conflicts:
+        matched = "、".join([primary, *conflicts])
+        raise MergeFolderError(f"文件名匹配到多个{label}: {file_name}: {matched}")
+    return primary
+
+
+def _extract_count_from_name(stem: str) -> int | None:
+    match = MERGE_COUNT_PATTERN.search(stem)
+    if match is None:
+        return None
+    return int(match.group("count"))
+
+
+def _extract_amount_from_name(stem: str) -> float | None:
+    match = MERGE_AMOUNT_PATTERN.search(stem)
+    if match is None:
+        return None
+    return float(match.group("amount"))
 
 
 def _read_generated_file_rows(

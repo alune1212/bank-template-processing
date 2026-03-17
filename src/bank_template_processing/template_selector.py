@@ -5,7 +5,7 @@
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import Any, Mapping
 from .validator import ValidationError
 
 
@@ -33,7 +33,7 @@ class TemplateSelector:
     def _normalize_bank_name(cls, value: Any) -> str:
         return cls._to_half_width(str(value)).strip()
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Mapping[str, Any]):
         """
         初始化模板选择器
 
@@ -58,10 +58,10 @@ class TemplateSelector:
 
     def group_data(
         self,
-        data: List[Dict[str, Any]],
-        default_bank: str,
+        data: list[dict[str, Any]],
+        default_bank: str | None,
         bank_column: str = "开户银行",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         根据银行列分组数据
 
@@ -100,6 +100,7 @@ class TemplateSelector:
             ValidationError: 当缺少银行列或银行值为空时抛出
         """
         logger.info(f"开始分组数据，默认银行: {default_bank}, 银行列: {bank_column}")
+        normalized_default = self._normalize_bank_name("" if default_bank is None else default_bank)
 
         # 验证数据
         if not data:
@@ -133,7 +134,6 @@ class TemplateSelector:
                 raise ValidationError(error_msg)
 
             normalized_value = self._normalize_bank_name(bank_value)
-            normalized_default = self._normalize_bank_name(default_bank)
 
             # 根据银行值分组
             if normalized_value == normalized_default:
@@ -146,7 +146,7 @@ class TemplateSelector:
         # 构建结果
         return self._build_result(default_data, special_data)
 
-    def _create_empty_result(self) -> Dict[str, Any]:
+    def _create_empty_result(self) -> dict[str, Any]:
         """
         创建空分组结果
 
@@ -166,7 +166,7 @@ class TemplateSelector:
             },
         }
 
-    def _build_result(self, default_data: List[Dict], special_data: List[Dict]) -> Dict[str, Any]:
+    def _build_result(self, default_data: list[dict], special_data: list[dict]) -> dict[str, Any]:
         """
         构建分组结果
 

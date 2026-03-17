@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Mapping, cast
 
 from .config_types import FieldMappings, ReaderOptions, RuleGroupConfig, ValidationRules
 from .excel_reader import ExcelReader
@@ -62,7 +62,7 @@ def enrich_error_context(
 
 
 def build_reader(
-    group_config: RuleGroupConfig | dict[str, Any],
+    group_config: Mapping[str, Any],
     logger_instance: logging.Logger | None = None,
     reader_cls: type[ExcelReader] = ExcelReader,
 ) -> ExcelReader:

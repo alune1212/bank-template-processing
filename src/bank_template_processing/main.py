@@ -595,9 +595,17 @@ def main(argv=None) -> None:
         selector_enabled = template_selection_rules.get("enabled", False)
         matched_rule_group = _resolve_input_filename_rule_group(raw_unit_config, args.excel_path)
 
-        default_unit_config = get_unit_config(config, args.unit_name, "default")
-        read_context = ProcessingContext(unit_name=args.unit_name, rule_group="default")
-        data = _read_input_rows(args.excel_path, default_unit_config, read_context, logger)
+        if matched_rule_group:
+            read_rule_group = matched_rule_group
+            read_unit_config = get_unit_config(config, args.unit_name, matched_rule_group)
+            default_unit_config = get_unit_config(config, args.unit_name, "default")
+        else:
+            read_rule_group = "default"
+            default_unit_config = get_unit_config(config, args.unit_name, "default")
+            read_unit_config = default_unit_config
+
+        read_context = ProcessingContext(unit_name=args.unit_name, rule_group=read_rule_group)
+        data = _read_input_rows(args.excel_path, read_unit_config, read_context, logger)
 
         if matched_rule_group:
             _handle_routed_rule_group_mode(args, config, logger, validated_month, data, matched_rule_group)
