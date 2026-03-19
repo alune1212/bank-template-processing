@@ -11,9 +11,9 @@
         "special_group_name": "农行跨行"
       },
       "default": {
-        "template_path": "templates/农业银行模板.csv",
-        "header_row": 0,
-        "start_row": 1,
+        "template_path": "templates/农业银行模板.xls",
+        "header_row": 2,
+        "start_row": 3,
         "reader_options": {
           "data_only": false,
           "header_row": 1
@@ -26,33 +26,33 @@
           "exclude_keywords": ["合计"]
         },
         "field_mappings": {
-          "姓名": {
+          "收款方户名": {
             "source_column": "姓名",
-            "target_column": "C",
+            "target_column": "收款方户名",
             "transform": "none",
             "required": true
           },
-          "工资卡卡号": {
+          "收款方账号": {
             "source_column": "工资卡卡号",
-            "target_column": "B",
+            "target_column": "收款方账号",
             "transform": "card_number",
             "required": true
           },
-          "实发工资": {
+          "金额": {
             "source_column": "实发工资",
-            "target_column": "D",
+            "target_column": "金额",
             "transform": "amount_decimal",
             "required": true
           }
         },
         "auto_number": {
           "enabled": true,
-          "column_name": "A",
+          "column_name": "编号",
           "start_from": 1
         },
         "month_type_mapping": {
           "enabled": true,
-          "target_column": "E",
+          "target_column": "备注（附言）",
           "month_format": "{month}月收入",
           "bonus_value": "年终奖",
           "compensation_value": "补偿金"
@@ -168,40 +168,48 @@
         "special_group_name": "农行跨行"
       },
       "default": {
-        "template_path": "templates/农业银行模板.csv",
-        "header_row": 0,
-        "start_row": 1,
+        "template_path": "templates/农业银行模板.xls",
+        "header_row": 2,
+        "start_row": 3,
+        "reader_options": {
+          "data_only": false,
+          "header_row": 1
+        },
+        "clear_rows": {
+          "start_row": 1,
+          "end_row": 200
+        },
         "row_filter": {
           "exclude_keywords": ["合计"]
         },
         "field_mappings": {
-          "姓名": {
+          "收款方户名": {
             "source_column": "姓名",
-            "target_column": "C",
+            "target_column": "收款方户名",
             "transform": "none",
             "required": true
           },
-          "工资卡卡号": {
+          "收款方账号": {
             "source_column": "工资卡卡号",
-            "target_column": "B",
+            "target_column": "收款方账号",
             "transform": "card_number",
             "required": true
           },
-          "实发工资": {
+          "金额": {
             "source_column": "实发工资",
-            "target_column": "D",
+            "target_column": "金额",
             "transform": "amount_decimal",
             "required": true
           }
         },
         "auto_number": {
           "enabled": true,
-          "column_name": "A",
+          "column_name": "编号",
           "start_from": 1
         },
         "month_type_mapping": {
           "enabled": true,
-          "target_column": "E",
+          "target_column": "备注（附言）",
           "month_format": "{month}月收入",
           "bonus_value": "年终奖",
           "compensation_value": "补偿金"
@@ -317,40 +325,48 @@
         "special_group_name": "农行跨行"
       },
       "default": {
-        "template_path": "templates/农业银行模板.csv",
-        "header_row": 0,
-        "start_row": 1,
+        "template_path": "templates/农业银行模板.xls",
+        "header_row": 2,
+        "start_row": 3,
+        "reader_options": {
+          "data_only": false,
+          "header_row": 1
+        },
+        "clear_rows": {
+          "start_row": 1,
+          "end_row": 200
+        },
         "row_filter": {
           "exclude_keywords": ["合计"]
         },
         "field_mappings": {
-          "姓名": {
+          "收款方户名": {
             "source_column": "姓名",
-            "target_column": "C",
+            "target_column": "收款方户名",
             "transform": "none",
             "required": true
           },
-          "工资卡卡号": {
+          "收款方账号": {
             "source_column": "工资卡卡号",
-            "target_column": "B",
+            "target_column": "收款方账号",
             "transform": "card_number",
             "required": true
           },
-          "实发工资": {
+          "金额": {
             "source_column": "实发工资",
-            "target_column": "D",
+            "target_column": "金额",
             "transform": "amount_decimal",
             "required": true
           }
         },
         "auto_number": {
           "enabled": true,
-          "column_name": "A",
+          "column_name": "编号",
           "start_from": 1
         },
         "month_type_mapping": {
           "enabled": true,
-          "target_column": "E",
+          "target_column": "备注（附言）",
           "month_format": "{month}月收入",
           "bonus_value": "年终奖",
           "compensation_value": "补偿金"
@@ -466,40 +482,48 @@
         "special_group_name": "农行跨行"
       },
       "default": {
-        "template_path": "templates/农业银行模板.csv",
-        "header_row": 0,
-        "start_row": 1,
+        "template_path": "templates/农业银行模板.xls",
+        "header_row": 2,
+        "start_row": 3,
+        "reader_options": {
+          "data_only": false,
+          "header_row": 1
+        },
+        "clear_rows": {
+          "start_row": 1,
+          "end_row": 200
+        },
         "row_filter": {
           "exclude_keywords": ["合计"]
         },
         "field_mappings": {
-          "姓名": {
+          "收款方户名": {
             "source_column": "姓名",
-            "target_column": "C",
+            "target_column": "收款方户名",
             "transform": "none",
             "required": true
           },
-          "工资卡卡号": {
+          "收款方账号": {
             "source_column": "工资卡卡号",
-            "target_column": "B",
+            "target_column": "收款方账号",
             "transform": "card_number",
             "required": true
           },
-          "实发工资": {
+          "金额": {
             "source_column": "实发工资",
-            "target_column": "D",
+            "target_column": "金额",
             "transform": "amount_decimal",
             "required": true
           }
         },
         "auto_number": {
           "enabled": true,
-          "column_name": "A",
+          "column_name": "编号",
           "start_from": 1
         },
         "month_type_mapping": {
           "enabled": true,
-          "target_column": "E",
+          "target_column": "备注（附言）",
           "month_format": "{month}月收入",
           "bonus_value": "年终奖",
           "compensation_value": "补偿金"
@@ -615,40 +639,48 @@
         "special_group_name": "农行跨行"
       },
       "default": {
-        "template_path": "templates/农业银行模板.csv",
-        "header_row": 0,
-        "start_row": 1,
+        "template_path": "templates/农业银行模板.xls",
+        "header_row": 2,
+        "start_row": 3,
+        "reader_options": {
+          "data_only": false,
+          "header_row": 1
+        },
+        "clear_rows": {
+          "start_row": 1,
+          "end_row": 200
+        },
         "row_filter": {
           "exclude_keywords": ["合计"]
         },
         "field_mappings": {
-          "姓名": {
+          "收款方户名": {
             "source_column": "姓名",
-            "target_column": "C",
+            "target_column": "收款方户名",
             "transform": "none",
             "required": true
           },
-          "工资卡卡号": {
+          "收款方账号": {
             "source_column": "工资卡卡号",
-            "target_column": "B",
+            "target_column": "收款方账号",
             "transform": "card_number",
             "required": true
           },
-          "实发工资": {
+          "金额": {
             "source_column": "实发工资",
-            "target_column": "D",
+            "target_column": "金额",
             "transform": "amount_decimal",
             "required": true
           }
         },
         "auto_number": {
           "enabled": true,
-          "column_name": "A",
+          "column_name": "编号",
           "start_from": 1
         },
         "month_type_mapping": {
           "enabled": true,
-          "target_column": "E",
+          "target_column": "备注（附言）",
           "month_format": "{month}月收入",
           "bonus_value": "年终奖",
           "compensation_value": "补偿金"
@@ -764,40 +796,48 @@
         "special_group_name": "农行跨行"
       },
       "default": {
-        "template_path": "templates/农业银行模板.csv",
-        "header_row": 0,
-        "start_row": 1,
+        "template_path": "templates/农业银行模板.xls",
+        "header_row": 2,
+        "start_row": 3,
+        "reader_options": {
+          "data_only": false,
+          "header_row": 1
+        },
+        "clear_rows": {
+          "start_row": 1,
+          "end_row": 200
+        },
         "row_filter": {
           "exclude_keywords": ["合计"]
         },
         "field_mappings": {
-          "姓名": {
+          "收款方户名": {
             "source_column": "姓名",
-            "target_column": "C",
+            "target_column": "收款方户名",
             "transform": "none",
             "required": true
           },
-          "工资卡卡号": {
+          "收款方账号": {
             "source_column": "工资卡卡号",
-            "target_column": "B",
+            "target_column": "收款方账号",
             "transform": "card_number",
             "required": true
           },
-          "实发工资": {
+          "金额": {
             "source_column": "实发工资",
-            "target_column": "D",
+            "target_column": "金额",
             "transform": "amount_decimal",
             "required": true
           }
         },
         "auto_number": {
           "enabled": true,
-          "column_name": "A",
+          "column_name": "编号",
           "start_from": 1
         },
         "month_type_mapping": {
           "enabled": true,
-          "target_column": "E",
+          "target_column": "备注（附言）",
           "month_format": "{month}月收入",
           "bonus_value": "年终奖",
           "compensation_value": "补偿金"
