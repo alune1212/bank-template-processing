@@ -31,8 +31,8 @@ src/bank_template_processing/
 ├── main.py               # 参数解析、主流程、输出命名、模式切换
 ├── config_loader.py      # 配置加载与结构校验
 ├── config_types.py       # TypedDict 配置类型
-├── excel_reader.py       # 读取 .xlsx/.csv/.xls（含 data_only/header_row）
-├── excel_writer.py       # 写入 .xlsx/.csv/.xls（含 clear_rows/列解析）
+├── excel_reader.py       # 读取 .xlsx/.xls（含 data_only/header_row）
+├── excel_writer.py       # 写入 .xlsx/.xls（含 clear_rows/列解析）
 ├── merge_folder.py       # 批量合并目录模式
 ├── pipeline.py           # 共享处理管线与上下文补错
 ├── sheet_utils.py        # 列标识、表头、单元格转换工具
@@ -50,7 +50,7 @@ src/bank_template_processing/
 | 输出文件名 | `main.py` | `generate_output_filename` + `pipeline.calculate_stats` |
 | 配置校验 | `config_loader.py` | 禁止旧键 `type_rules/range_rules`，支持 `data_types/value_ranges` |
 | 读取策略 | `excel_reader.py` | `row_filter.exclude_keywords`、`reader_options.data_only/header_row` |
-| 写入策略 | `excel_writer.py` | `clear_rows`、列名/列字母/列索引解析、三种格式写入 |
+| 写入策略 | `excel_writer.py` | `clear_rows`、列名/列字母/列索引解析、XLS/XLSX 写入 |
 | 列解析 | `sheet_utils.py` | 中文列名与 Excel 列字母区分、列索引转换 |
 | 银行分组 | `template_selector.py` | 全角转半角、空白归一化、组名配置 |
 | 转换规则 | `transformer.py` | 日期解析、金额舍入、卡号清洗与 Luhn |

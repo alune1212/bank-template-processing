@@ -2,24 +2,20 @@
 
 from __future__ import annotations
 
-import csv
-
 import openpyxl
 import pytest
 
 from bank_template_processing.excel_writer import ExcelWriter
-from tests.spreadsheet_factories import write_csv_rows, write_xls_rows, write_xlsx_rows
+from tests.spreadsheet_factories import write_xls_rows, write_xlsx_rows
 
 
-@pytest.mark.parametrize("ext", [".xlsx", ".csv", ".xls"])
+@pytest.mark.parametrize("ext", [".xlsx", ".xls"])
 def test_writer_consistent_mapping_features(tmp_path, ext):
     template_path = tmp_path / f"template{ext}"
     output_path = tmp_path / f"output{ext}"
 
     if ext == ".xlsx":
         write_xlsx_rows(template_path, [["序号", "姓名", "金额", "用途", "备注"]])
-    elif ext == ".csv":
-        write_csv_rows(template_path, [["序号", "姓名", "金额", "用途", "备注"]])
     else:
         write_xls_rows(template_path, [["序号", "姓名", "金额", "用途", "备注"]])
 
@@ -51,10 +47,6 @@ def test_writer_consistent_mapping_features(tmp_path, ext):
         assert sheet.cell(2, 4).value == "01月收入"
         assert sheet.cell(2, 5).value == "固定"
         result.close()
-    elif ext == ".csv":
-        with open(output_path, "r", encoding="utf-8-sig", newline="") as file:
-            rows = list(csv.reader(file))
-        assert rows[1] == ['="1"', '="张三"', '="12.5"', '="01月收入"', '="固定"']
     else:
         import xlrd
 

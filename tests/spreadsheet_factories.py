@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 from pathlib import Path
 from typing import Iterable
 
@@ -16,13 +15,6 @@ def write_xlsx_rows(path: Path, rows: Iterable[Iterable[object]]) -> Path:
     for row in rows:
         sheet.append(list(row))
     workbook.save(path)
-    return path
-
-
-def write_csv_rows(path: Path, rows: Iterable[Iterable[object]]) -> Path:
-    with open(path, "w", encoding="utf-8", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerows(rows)
     return path
 
 

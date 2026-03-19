@@ -1,17 +1,16 @@
 """Excel文件读取器模块
 
-支持读取 .xlsx, .csv, .xls 格式的文件，并将数据转换为字典列表。
+支持读取 .xlsx, .xls 格式的文件，并将数据转换为字典列表。
 """
 
 import logging
-import csv
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 
 import openpyxl
 import xlrd
 
-from .sheet_utils import convert_xls_cell, decode_csv_text_value, is_empty_value
+from .sheet_utils import convert_xls_cell, is_empty_value
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +67,6 @@ class ExcelReader:
         try:
             if file_ext == ".xlsx":
                 return self._read_xlsx(file_path)
-            elif file_ext == ".csv":
-                return self._read_csv(file_path)
             elif file_ext == ".xls":
                 return self._read_xls(file_path)
             else:
@@ -190,63 +187,6 @@ class ExcelReader:
         finally:
             if workbook is not None and hasattr(workbook, "close"):
                 workbook.close()
-
-    def _read_csv(self, file_path: str) -> List[Dict[str, Any]]:
-        """读取.csv文件
-
-        Args:
-            file_path: .csv文件路径
-
-        Returns:
-            字典列表
-        """
-        logger.debug(f"使用csv模块读取.csv文件: {file_path}")
-
-        try:
-            with open(file_path, "r", encoding="utf-8-sig", newline="") as f:
-                reader = csv.reader(f)
-                rows = [[decode_csv_text_value(cell) for cell in row] for row in reader]
-
-            if not rows:
-                logger.warning("CSV文件为空")
-                return []
-
-            if self.header_row < 1:
-                raise ExcelError("header_row 必须大于等于 1")
-            if len(rows) < self.header_row:
-                raise ExcelError(f"CSV文件行数不足，无法读取表头行: {self.header_row}")
-
-            # 指定行是表头
-            headers = rows[self.header_row - 1]
-            logger.debug(f"提取表头: {headers}")
-
-            data_rows = []
-            # 从表头行的下一行开始读取数据
-            for row_idx, row in enumerate(rows[self.header_row :], start=self.header_row + 1):
-                # 检查是否为空行（所有单元格都为空）
-                if not row or all(self._is_empty_cell(cell) for cell in row):
-                    logger.debug(f"跳过空行: 第{row_idx}行")
-                    continue
-
-                # 应用行过滤（排除指定关键字）
-                if self._should_skip_row(row, headers):
-                    logger.debug(f"跳过过滤行: 第{row_idx}行")
-                    continue
-
-                # 将行转换为字典
-                row_dict = {}
-                for col_idx, value in enumerate(row):
-                    if col_idx < len(headers):
-                        row_dict[headers[col_idx]] = value
-                data_rows.append(row_dict)
-
-            logger.info(f"成功读取.csv文件，共 {len(data_rows)} 行数据")
-
-            return data_rows
-
-        except Exception as e:
-            logger.error(f"读取.csv文件失败: {e}")
-            raise ExcelError(f"无法读取.csv文件: {file_path}") from e
 
     def _read_xls(self, file_path: str) -> List[Dict[str, Any]]:
         """读取.xls文件

@@ -21,18 +21,6 @@ class TestExcelReader:
         assert result[1]["姓名"] == "李四"
         assert result[2]["姓名"] == "王五"
 
-    def test_read_csv_file(self):
-        """测试读取.csv文件"""
-        file_path = "tests/fixtures/test_input.csv"
-        reader = ExcelReader()
-        result = reader.read_excel(file_path)
-
-        assert len(result) == 3  # 跳过空行后应该有3行数据
-        assert result[0]["姓名"] == "张三"
-        assert result[0]["邮箱"] == "zhangsan@example.com"
-        assert result[1]["姓名"] == "李四"
-        assert result[2]["姓名"] == "王五"
-
     def test_read_xls_file(self):
         """测试读取.xls文件"""
         file_path = "tests/fixtures/test_input.xls"
@@ -59,7 +47,7 @@ class TestExcelReader:
 
     def test_convert_rows_to_dicts(self):
         """测试数据行转换为字典"""
-        file_path = "tests/fixtures/test_input.csv"
+        file_path = "tests/fixtures/test_input.xlsx"
         reader = ExcelReader()
         result = reader.read_excel(file_path)
 
@@ -144,18 +132,6 @@ class TestExcelReader:
         assert result[0]["姓名"] == "张三"
         assert result[0]["年龄"] == 25
 
-    def test_header_row_option_csv(self, tmp_path):
-        """测试 CSV 的 header_row 生效"""
-        file_path = tmp_path / "header_row.csv"
-        file_path.write_text("说明行\n姓名,年龄\n张三,25\n", encoding="utf-8")
-
-        reader = ExcelReader(header_row=2)
-        result = reader.read_excel(str(file_path))
-
-        assert len(result) == 1
-        assert result[0]["姓名"] == "张三"
-        assert result[0]["年龄"] == "25"
-
     def test_header_row_option_xls(self, tmp_path):
         """测试 XLS 的 header_row 生效"""
         import xlwt
@@ -177,35 +153,10 @@ class TestExcelReader:
         assert result[0]["姓名"] == "张三"
         assert result[0]["年龄"] == 25
 
-    def test_header_row_invalid_csv(self, tmp_path):
-        """测试 CSV header_row 非法值"""
-        file_path = tmp_path / "header_row_invalid.csv"
+    def test_csv_is_no_longer_supported(self, tmp_path):
+        """测试 CSV 现在属于不支持的格式"""
+        file_path = tmp_path / "input.csv"
         file_path.write_text("姓名,年龄\n张三,25\n", encoding="utf-8")
 
-        reader = ExcelReader(header_row=0)
-        with pytest.raises(ExcelError):
-            reader.read_excel(str(file_path))
-
-    def test_read_csv_decodes_excel_text_wrapper(self, tmp_path):
-        """测试 CSV 会自动还原 Excel 文本包装值"""
-        file_path = tmp_path / "wrapped.csv"
-        file_path.write_text('姓名,用途,编号\n="张三",="01月收入",="00123"\n', encoding="utf-8")
-
-        result = ExcelReader().read_excel(str(file_path))
-
-        assert len(result) == 1
-        assert result[0]["姓名"] == "张三"
-        assert result[0]["用途"] == "01月收入"
-        assert result[0]["编号"] == "00123"
-
-    def test_read_csv_row_filter_works_after_decoding(self, tmp_path):
-        """测试 CSV 解码后 row_filter 仍按原值生效"""
-        file_path = tmp_path / "wrapped_filter.csv"
-        file_path.write_text('姓名,标记\n="张三",="跳过"\n="李四",="保留"\n', encoding="utf-8")
-
-        reader = ExcelReader(row_filter={"exclude_keywords": ["跳过"]})
-        result = reader.read_excel(str(file_path))
-
-        assert len(result) == 1
-        assert result[0]["姓名"] == "李四"
-        assert result[0]["标记"] == "保留"
+        with pytest.raises(ExcelError, match="不支持的文件格式"):
+            ExcelReader().read_excel(str(file_path))

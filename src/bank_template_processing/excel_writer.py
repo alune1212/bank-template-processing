@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,7 +32,6 @@ except ImportError:
 from .config_loader import ConfigError
 from .sheet_utils import (
     column_letter_to_index,
-    encode_csv_text_value,
     extract_headers_from_values,
     resolve_column_index,
     resolve_column_index_by_mode,
@@ -58,7 +56,7 @@ class _CellProjection:
 
 
 class ExcelWriter:
-    """Excel 写入器，支持 `.xlsx/.csv/.xls`。"""
+    """Excel 写入器，支持 `.xlsx/.xls`。"""
 
     def __init__(self):
         logger.debug("ExcelWriter 初始化")
@@ -95,22 +93,6 @@ class ExcelWriter:
         try:
             if ext == ".xlsx":
                 self._write_xlsx(
-                    template_path,
-                    data,
-                    field_mappings,
-                    output_path,
-                    header_row,
-                    start_row,
-                    mapping_mode,
-                    fixed_values,
-                    auto_number,
-                    bank_branch_mapping,
-                    month_type_mapping,
-                    month_param,
-                    clear_rows,
-                )
-            elif ext == ".csv":
-                self._write_csv(
                     template_path,
                     data,
                     field_mappings,
@@ -202,79 +184,6 @@ class ExcelWriter:
         workbook.save(output_path)
         logger.debug(f"xlsx文件已保存: {output_path}")
 
-    def _write_csv(
-        self,
-        template_path: str,
-        data: list,
-        field_mappings: dict,
-        output_path: str,
-        header_row: int,
-        start_row: int,
-        mapping_mode: str,
-        fixed_values: Mapping[str, Any] | None = None,
-        auto_number: Mapping[str, Any] | None = None,
-        bank_branch_mapping: Mapping[str, Any] | None = None,
-        month_type_mapping: Mapping[str, Any] | None = None,
-        month_param: Optional[str] = None,
-        clear_rows: Mapping[str, Any] | None = None,
-    ) -> None:
-        """使用 csv 模块写入 `.csv` 文件。"""
-        del bank_branch_mapping
-        logger.debug(f"使用csv模块写入csv文件: {template_path}")
-
-        with open(template_path, "r", encoding="utf-8-sig") as file:
-            reader = csv.reader(file)
-            rows = list(reader)
-
-        if header_row > 0:
-            if len(rows) < header_row:
-                raise ExcelError(f"模板文件行数不足，无法读取表头行: {header_row}")
-            header_values = rows[header_row - 1]
-            headers = extract_headers_from_values(header_values)
-            max_columns = len(header_values)
-            logger.debug(f"读取到 {len(headers)} 个表头字段")
-        else:
-            headers = {}
-            max_columns = len(rows[0]) if rows else 0
-            logger.debug("header_row = 0，跳过读取表头（使用列标识符）")
-
-        data_rows = self._process_data_to_rows(
-            data,
-            field_mappings,
-            headers,
-            max_columns,
-            mapping_mode,
-            fixed_values,
-            auto_number,
-            None,
-            month_type_mapping,
-            month_param,
-        )
-
-        clear_config = clear_rows or {}
-        clear_end = clear_config.get("end_row", clear_config.get("data_end_row"))
-        if clear_end is not None:
-            clear_start = clear_config.get("start_row", start_row)
-            if clear_start > clear_end:
-                raise ExcelError("clear_rows.start_row 不能大于 end_row")
-            clear_count = clear_end - clear_start + 1
-            rows_before = rows[: clear_start - 1]
-            if len(rows_before) < clear_start - 1:
-                rows_before = rows_before + [[""] * max_columns for _ in range(clear_start - 1 - len(rows_before))]
-            rows_after = rows[clear_end:] if clear_end < len(rows) else []
-            filler_rows = [[""] * max_columns for _ in range(max(0, clear_count - len(data_rows)))]
-            output_rows = rows_before + data_rows + filler_rows + rows_after
-        else:
-            output_rows = rows[: start_row - 1]
-            if len(output_rows) < start_row - 1:
-                output_rows = output_rows + [[""] * max_columns for _ in range(start_row - 1 - len(output_rows))]
-            output_rows.extend(data_rows)
-
-        with open(output_path, "w", encoding="utf-8-sig", newline="") as file:
-            writer = csv.writer(file)
-            writer.writerows(output_rows)
-        logger.debug(f"csv文件已保存: {output_path}")
-
     def _write_xls(
         self,
         template_path: str,
@@ -355,41 +264,6 @@ class ExcelWriter:
         workbook_output.save(output_path)
         logger.debug(f"xls文件已保存: {output_path}")
 
-    def _process_data_to_rows(
-        self,
-        data: list,
-        field_mappings: dict,
-        headers: dict,
-        max_columns: int,
-        mapping_mode: str,
-        fixed_values: Mapping[str, Any] | None = None,
-        auto_number: Mapping[str, Any] | None = None,
-        bank_branch_mapping: Mapping[str, Any] | None = None,
-        month_type_mapping: Mapping[str, Any] | None = None,
-        month_param: Optional[str] = None,
-    ) -> list[list[str]]:
-        """处理数据并转换为 CSV 行。"""
-        projections = self._project_rows(
-            data,
-            field_mappings,
-            headers,
-            max_columns,
-            mapping_mode,
-            fixed_values,
-            auto_number,
-            bank_branch_mapping,
-            month_type_mapping,
-            month_param,
-            bounded=True,
-        )
-        rows: list[list[str]] = []
-        for projection in projections:
-            row_output = [""] * max_columns
-            for col_idx, cell in projection.items():
-                if 1 <= col_idx <= max_columns:
-                    row_output[col_idx - 1] = encode_csv_text_value(cell.value)
-            rows.append(row_output)
-        return rows
 
     def _write_data_to_worksheet(
         self,

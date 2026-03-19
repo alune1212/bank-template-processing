@@ -22,7 +22,6 @@ from bank_template_processing.merge_folder import (
     _is_empty_value,
     _merge_input_file_sort_key,
     _read_all_rows,
-    _read_csv_rows,
     _read_generated_file_rows,
     _read_xls_rows,
     _read_xlsx_rows,
@@ -312,22 +311,6 @@ def test_read_xlsx_rows_without_active_sheet_raises(monkeypatch):
     monkeypatch.setattr(merge_folder_module.openpyxl, "load_workbook", lambda *_args, **_kwargs: FakeWorkbook())
     with pytest.raises(MergeFolderError, match="没有工作表"):
         _read_xlsx_rows(Path("a.xlsx"))
-
-
-def test_read_csv_rows_reads_file(tmp_path):
-    file_path = tmp_path / "a.csv"
-    file_path.write_text("a,b\n1,2\n", encoding="utf-8")
-    assert _read_csv_rows(file_path) == [["a", "b"], ["1", "2"]]
-
-
-def test_read_csv_rows_decodes_wrapped_values_and_keeps_month_inference(tmp_path):
-    file_path = tmp_path / "wrapped.csv"
-    file_path.write_text('姓名,用途\n="张三",="01月收入"\n', encoding="utf-8")
-
-    rows = _read_csv_rows(file_path)
-
-    assert rows == [["姓名", "用途"], ["张三", "01月收入"]]
-    assert infer_month_param_from_values({rows[1][1]}, {"month_format": "{month}月收入"}) == "01"
 
 
 def test_read_xls_rows_and_convert_number_exception_branch(monkeypatch):

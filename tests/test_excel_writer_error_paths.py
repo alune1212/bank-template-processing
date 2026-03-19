@@ -10,11 +10,7 @@ import pytest
 import bank_template_processing.excel_writer as excel_writer_module
 from bank_template_processing.config_loader import ConfigError
 from bank_template_processing.excel_writer import ExcelError, ExcelWriter
-from tests.spreadsheet_factories import write_csv_rows, write_xls_rows, write_xlsx_rows
-
-
-def _create_csv_template(path: Path) -> None:
-    write_csv_rows(path, [["姓名", "金额"]])
+from tests.spreadsheet_factories import write_xls_rows, write_xlsx_rows
 
 
 def _create_xlsx_template(path: Path) -> None:
@@ -22,58 +18,25 @@ def _create_xlsx_template(path: Path) -> None:
 
 
 def test_write_excel_wraps_unexpected_exception(tmp_path, monkeypatch):
-    template_path = tmp_path / "template.csv"
-    _create_csv_template(template_path)
+    template_path = tmp_path / "template.xlsx"
+    _create_xlsx_template(template_path)
 
     writer = ExcelWriter()
 
     def boom(*_args, **_kwargs):
         raise RuntimeError("unexpected")
 
-    monkeypatch.setattr(writer, "_write_csv", boom)
+    monkeypatch.setattr(writer, "_write_xlsx", boom)
 
     with pytest.raises(ExcelError, match="写入文件失败"):
         writer.write_excel(
             template_path=str(template_path),
             data=[{"姓名": "张三"}],
             field_mappings={"姓名": {"source_column": "姓名"}},
-            output_path=str(tmp_path / "out.csv"),
+            output_path=str(tmp_path / "out.xlsx"),
             header_row=1,
             start_row=2,
             mapping_mode="column_name",
-        )
-
-
-def test_write_csv_header_row_out_of_range_raises(tmp_path):
-    template_path = tmp_path / "template.csv"
-    template_path.write_text("姓名,金额\n", encoding="utf-8")
-
-    with pytest.raises(ExcelError, match="模板文件行数不足"):
-        ExcelWriter().write_excel(
-            template_path=str(template_path),
-            data=[{"姓名": "张三"}],
-            field_mappings={"姓名": {"source_column": "姓名"}},
-            output_path=str(tmp_path / "out.csv"),
-            header_row=5,
-            start_row=6,
-            mapping_mode="column_name",
-        )
-
-
-def test_write_csv_clear_rows_invalid_range_raises(tmp_path):
-    template_path = tmp_path / "template.csv"
-    _create_csv_template(template_path)
-
-    with pytest.raises(ExcelError, match="start_row 不能大于 end_row"):
-        ExcelWriter().write_excel(
-            template_path=str(template_path),
-            data=[{"姓名": "张三"}],
-            field_mappings={"姓名": {"source_column": "姓名"}},
-            output_path=str(tmp_path / "out.csv"),
-            header_row=1,
-            start_row=2,
-            mapping_mode="column_name",
-            clear_rows={"start_row": 5, "end_row": 2},
         )
 
 
@@ -233,15 +196,15 @@ def test_resolve_column_index_by_mode_without_headers_raises():
 
 
 def test_write_excel_warns_on_deprecated_bank_branch_mapping(tmp_path, caplog):
-    template_path = tmp_path / "template.csv"
-    _create_csv_template(template_path)
+    template_path = tmp_path / "template.xlsx"
+    _create_xlsx_template(template_path)
 
     caplog.set_level("WARNING")
     ExcelWriter().write_excel(
         template_path=str(template_path),
         data=[],
         field_mappings={},
-        output_path=str(tmp_path / "out.csv"),
+        output_path=str(tmp_path / "out.xlsx"),
         header_row=1,
         start_row=2,
         mapping_mode="column_name",
@@ -301,67 +264,6 @@ class _FakeXlsSheet:
 
     def write(self, row: int, col: int, value):
         self.values[(row, col)] = value
-
-
-@pytest.mark.parametrize(
-    ("field_mappings", "fixed_values", "auto_number", "month_type_mapping", "month_param", "match"),
-    [
-        (
-            {"姓名": {"source_column": "姓名", "target_column": "NAME"}},
-            None,
-            None,
-            None,
-            None,
-            r"无法解析字段 '姓名' 的目标列 'NAME'",
-        ),
-        (
-            {"姓名": {"source_column": "姓名", "target_column": "姓名"}},
-            {"NAME": "固定"},
-            None,
-            None,
-            None,
-            r"无法解析固定值列 'NAME'",
-        ),
-        (
-            {"姓名": {"source_column": "姓名", "target_column": "姓名"}},
-            None,
-            {"enabled": True, "column": "NAME", "start_from": 1},
-            None,
-            None,
-            r"无法解析自动编号列 'NAME'",
-        ),
-        (
-            {"姓名": {"source_column": "姓名", "target_column": "姓名"}},
-            None,
-            None,
-            {"enabled": True, "target_column": "NAME"},
-            "1",
-            r"无法解析月类型映射列 'NAME'",
-        ),
-    ],
-)
-def test_process_data_to_rows_invalid_column_name_mode_raises(
-    field_mappings,
-    fixed_values,
-    auto_number,
-    month_type_mapping,
-    month_param,
-    match,
-):
-    writer = ExcelWriter()
-
-    with pytest.raises(ConfigError, match=match):
-        writer._process_data_to_rows(
-            data=[{"姓名": "张三"}],
-            field_mappings=field_mappings,
-            headers={"姓名": 1, "金额": 2},
-            max_columns=2,
-            mapping_mode="column_name",
-            fixed_values=fixed_values,
-            auto_number=auto_number,
-            month_type_mapping=month_type_mapping,
-            month_param=month_param,
-        )
 
 
 def test_write_data_to_worksheet_amount_branch(monkeypatch):
@@ -429,22 +331,6 @@ def test_write_xlsx_invalid_column_name_mode_fails_early(tmp_path):
             data=[{"姓名": "张三"}],
             field_mappings={"姓名": {"source_column": "姓名", "target_column": "NAME"}},
             output_path=str(tmp_path / "out.xlsx"),
-            header_row=1,
-            start_row=2,
-            mapping_mode="column_name",
-        )
-
-
-def test_write_csv_invalid_column_name_mode_fails_early(tmp_path):
-    template_path = tmp_path / "template.csv"
-    _create_csv_template(template_path)
-
-    with pytest.raises(ConfigError, match="超出最大列数"):
-        ExcelWriter().write_excel(
-            template_path=str(template_path),
-            data=[{"姓名": "张三"}],
-            field_mappings={"姓名": {"source_column": "姓名", "target_column": "NAME"}},
-            output_path=str(tmp_path / "out.csv"),
             header_row=1,
             start_row=2,
             mapping_mode="column_name",

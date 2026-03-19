@@ -5,7 +5,7 @@
 **Branch:** main
 
 ## OVERVIEW
-银行卡进卡模板处理 CLI。负责将 OA 审批数据清洗、校验、转换后写入银行模板，支持 `.xlsx/.csv/.xls` 输入输出、按银行动态分组、多规则组配置，以及已生成结果文件的批量合并。
+银行卡进卡模板处理 CLI。负责将 OA 审批数据清洗、校验、转换后写入银行模板，支持 `.xlsx/.xls` 输入输出、按银行动态分组、多规则组配置，以及已生成结果文件的批量合并。
 
 ## CURRENT SNAPSHOT
 - 运行时与依赖：
@@ -31,8 +31,8 @@
 │   ├── main.py                    # CLI 参数、主流程编排、输出命名、错误出口
 │   ├── config_loader.py           # 配置加载/校验（含 reader_options、clear_rows、routing）
 │   ├── config_types.py            # TypedDict 配置类型定义
-│   ├── excel_reader.py            # 读取 .xlsx/.csv/.xls，支持 row_filter/data_only/header_row
-│   ├── excel_writer.py            # 写入 .xlsx/.csv/.xls，支持 clear_rows/自动编号/列解析
+│   ├── excel_reader.py            # 读取 .xlsx/.xls，支持 row_filter/data_only/header_row
+│   ├── excel_writer.py            # 写入 .xlsx/.xls，支持 clear_rows/自动编号/列解析
 │   ├── merge_folder.py            # 已生成文件批量合并与统计校验
 │   ├── pipeline.py                # 共享处理管线、上下文补错、统计与转换
 │   ├── sheet_utils.py             # 列解析、单元格转换、表头提取等表格工具
@@ -59,7 +59,7 @@
 | 输出文件名策略 | `src/bank_template_processing/main.py` | 默认模板：`{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}` |
 | 配置模式与校验 | `src/bank_template_processing/config_loader.py` | 校验 `data_types/value_ranges`，禁止旧键 `type_rules/range_rules` |
 | 输入读取 | `src/bank_template_processing/excel_reader.py` | `data_only` 公式读取策略、`row_filter.exclude_keywords`、`reader_options.header_row` |
-| 输出写入 | `src/bank_template_processing/excel_writer.py` | `clear_rows`、列名/列字母/列索引解析、三格式写入 |
+| 输出写入 | `src/bank_template_processing/excel_writer.py` | `clear_rows`、列名/列字母/列索引解析、XLS/XLSX 写入 |
 | 列解析与表头工具 | `src/bank_template_processing/sheet_utils.py` | 中文列名与 Excel 列字母区分、列索引转换 |
 | 分组逻辑 | `src/bank_template_processing/template_selector.py` | 默认组/特殊组拆分，支持 `default_group_name/special_group_name` |
 | 数据转换 | `src/bank_template_processing/transformer.py` | 金额舍入模式（`round/half_up/floor/ceil/down/up`）与卡号 Luhn |

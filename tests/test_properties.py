@@ -27,7 +27,7 @@ def test_is_zero_salary_value_string_separator_normalization(value: int):
     template_name=st.text(alphabet="ABCxyz", min_size=1, max_size=8),
     count=st.integers(min_value=0, max_value=9999),
     amount=st.decimals(min_value=-100000, max_value=100000, places=2, allow_nan=False, allow_infinity=False),
-    ext=st.sampled_from([".xlsx", ".csv", ".xls"]),
+    ext=st.sampled_from([".xlsx", ".xls"]),
 )
 def test_generate_output_filename_extension_property(
     unit_name: str,

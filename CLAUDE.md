@@ -39,7 +39,7 @@ Data processing pipeline: **Reader → Transformer → Validator → Writer**
 |--------|---------|
 | `main.py` | CLI parsing, pipeline orchestration, output filename generation |
 | `config_loader.py` | JSON config loading, schema validation |
-| `excel_reader.py` | Read `.xlsx/.csv/.xls`, supports `data_only` for formulas, `row_filter` for filtering |
+| `excel_reader.py` | Read `.xlsx/.xls`, supports `data_only` for formulas, `row_filter` for filtering |
 | `transformer.py` | Date/amount/card number transformations, Luhn validation |
 | `validator.py` | Required fields, data types, value ranges |
 | `excel_writer.py` | Write to templates, auto-numbering, field/fixed value mapping |

@@ -91,7 +91,7 @@ def parse_args(argv=None) -> argparse.Namespace:
   python main.py --merge-folder ./output --config config.json
         """,
     )
-    parser.add_argument("excel_path", nargs="?", help="输入Excel文件路径（支持.xlsx, .csv, .xls格式）")
+    parser.add_argument("excel_path", nargs="?", help="输入Excel文件路径（支持.xlsx, .xls格式）")
     parser.add_argument("unit_name", nargs="?", help="组织单位名称（必须在配置文件中定义）")
     parser.add_argument("month", nargs="?", help="月份参数（1-12、01-09、'年终奖'或'补偿金'）")
     parser.add_argument("--output-dir", default="output/", help="输出目录（默认：output/）")

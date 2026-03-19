@@ -426,7 +426,7 @@ def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp
                 "default": dict(base_group_cfg),
                 "crossbank": {**base_group_cfg, "template_path": "templates/crossbank.xlsx"},
                 "b01095": {
-                    "template_path": "templates/外服远茂进卡模版.xlsx",
+                    "template_path": "templates/外服远茂进卡模板.xlsx",
                     "header_row": 1,
                     "start_row": 2,
                     "field_mappings": {
@@ -496,8 +496,8 @@ def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp
     assert called["process"] == 1
     assert len(captured["group_data"]) == 2
     assert captured["month_param"] == "01"
-    assert str(captured["template_path"]).endswith("templates/外服远茂进卡模版.xlsx")
-    assert str(captured["output_path"]).endswith("单位A_外服远茂进卡模版_2人_金额300.00元.xlsx")
+    assert str(captured["template_path"]).endswith("templates/外服远茂进卡模板.xlsx")
+    assert str(captured["output_path"]).endswith("单位A_外服远茂进卡模板_2人_金额300.00元.xlsx")
 
     group_config = captured["group_config"]
     payee_name_mapping = group_config["field_mappings"]["收款人姓名"]

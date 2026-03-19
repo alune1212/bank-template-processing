@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 import logging
 import re
 from dataclasses import dataclass
@@ -26,7 +25,6 @@ from .pipeline import (
 from .excel_writer import ExcelWriter
 from .sheet_utils import (
     convert_xls_cell,
-    decode_csv_text_value,
     extract_headers,
     get_cell_value,
     is_empty_value,
@@ -39,7 +37,7 @@ MERGE_FILE_PATTERN = re.compile(
 )
 MERGE_COUNT_PATTERN = re.compile(r"(?P<count>\d+)人")
 MERGE_AMOUNT_PATTERN = re.compile(r"金额(?P<amount>-?\d+(?:\.\d+)?)元")
-SUPPORTED_EXTENSIONS = {".xlsx", ".xls", ".csv"}
+SUPPORTED_EXTENSIONS = {".xlsx", ".xls"}
 MERGE_MONTH_SOURCE_COLUMN = "__merge_month_value__"
 MERGE_SOURCE_FILE_COLUMN = "__merge_source_file__"
 
@@ -679,8 +677,6 @@ def _read_all_rows(file_path: Path) -> list[list[Any]]:
     ext = file_path.suffix.lower()
     if ext == ".xlsx":
         return _read_xlsx_rows(file_path)
-    if ext == ".csv":
-        return _read_csv_rows(file_path)
     if ext == ".xls":
         return _read_xls_rows(file_path)
     raise MergeFolderError(f"不支持的文件格式: {file_path.name}")
@@ -695,12 +691,6 @@ def _read_xlsx_rows(file_path: Path) -> list[list[Any]]:
         return [list(row) for row in worksheet.iter_rows(values_only=True)]
     finally:
         workbook.close()
-
-
-def _read_csv_rows(file_path: Path) -> list[list[Any]]:
-    with open(file_path, "r", encoding="utf-8-sig", newline="") as file:
-        reader = csv.reader(file)
-        return [[decode_csv_text_value(cell) for cell in row] for row in reader]
 
 
 def _read_xls_rows(file_path: Path) -> list[list[Any]]:

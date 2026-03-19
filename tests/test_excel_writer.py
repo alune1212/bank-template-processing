@@ -1,12 +1,10 @@
 """测试Excel写入器模块"""
 
-import csv
-
 import openpyxl
 import pytest
 
 from bank_template_processing.excel_writer import ExcelError, ExcelWriter
-from tests.spreadsheet_factories import write_csv_rows, write_xls_rows, write_xlsx_rows
+from tests.spreadsheet_factories import write_xls_rows, write_xlsx_rows
 
 
 class TestExcelWriter:
@@ -106,73 +104,6 @@ class TestExcelWriter:
 
         wb_result.close()
 
-    def test_write_csv_file(self, tmp_path):
-        """测试写入.csv文件"""
-        template_path = write_csv_rows(tmp_path / "template.csv", [["说明文字"], ["姓名", "年龄", "金额"]])
-
-        # 准备数据
-        data = [
-            {"姓名": "张三", "年龄": 25, "金额": 1000.0},
-            {"姓名": "李四", "年龄": 30, "金额": 2000.0},
-        ]
-
-        # 字段映射
-        field_mappings = {
-            "姓名": {"source_column": "姓名"},
-            "年龄": {"source_column": "年龄"},
-            "金额": {"source_column": "金额"},
-        }
-
-        # 输出路径
-        output_path = tmp_path / "output.csv"
-
-        # 写入文件
-        writer = ExcelWriter()
-        writer.write_excel(
-            template_path=str(template_path),
-            data=data,
-            field_mappings=field_mappings,
-            output_path=str(output_path),
-            header_row=2,
-            start_row=3,
-            mapping_mode="column_name",
-        )
-
-        # 验证输出文件存在
-        assert output_path.exists()
-
-        # 验证数据（使用utf-8-sig编码以正确处理BOM）
-        with open(output_path, "r", encoding="utf-8-sig", newline="") as f:
-            reader = csv.reader(f)
-            rows = list(reader)
-            assert rows[0] == ["说明文字"]
-            assert rows[1] == ["姓名", "年龄", "金额"]
-            assert rows[2] == ['="张三"', '="25"', '="1000.0"']
-            assert rows[3] == ['="李四"', '="30"', '="2000.0"']
-
-    def test_write_csv_preserves_rows_before_start_row(self, tmp_path):
-        """测试 CSV 写入会保留 start_row 之前的说明行"""
-        template_path = write_csv_rows(
-            tmp_path / "template.csv",
-            [["姓名"], ["说明行"], ["旧数据"], ["尾部"]],
-        )
-
-        output_path = tmp_path / "output.csv"
-        ExcelWriter().write_excel(
-            template_path=str(template_path),
-            data=[{"姓名": "张三"}],
-            field_mappings={"姓名": {"source_column": "姓名"}},
-            output_path=str(output_path),
-            header_row=1,
-            start_row=3,
-            mapping_mode="column_name",
-        )
-
-        with open(output_path, "r", encoding="utf-8-sig", newline="") as f:
-            rows = list(csv.reader(f))
-
-        assert rows == [["姓名"], ["说明行"], ['="张三"']]
-
     def test_write_xls_file(self, tmp_path):
         """测试写入.xls文件"""
         template_path = write_xls_rows(tmp_path / "template.xls", [["说明文字"], ["姓名", "年龄"]])
@@ -203,6 +134,50 @@ class TestExcelWriter:
 
         # 验证输出文件存在
         assert output_path.exists()
+
+    def test_write_agriculture_bank_xls_template_layout(self, tmp_path):
+        """测试农业银行模板写入时保留标题和表头"""
+        import xlrd
+
+        template_path = write_xls_rows(
+            tmp_path / "农业银行模板.xls",
+            [
+                ["中国农业银行代发工资（农行）上传文件", "", "", "", ""],
+                ["编号", "收款方账号", "收款方户名", "金额", "备注（附言）"],
+            ],
+        )
+
+        data = [
+            {"姓名": "张三", "工资卡卡号": "6228480402564890018", "实发工资": 1234.56},
+            {"姓名": "李四", "工资卡卡号": "6228480402564890026", "实发工资": 78.9},
+        ]
+        field_mappings = {
+            "收款方户名": {"source_column": "姓名", "target_column": "收款方户名", "transform": "none"},
+            "收款方账号": {"source_column": "工资卡卡号", "target_column": "收款方账号", "transform": "card_number"},
+            "金额": {"source_column": "实发工资", "target_column": "金额", "transform": "amount_decimal"},
+        }
+
+        output_path = tmp_path / "农业银行模板_output.xls"
+        ExcelWriter().write_excel(
+            template_path=str(template_path),
+            data=data,
+            field_mappings=field_mappings,
+            output_path=str(output_path),
+            header_row=2,
+            start_row=3,
+            mapping_mode="column_name",
+            auto_number={"enabled": True, "column_name": "编号", "start_from": 1},
+            month_type_mapping={"enabled": True, "target_column": "备注（附言）", "month_format": "{month}月收入"},
+            month_param="01",
+            clear_rows={"start_row": 3, "end_row": 200},
+        )
+
+        workbook = xlrd.open_workbook(str(output_path))
+        sheet = workbook.sheet_by_index(0)
+        assert sheet.cell_value(0, 0) == "中国农业银行代发工资（农行）上传文件"
+        assert sheet.row_values(1)[:5] == ["编号", "收款方账号", "收款方户名", "金额", "备注（附言）"]
+        assert sheet.row_values(2)[:5] == [1.0, "6228480402564890018", "张三", 1234.56, "01月收入"]
+        assert sheet.row_values(3)[:5] == [2.0, "6228480402564890026", "李四", 78.9, "01月收入"]
 
     def test_fixed_values(self, tmp_path):
         """测试固定值功能"""
@@ -326,58 +301,6 @@ class TestExcelWriter:
         assert ws_result.cell(4, 1).value == "王五"
         assert ws_result.cell(5, 1).value == "合计"
         wb_result.close()
-
-    def test_clear_rows_csv_preserve_tail(self, tmp_path):
-        """测试 CSV clear_rows 保留尾部"""
-        template_path = write_csv_rows(
-            tmp_path / "template.csv",
-            [["姓名"], ["旧数据1"], ["旧数据2"], ["合计"]],
-        )
-
-        data = [{"姓名": "张三"}]
-        field_mappings = {"姓名": {"source_column": "姓名"}}
-
-        output_path = tmp_path / "output.csv"
-        writer = ExcelWriter()
-        writer.write_excel(
-            template_path=str(template_path),
-            data=data,
-            field_mappings=field_mappings,
-            output_path=str(output_path),
-            header_row=1,
-            start_row=2,
-            mapping_mode="column_name",
-            clear_rows={"start_row": 2, "end_row": 3},
-        )
-
-        with open(output_path, "r", encoding="utf-8-sig", newline="") as f:
-            rows = list(csv.reader(f))
-        assert rows[1][0] == '="张三"'
-        assert rows[3][0] == "合计"
-
-    def test_clear_rows_csv_defaults_start_row_from_config(self, tmp_path):
-        """测试 CSV clear_rows 未写 start_row 时回退到 start_row 配置"""
-        template_path = write_csv_rows(
-            tmp_path / "template.csv",
-            [["姓名"], ["说明行"], ["旧数据1"], ["旧数据2"], ["尾部"]],
-        )
-
-        output_path = tmp_path / "output.csv"
-        ExcelWriter().write_excel(
-            template_path=str(template_path),
-            data=[{"姓名": "张三"}],
-            field_mappings={"姓名": {"source_column": "姓名"}},
-            output_path=str(output_path),
-            header_row=1,
-            start_row=3,
-            mapping_mode="column_name",
-            clear_rows={"end_row": 4},
-        )
-
-        with open(output_path, "r", encoding="utf-8-sig", newline="") as f:
-            rows = list(csv.reader(f))
-
-        assert rows == [["姓名"], ["说明行"], ['="张三"'], [""], ["尾部"]]
 
     def test_clear_rows_xls_insufficient_range(self, tmp_path):
         """测试 XLS clear_rows 范围不足时抛错"""

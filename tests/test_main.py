@@ -276,14 +276,6 @@ class TestGenerateOutputFilename:
 
         assert filename == "unit1_工商银行_5人_金额500.00元.xlsx"
 
-    def test_generate_output_filename_csv_extension(self):
-        """测试CSV模板生成CSV扩展名"""
-        from bank_template_processing.main import generate_output_filename
-
-        filename = generate_output_filename("unit1", "01", None, "template.csv", 10, 1000.00)
-
-        assert filename == "unit1_template_10人_金额1000.00元.csv"
-
     def test_generate_output_filename_xls_extension(self):
         """测试XLS模板生成XLS扩展名"""
         from bank_template_processing.main import generate_output_filename
@@ -634,7 +626,7 @@ class TestMainZeroSalaryFiltering:
 
 
 class TestMainZeroSalaryFilteringByInputFormat:
-    """测试零工资筛选对三种输入格式均生效"""
+    """测试零工资筛选对两种输入格式均生效"""
 
     def _create_input_file(self, tmp_path, suffix: str) -> str:
         file_path = tmp_path / f"input{suffix}"
@@ -654,9 +646,6 @@ class TestMainZeroSalaryFilteringByInputFormat:
             for row in rows:
                 ws.append(row)
             wb.save(file_path)
-        elif suffix == ".csv":
-            lines = [",".join(headers)] + [",".join(row) for row in rows]
-            file_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         elif suffix == ".xls":
             import xlwt
 
@@ -676,10 +665,10 @@ class TestMainZeroSalaryFilteringByInputFormat:
     def _create_config(self, tmp_path, template_path: str) -> str:
         return str(_write_main_config(tmp_path, template_path=template_path, filename="config_formats.json"))
 
-    @pytest.mark.parametrize("suffix", [".xlsx", ".csv", ".xls"])
+    @pytest.mark.parametrize("suffix", [".xlsx", ".xls"])
     @patch("bank_template_processing.main.ExcelWriter")
     def test_main_filters_zero_salary_for_all_input_formats(self, mock_writer_class, tmp_path, suffix):
-        """测试 .xlsx/.csv/.xls 输入均会过滤零工资行"""
+        """测试 .xlsx/.xls 输入均会过滤零工资行"""
         from bank_template_processing.main import _is_zero_salary_value, main
 
         input_path = self._create_input_file(tmp_path, suffix)

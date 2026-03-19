@@ -81,20 +81,6 @@ def test_read_xlsx_header_row_out_of_range_raises(tmp_path):
         ExcelReader(header_row=5)._read_xlsx(str(file_path))
 
 
-def test_read_csv_empty_file_returns_empty(tmp_path):
-    file_path = tmp_path / "empty.csv"
-    file_path.write_text("", encoding="utf-8")
-    result = ExcelReader()._read_csv(str(file_path))
-    assert result == []
-
-
-def test_read_csv_header_row_out_of_range_raises(tmp_path):
-    file_path = tmp_path / "a.csv"
-    file_path.write_text("a,b\n1,2\n", encoding="utf-8")
-    with pytest.raises(ExcelError, match="无法读取\\.csv文件"):
-        ExcelReader(header_row=5)._read_csv(str(file_path))
-
-
 def test_read_xls_header_row_invalid_raises(tmp_path, monkeypatch):
     file_path = tmp_path / "a.xls"
     file_path.write_text("dummy", encoding="utf-8")
@@ -134,18 +120,19 @@ def test_read_xls_open_failure_raises(tmp_path, monkeypatch):
 
 
 def test_read_excel_wraps_unknown_error(tmp_path, monkeypatch):
-    file_path = tmp_path / "a.csv"
-    file_path.write_text("a,b\n1,2\n", encoding="utf-8")
+    file_path = tmp_path / "a.xlsx"
+    file_path.write_text("dummy", encoding="utf-8")
     reader = ExcelReader()
 
-    monkeypatch.setattr(reader, "_read_csv", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("oops")))
+    monkeypatch.setattr(reader, "_read_xlsx", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("oops")))
 
     with pytest.raises(ExcelError, match="文件格式无效"):
         reader.read_excel(str(file_path))
 
 
-def test_read_excel_unsupported_extension_raises(tmp_path):
-    file_path = tmp_path / "a.txt"
+@pytest.mark.parametrize("suffix", [".txt", ".csv"])
+def test_read_excel_unsupported_extension_raises(tmp_path, suffix):
+    file_path = tmp_path / f"a{suffix}"
     file_path.write_text("x", encoding="utf-8")
     with pytest.raises(ExcelError, match="不支持的文件格式"):
         ExcelReader().read_excel(str(file_path))
