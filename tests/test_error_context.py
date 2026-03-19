@@ -45,7 +45,11 @@ def test_main_missing_salary_column_reports_context(monkeypatch, tmp_path, caplo
     monkeypatch.setattr(main_module, "validate_cli_mode_args", lambda _args: None)
     monkeypatch.setattr(main_module, "load_config", lambda _path: config)
     monkeypatch.setattr(main_module, "validate_config", lambda _cfg: None)
-    monkeypatch.setattr(main_module, "ExcelReader", lambda **_kwargs: type("R", (), {"read_excel": lambda _self, _p: [{"姓名": "张三"}]})())
+    monkeypatch.setattr(
+        main_module,
+        "ExcelReader",
+        lambda **_kwargs: type("R", (), {"read_excel": lambda _self, _p: [{"姓名": "张三"}]})(),
+    )
 
     caplog.set_level("ERROR")
 
@@ -98,7 +102,9 @@ def test_prepare_merge_tasks_stats_mismatch_reports_context(tmp_path, monkeypatc
         count=1,
         amount=100.0,
     )
-    monkeypatch.setattr("bank_template_processing.merge_folder._scan_merge_input_files", lambda *_args, **_kwargs: [file_meta])
+    monkeypatch.setattr(
+        "bank_template_processing.merge_folder._scan_merge_input_files", lambda *_args, **_kwargs: [file_meta]
+    )
     monkeypatch.setattr(
         "bank_template_processing.merge_folder.resolve_rule_group_for_template",
         lambda *_args, **_kwargs: (

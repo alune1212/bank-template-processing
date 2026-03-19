@@ -33,9 +33,7 @@ def make_basic_unit_config(
         "template_path": template_path,
         "header_row": header_row,
         "start_row": start_row,
-        "field_mappings": deepcopy(field_mappings)
-        if field_mappings is not None
-        else {"姓名": make_field_mapping()},
+        "field_mappings": deepcopy(field_mappings) if field_mappings is not None else {"姓名": make_field_mapping()},
         "transformations": deepcopy(transformations) if transformations is not None else {},
     }
     config.update(deepcopy(extra))

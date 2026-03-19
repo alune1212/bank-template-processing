@@ -30,11 +30,10 @@ from .sheet_utils import (
     is_empty_value,
     resolve_column_index_by_mode,
 )
+from .validator import ValidationError
 
 
-MERGE_FILE_PATTERN = re.compile(
-    r"^(?P<prefix>.+)_(?P<count>\d+)人_金额(?P<amount>-?\d+(?:\.\d+)?)元$"
-)
+MERGE_FILE_PATTERN = re.compile(r"^(?P<prefix>.+)_(?P<count>\d+)人_金额(?P<amount>-?\d+(?:\.\d+)?)元$")
 MERGE_COUNT_PATTERN = re.compile(r"(?P<count>\d+)人")
 MERGE_AMOUNT_PATTERN = re.compile(r"金额(?P<amount>-?\d+(?:\.\d+)?)元")
 SUPPORTED_EXTENSIONS = {".xlsx", ".xls"}
@@ -144,9 +143,7 @@ def resolve_rule_group_for_template(
     if group_name_candidates:
         unique_candidates = sorted(set(group_name_candidates))
         if len(unique_candidates) != 1:
-            raise MergeFolderError(
-                f"模板名称 '{template_name}' 同时命中多个组名配置: {', '.join(unique_candidates)}"
-            )
+            raise MergeFolderError(f"模板名称 '{template_name}' 同时命中多个组名配置: {', '.join(unique_candidates)}")
         rule_group = unique_candidates[0]
         return rule_group, get_unit_config(config, unit_name, rule_group)
 
@@ -211,9 +208,9 @@ def prepare_merge_tasks(
     merge_folder_path: str,
     config: Mapping[str, Any],
     resolve_path_fn: Callable[[str], str],
-    apply_transformations_fn: Callable[[list, dict, dict], list] | None,
-    needs_transformations_fn: Callable[[dict], bool] | None,
-    calculate_stats_fn: Callable[[list, dict, dict], tuple[int, float]] | None,
+    apply_transformations_fn: Callable[..., list] | None,
+    needs_transformations_fn: Callable[..., bool] | None,
+    calculate_stats_fn: Callable[..., tuple[int, float]] | None,
     needs_month_for_filename: bool,
     logger: Any,
 ) -> list[MergeTask]:
@@ -309,22 +306,13 @@ def prepare_merge_tasks(
         transformations = group_config.get("transformations", {})
         if needs_transform_fn(field_mappings):
             logger.info("分组 %s_%s 开始数据转换", unit_name, template_name)
-            try:
-                merged_group_data = transform_fn(
-                    merged_group_data,
-                    transformations,
-                    field_mappings,
-                    context=context,
-                    source_file_field=MERGE_SOURCE_FILE_COLUMN,
-                )
-            except TypeError as exc:
-                if "unexpected keyword argument 'context'" not in str(exc):
-                    raise
-                merged_group_data = transform_fn(merged_group_data, transformations, field_mappings)
-            except Exception as exc:
-                if isinstance(exc, MergeFolderError):
-                    raise
-                raise
+            merged_group_data = transform_fn(
+                merged_group_data,
+                transformations,
+                field_mappings,
+                context=context,
+                source_file_field=MERGE_SOURCE_FILE_COLUMN,
+            )
         if post_transform_rules:
             logger.info("分组 %s_%s 开始类型/范围校验", unit_name, template_name)
             pipeline_validate_rows(
@@ -333,7 +321,10 @@ def prepare_merge_tasks(
                 context=context,
                 source_file_field=MERGE_SOURCE_FILE_COLUMN,
             )
-        count_from_data, amount_from_data = stats_fn(merged_group_data, field_mappings, transformations)
+        try:
+            count_from_data, amount_from_data = stats_fn(merged_group_data, field_mappings, transformations)
+        except ValidationError as exc:
+            raise enrich_error_context(exc, "批量合并统计", context) from exc
 
         if has_complete_name_count and count_from_data != count_from_name:
             error = MergeFolderError(
@@ -397,7 +388,9 @@ def _scan_merge_input_files(
     unit_names: list[str],
     template_names_by_unit: Mapping[str, set[str]] | None = None,
 ) -> list[MergeInputFile]:
-    excel_files = [path for path in merge_folder.iterdir() if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS]
+    excel_files = [
+        path for path in merge_folder.iterdir() if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS
+    ]
     if not excel_files:
         raise MergeFolderError(f"目录中未找到可合并的 Excel 文件: {merge_folder}")
     excel_files.sort(key=_merge_input_file_sort_key)
@@ -748,9 +741,7 @@ def _infer_month_param_from_single_value(value: str, month_type_mapping: dict) -
     if len(matched_months) == 1:
         return matched_months[0]
     if len(matched_months) > 1:
-        raise MergeFolderError(
-            f"月类型值 '{normalized_value}' 对 month_format 匹配到多个月份: {matched_months}"
-        )
+        raise MergeFolderError(f"月类型值 '{normalized_value}' 对 month_format 匹配到多个月份: {matched_months}")
     raise MergeFolderError(f"无法从月类型值推断月份参数: '{normalized_value}'")
 
 

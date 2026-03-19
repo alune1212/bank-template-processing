@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, Mapping, cast
+from typing import Any, Callable, Mapping, cast
 
 from .config_types import FieldMappings, ReaderOptions, RuleGroupConfig, ValidationRules
 from .excel_reader import ExcelReader
@@ -249,17 +249,76 @@ def calculate_stats(data: list[dict], field_mappings: FieldMappings | dict, tran
             break
 
     if amount_column:
-        for row in data:
+        for row_number, row in enumerate(data, start=1):
             value = row.get(amount_column)
+            if value is None:
+                continue
+            if isinstance(value, bool):
+                raise ValidationError(
+                    f"第{row_number}条数据中金额统计字段 '{amount_column}' 的值无法解析为数值: {value!r}"
+                )
             if isinstance(value, (int, float)):
                 total_amount += float(value)
             elif isinstance(value, str) and value.strip():
                 try:
-                    total_amount += float(value)
-                except (ValueError, TypeError):
-                    pass
+                    normalized = value.replace(",", "").replace("，", "").strip()
+                    total_amount += float(normalized)
+                except (ValueError, TypeError) as exc:
+                    raise ValidationError(
+                        f"第{row_number}条数据中金额统计字段 '{amount_column}' 的值无法解析为数值: {value!r}"
+                    ) from exc
+            elif value != "":
+                raise ValidationError(
+                    f"第{row_number}条数据中金额统计字段 '{amount_column}' 的值无法解析为数值: {value!r}"
+                )
 
     return count, total_amount
+
+
+def prepare_group_rows(
+    data: list[dict],
+    group_config: RuleGroupConfig | dict[str, Any],
+    *,
+    context: ProcessingContext | None = None,
+    source_file_field: str | None = None,
+    transform_fn: Callable[..., list[dict]] = transform_rows,
+    needs_transform_fn: Callable[..., bool] = needs_transformations,
+    stats_fn: Callable[..., tuple[int, float]] = calculate_stats,
+) -> tuple[list[dict], int, float]:
+    """对单组数据执行校验、转换和统计。"""
+    validation_rules = group_config.get("validation_rules", {})
+    pre_transform_rules, post_transform_rules = split_validation_rules(validation_rules)
+    validate_rows(
+        data,
+        pre_transform_rules,
+        context=context,
+        source_file_field=source_file_field,
+    )
+
+    transformations = group_config.get("transformations", {})
+    field_mappings = group_config.get("field_mappings", {})
+    if needs_transform_fn(field_mappings):
+        data = transform_fn(
+            data,
+            transformations,
+            field_mappings,
+            context=context,
+            source_file_field=source_file_field,
+        )
+
+    validate_rows(
+        data,
+        post_transform_rules,
+        context=context,
+        source_file_field=source_file_field,
+    )
+
+    try:
+        count, amount = stats_fn(data, field_mappings, transformations)
+    except ValidationError as exc:
+        raise enrich_error_context(exc, "金额统计", context) from exc
+
+    return data, count, amount
 
 
 def write_group_output(

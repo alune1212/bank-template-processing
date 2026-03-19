@@ -165,11 +165,7 @@ class Validator:
 
     @staticmethod
     def _coerce_comparison_bounds(min_val: Any, max_val: Any) -> tuple[str, str | None, Any, Any]:
-        kinds = {
-            Validator._classify_range_bound(value)
-            for value in (min_val, max_val)
-            if value is not None
-        }
+        kinds = {Validator._classify_range_bound(value) for value in (min_val, max_val) if value is not None}
         if len(kinds) > 1:
             raise TypeError("min/max 必须同为数值或同为日期")
 
@@ -192,9 +188,7 @@ class Validator:
         return Validator._coerce_numeric_value(field, value)
 
     @staticmethod
-    def _normalize_allowed_values(
-        field: str, value: Any, allowed_values: Any
-    ) -> tuple[Any, Any, bool]:
+    def _normalize_allowed_values(field: str, value: Any, allowed_values: Any) -> tuple[Any, Any, bool]:
         """
         归一化 allowed_values 以便比较
 
@@ -207,9 +201,11 @@ class Validator:
         value_date = Validator._try_parse_date(value)
         allowed_dates = [Validator._try_parse_date(item) for item in allowed_values]
         if value_date is not None and any(item is not None for item in allowed_dates):
-            date_mode = "datetime" if isinstance(value, datetime) or any(
-                isinstance(item, datetime) for item in allowed_values
-            ) else "date"
+            date_mode = (
+                "datetime"
+                if isinstance(value, datetime) or any(isinstance(item, datetime) for item in allowed_values)
+                else "date"
+            )
             try:
                 normalized_value = Validator._coerce_date_value(field, value, date_mode)
             except TypeError as e:
@@ -221,9 +217,7 @@ class Validator:
                 try:
                     normalized_allowed.append(Validator._coerce_date_bound(item, date_mode))
                 except TypeError as e:
-                    logger.warning(
-                        f"字段 '{field}' 的 allowed_values 日期值无法解析，已保留原值: {e}"
-                    )
+                    logger.warning(f"字段 '{field}' 的 allowed_values 日期值无法解析，已保留原值: {e}")
                     normalized_allowed.append(item)
 
             return normalized_value, normalized_allowed, True
@@ -241,9 +235,7 @@ class Validator:
                 normalized_allowed.append(Validator._coerce_numeric_bound(item))
                 any_numeric = True
             except TypeError as e:
-                logger.warning(
-                    f"字段 '{field}' 的 allowed_values 数值无法解析，已保留原值: {e}"
-                )
+                logger.warning(f"字段 '{field}' 的 allowed_values 数值无法解析，已保留原值: {e}")
                 normalized_allowed.append(item)
 
         if not any_numeric:
@@ -388,9 +380,7 @@ class Validator:
                 raise ValidationError(error_msg)
 
             if not isinstance(value, expected_py_type):
-                error_msg = (
-                    f"字段 '{field}' 的类型应为 {type_name}，实际为 {type(value).__name__}"
-                )
+                error_msg = f"字段 '{field}' 的类型应为 {type_name}，实际为 {type(value).__name__}"
                 logger.error(error_msg)
                 raise ValidationError(error_msg)
 

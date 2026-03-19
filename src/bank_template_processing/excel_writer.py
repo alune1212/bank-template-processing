@@ -128,7 +128,7 @@ class ExcelWriter:
         except Exception as exc:
             if isinstance(exc, (ConfigError, ExcelError, FileNotFoundError)):
                 raise
-            error_msg = f"写入文件失败: {exc}"
+            error_msg = f"写入文件失败: {template_path} -> {output_path}: {exc}"
             logger.error(error_msg, exc_info=True)
             raise ExcelError(error_msg) from exc
 
@@ -161,6 +161,12 @@ class ExcelWriter:
             workbook = openpyxl.load_workbook(template_path)
         except InvalidFileException as exc:
             raise ExcelError(f"无效的Excel文件: {exc}") from exc
+        except PermissionError as exc:
+            raise ExcelError(f"无法读取模板文件（权限不足）: {template_path}: {exc}") from exc
+        except FileNotFoundError:
+            raise
+        except Exception as exc:
+            raise ExcelError(f"无法读取模板文件: {template_path}: {exc}") from exc
 
         worksheet = workbook.worksheets[0] if workbook.worksheets else workbook.active
         if worksheet is None:
@@ -213,15 +219,21 @@ class ExcelWriter:
 
         try:
             workbook_template = xlrd.open_workbook(template_path, formatting_info=True)
+        except FileNotFoundError:
+            raise
+        except PermissionError as exc:
+            raise ExcelError(f"无法读取Excel文件（权限不足）: {template_path}: {exc}") from exc
         except Exception as exc:
-            raise ExcelError(f"无法读取Excel文件: {exc}") from exc
+            raise ExcelError(f"无法读取Excel文件: {template_path}: {exc}") from exc
 
         workbook_output = xl_copy(workbook_template)
         worksheet_template = workbook_template.sheet_by_index(0)
         worksheet_output = workbook_output.get_sheet(0)
 
         if header_row > 0:
-            header_values = [worksheet_template.cell_value(header_row - 1, idx) for idx in range(worksheet_template.ncols)]
+            header_values = [
+                worksheet_template.cell_value(header_row - 1, idx) for idx in range(worksheet_template.ncols)
+            ]
             headers = extract_headers_from_values(header_values)
             logger.debug(f"读取到 {len(headers)} 个表头字段")
         else:
@@ -263,7 +275,6 @@ class ExcelWriter:
         )
         workbook_output.save(output_path)
         logger.debug(f"xls文件已保存: {output_path}")
-
 
     def _write_data_to_worksheet(
         self,
@@ -472,7 +483,9 @@ class ExcelWriter:
             row_projection: dict[int, _CellProjection] = {}
 
             for template_column, mapping_config in field_mappings.items():
-                source_column, target_column, transform_type = self._normalize_field_mapping(template_column, mapping_config)
+                source_column, target_column, transform_type = self._normalize_field_mapping(
+                    template_column, mapping_config
+                )
                 value = row_data.get(source_column, "")
                 col_idx = self._resolve_required_column(
                     target_column,

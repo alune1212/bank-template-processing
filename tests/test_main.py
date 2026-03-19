@@ -161,10 +161,7 @@ class TestArgumentParser:
         assert args.month == "01"
         assert args.output_dir == "output/"
         assert args.config == "config.json"
-        assert (
-            args.output_filename_template
-            == "{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}"
-        )
+        assert args.output_filename_template == "{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}"
 
     def test_parse_args_with_custom_values(self):
         """测试使用自定义值的参数解析"""
@@ -209,6 +206,14 @@ class TestArgumentParser:
         assert args.excel_path is None
         assert args.unit_name is None
         assert args.month is None
+
+    def test_parse_args_debug_flag(self):
+        """测试 --debug 参数解析"""
+        from bank_template_processing.main import parse_args
+
+        args = parse_args(["input.xlsx", "unit1", "01", "--debug"])
+
+        assert args.debug is True
 
 
 class TestCliModeValidation:
@@ -460,7 +465,7 @@ class TestMainWorkflow:
                 "金额": "2000.00",
                 "实发工资": "2000.00",
                 "开户银行": "工商银行",
-            }
+            },
         ]
         mock_reader_class.return_value = mock_reader_instance
 
@@ -575,7 +580,7 @@ class TestMainZeroSalaryFiltering:
 
         caplog.set_level("INFO")
         with (
-            patch("bank_template_processing.main.Validator.validate_required") as mock_validate_required,
+            patch("bank_template_processing.pipeline.Validator.validate_required") as mock_validate_required,
             patch(
                 "bank_template_processing.main.Transformer.transform_amount",
                 return_value=1000.46,

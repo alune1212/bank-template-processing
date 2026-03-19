@@ -11,7 +11,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Mapping
 
-from .config_loader import ConfigError, get_unit_config, load_config, validate_config
+from .config_loader import ConfigError, build_runtime_config, get_unit_config, load_config, validate_config
 from .config_types import AppConfig, RuleGroupConfig
 from .excel_reader import ExcelError, ExcelReader
 from .excel_writer import ExcelWriter
@@ -23,15 +23,16 @@ from .pipeline import (
     calculate_stats as _calculate_stats,
     enrich_error_context,
     needs_transformations as _needs_transformations,
-    split_validation_rules,
+    prepare_group_rows as _prepare_group_rows_shared,
     write_group_output,
 )
 from .template_selector import TemplateSelector
 from .transformer import TransformError, Transformer as _Transformer
-from .validator import ValidationError, Validator
+from .validator import ValidationError, Validator as _Validator
 
 
 Transformer = _Transformer
+Validator = _Validator
 
 
 def get_executable_dir() -> Path:
@@ -105,6 +106,7 @@ def parse_args(argv=None) -> argparse.Namespace:
         default="{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}",
         help="输出文件名模板（默认：{unit_name}_{template_name}_{count}人_金额{amount:.2f}元{ext}）",
     )
+    parser.add_argument("--debug", action="store_true", help="输出调试日志与异常堆栈")
     return parser.parse_args(argv)
 
 
@@ -174,13 +176,19 @@ def _output_template_uses_month(output_template: str | None) -> bool:
     return False
 
 
-def setup_logging() -> None:
+def setup_logging(debug: bool = False) -> None:
     """配置日志。"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
+    root_logger = logging.getLogger()
+    level = logging.DEBUG if debug else logging.INFO
+    if not root_logger.handlers:
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[logging.StreamHandler(sys.stdout)],
+        )
+        return
+
+    root_logger.setLevel(level)
 
 
 def _is_zero_salary_value(value) -> bool:
@@ -248,30 +256,6 @@ def _read_input_rows(
         raise enrich_error_context(exc, "零工资筛选", context) from exc
 
 
-def _validate_rows(
-    data: list[dict],
-    validation_rules: Mapping[str, Any],
-    context: ProcessingContext,
-    logger: logging.Logger,
-) -> None:
-    """按现有 Validator 行为执行逐行校验。"""
-    if not validation_rules:
-        return
-
-    logger.info("验证输入数据")
-    for row_number, row in enumerate(data, start=1):
-        try:
-            if "required_fields" in validation_rules:
-                Validator.validate_required(row, validation_rules["required_fields"])
-            if "data_types" in validation_rules:
-                Validator.validate_data_types(row, validation_rules["data_types"])
-            if "value_ranges" in validation_rules:
-                Validator.validate_value_ranges(row, validation_rules["value_ranges"])
-        except ValidationError as exc:
-            raise enrich_error_context(exc, "数据校验", context, row_number) from exc
-    logger.info("数据验证通过")
-
-
 def _prepare_group_rows(
     data: list[dict],
     group_config: RuleGroupConfig | dict[str, Any],
@@ -279,25 +263,17 @@ def _prepare_group_rows(
     logger: logging.Logger,
 ) -> tuple[list[dict], int, float]:
     """对单组数据执行校验、转换和统计。"""
-    validation_rules = group_config.get("validation_rules", {})
-    pre_transform_rules, post_transform_rules = split_validation_rules(validation_rules)
-    _validate_rows(data, pre_transform_rules, context, logger)
-
-    transformations = group_config.get("transformations", {})
-    field_mappings = group_config.get("field_mappings", {})
-    if _needs_transformations(field_mappings):
-        logger.info("转换数据")
-        try:
-            data = apply_transformations(data, transformations, field_mappings, context=context)
-        except TypeError as exc:
-            if "unexpected keyword argument 'context'" not in str(exc):
-                raise
-            data = apply_transformations(data, transformations, field_mappings)
-        logger.info("数据转换完成")
-
-    _validate_rows(data, post_transform_rules, context, logger)
-    count, amount = _calculate_stats(data, field_mappings, transformations)
-    return data, count, amount
+    logger.info("验证并准备分组数据")
+    prepared_rows, count, amount = _prepare_group_rows_shared(
+        data,
+        group_config,
+        context=context,
+        transform_fn=apply_transformations,
+        needs_transform_fn=_needs_transformations,
+        stats_fn=_calculate_stats,
+    )
+    logger.info("分组数据准备完成：%s 行，金额 %.2f", count, amount)
+    return prepared_rows, count, amount
 
 
 def process_group(
@@ -432,8 +408,8 @@ def _handle_merge_mode(args: argparse.Namespace, config: AppConfig | dict[str, A
         config=config,
         resolve_path_fn=resolve_path,
         apply_transformations_fn=apply_transformations,
-        needs_transformations_fn=_needs_transformations,
-        calculate_stats_fn=_calculate_stats,
+        needs_transformations_fn=None,
+        calculate_stats_fn=None,
         needs_month_for_filename=needs_month_for_filename,
         logger=logger,
     )
@@ -561,11 +537,16 @@ def _handle_selector_mode(
 def main(argv=None) -> None:
     """CLI 主入口。"""
     logger = None
+    debug_enabled = False
     try:
         setup_logging()
         logger = logging.getLogger(__name__)
 
         args = parse_args(argv)
+        debug_enabled = bool(getattr(args, "debug", False))
+        if debug_enabled:
+            setup_logging(True)
+            logger = logging.getLogger(__name__)
         validate_cli_mode_args(args)
 
         config_path = Path(args.config)
@@ -576,6 +557,7 @@ def main(argv=None) -> None:
         logger.info(f"加载配置文件：{config_path}")
         config = load_config(str(config_path))
         validate_config(config)
+        config = build_runtime_config(config)
         logger.info(f"配置版本：{config['version']}")
 
         if args.merge_folder:
@@ -626,13 +608,13 @@ def main(argv=None) -> None:
         FileNotFoundError,
     ) as exc:
         if logger:
-            logger.error(f"错误：{exc}")
+            logger.error(f"错误：{exc}", exc_info=debug_enabled)
         else:
             print(f"错误：{exc}")
         sys.exit(1)
     except Exception as exc:
         if logger:
-            logger.error(f"未知错误：{exc}")
+            logger.error(f"未知错误：{exc}", exc_info=debug_enabled)
         else:
             print(f"未知错误：{exc}")
         sys.exit(1)

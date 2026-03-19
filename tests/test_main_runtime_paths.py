@@ -12,6 +12,7 @@ from typing import TypedDict
 import pytest
 
 from bank_template_processing import main as main_module
+from bank_template_processing import pipeline as pipeline_module
 
 
 class FieldMappingEntry(TypedDict, total=False):
@@ -194,17 +195,16 @@ def test_generate_output_filename_template_missing_variable_raises():
         )
 
 
-def test_calculate_stats_skips_non_dict_mapping_and_invalid_amount():
-    count, amount = main_module._calculate_stats(
-        data=[{"金额": "100"}, {"金额": "bad"}, {"金额": 50.5}],
-        field_mappings={
-            "旧格式映射": "A",
-            "金额列": {"source_column": "金额", "transform": "amount_decimal"},
-        },
-        transformations={},
-    )
-    assert count == 3
-    assert amount == 150.5
+def test_calculate_stats_rejects_invalid_amount():
+    with pytest.raises(main_module.ValidationError, match="金额统计字段 '金额' 的值无法解析为数值"):
+        main_module._calculate_stats(
+            data=[{"金额": "100"}, {"金额": "bad"}, {"金额": 50.5}],
+            field_mappings={
+                "旧格式映射": "A",
+                "金额列": {"source_column": "金额", "transform": "amount_decimal"},
+            },
+            transformations={},
+        )
 
 
 def test_is_zero_salary_value_unknown_type_returns_false():
@@ -271,7 +271,9 @@ def test_prepare_group_rows_validates_ranges_after_transform():
         },
     }
 
-    with pytest.raises(main_module.ValidationError, match="数据校验失败（单位=单位A，规则组=default，模板=模板A，第1条数据）"):
+    with pytest.raises(
+        main_module.ValidationError, match="数据校验失败（单位=单位A，规则组=default，模板=模板A，第1条数据）"
+    ):
         main_module._prepare_group_rows(
             [{"实发工资": "100.556"}],
             group_config,
@@ -325,9 +327,9 @@ def test_main_non_selector_runtime_paths_and_validation(monkeypatch, tmp_path):
         "ExcelReader",
         lambda **_kwargs: SimpleNamespace(read_excel=lambda _p: [{"实发工资": "100"}]),
     )
-    monkeypatch.setattr(main_module.Validator, "validate_required", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(main_module.Validator, "validate_data_types", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(main_module.Validator, "validate_value_ranges", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_required", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_data_types", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_value_ranges", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(main_module, "_needs_transformations", lambda _m: False)
     monkeypatch.setattr(
         main_module,
@@ -385,14 +387,14 @@ def test_main_dynamic_selector_paths_with_template_fallback_and_transform(monkey
         "resolve_path",
         lambda path, base_dir=None: str((tmp_path / path).resolve()),
     )
-    monkeypatch.setattr(main_module.Validator, "validate_required", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(main_module.Validator, "validate_data_types", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(main_module.Validator, "validate_value_ranges", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_required", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_data_types", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_value_ranges", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(main_module, "_needs_transformations", lambda _m: True)
     monkeypatch.setattr(
         main_module,
         "apply_transformations",
-        lambda data, _t, _f: called.__setitem__("apply", called["apply"] + 1) or data,
+        lambda data, _t, _f, **_kwargs: called.__setitem__("apply", called["apply"] + 1) or data,
     )
     monkeypatch.setattr(
         main_module,
@@ -431,8 +433,16 @@ def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp
                     "start_row": 2,
                     "field_mappings": {
                         "收款人姓名": {"source_column": "姓名", "target_column": "收款人姓名", "transform": "none"},
-                        "收款人账号": {"source_column": "工资卡卡号", "target_column": "收款人账号", "transform": "card_number"},
-                        "交易金额": {"source_column": "实发工资", "target_column": "交易金额", "transform": "amount_decimal"},
+                        "收款人账号": {
+                            "source_column": "工资卡卡号",
+                            "target_column": "收款人账号",
+                            "transform": "card_number",
+                        },
+                        "交易金额": {
+                            "source_column": "实发工资",
+                            "target_column": "交易金额",
+                            "transform": "amount_decimal",
+                        },
                     },
                     "auto_number": {"enabled": True, "column_name": "明细序号", "start_from": 1},
                     "month_type_mapping": {"enabled": True, "target_column": "M", "month_format": "{month}月收入"},
@@ -475,9 +485,9 @@ def test_main_b01095_routing_uses_rule_group_and_skips_selector(monkeypatch, tmp
         "resolve_path",
         lambda path, base_dir=None: str((tmp_path / path).resolve()),
     )
-    monkeypatch.setattr(main_module.Validator, "validate_required", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(main_module.Validator, "validate_data_types", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(main_module.Validator, "validate_value_ranges", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_required", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_data_types", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_value_ranges", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(main_module, "_needs_transformations", lambda _m: False)
 
     def _capture_process_call(group_data, group_config, template_path, output_path, month_param, logger):
@@ -559,9 +569,9 @@ def test_main_b01095_routing_reads_input_with_matched_rule_group_options(monkeyp
     monkeypatch.setattr(main_module, "validate_config", lambda _cfg: None)
     monkeypatch.setattr(main_module, "ExcelReader", ReaderSpy)
     monkeypatch.setattr(main_module, "resolve_path", lambda path, base_dir=None: str((tmp_path / path).resolve()))
-    monkeypatch.setattr(main_module.Validator, "validate_required", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(main_module.Validator, "validate_data_types", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(main_module.Validator, "validate_value_ranges", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_required", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_data_types", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_value_ranges", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(main_module, "_needs_transformations", lambda _m: False)
     monkeypatch.setattr(main_module, "process_group", lambda *_args, **_kwargs: None)
 
@@ -677,9 +687,9 @@ def test_main_b01153_routing_uses_fixed_salary_remark(monkeypatch, tmp_path):
         "resolve_path",
         lambda path, base_dir=None: str((tmp_path / path).resolve()),
     )
-    monkeypatch.setattr(main_module.Validator, "validate_required", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(main_module.Validator, "validate_data_types", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(main_module.Validator, "validate_value_ranges", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_required", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_data_types", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pipeline_module.Validator, "validate_value_ranges", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(main_module, "_needs_transformations", lambda _m: False)
 
     def _capture_process_call(group_data, group_config, template_path, output_path, month_param, logger):
@@ -715,7 +725,9 @@ def test_main_unit_not_found_exits(monkeypatch):
     monkeypatch.setattr(main_module, "setup_logging", lambda: None)
     monkeypatch.setattr(main_module, "parse_args", lambda _argv=None: args)
     monkeypatch.setattr(main_module, "validate_cli_mode_args", lambda _args: None)
-    monkeypatch.setattr(main_module, "load_config", lambda _path: {"version": "2.0", "organization_units": {"单位A": {}}})
+    monkeypatch.setattr(
+        main_module, "load_config", lambda _path: {"version": "2.0", "organization_units": {"单位A": {}}}
+    )
     monkeypatch.setattr(main_module, "validate_config", lambda _cfg: None)
 
     with pytest.raises(SystemExit) as exc_info:

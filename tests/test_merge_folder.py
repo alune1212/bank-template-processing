@@ -89,7 +89,9 @@ def _make_merge_test_group_config(template_path: Path, *, month_type_enabled: bo
     )
 
 
-def _build_test_config(default_template: Path, crossbank_template: Path, month_type_enabled: bool = False) -> dict[str, Any]:
+def _build_test_config(
+    default_template: Path, crossbank_template: Path, month_type_enabled: bool = False
+) -> dict[str, Any]:
     return make_config(
         version="2.0",
         unit_name="苏州悦鸣服务外包有限公司",
@@ -184,11 +186,14 @@ def test_infer_month_param_from_values():
     with pytest.raises(MergeFolderError, match="同一分组存在冲突的月类型值"):
         infer_month_param_from_values({"年终奖", "补偿金"}, month_type_mapping)
 
-    assert infer_month_param_from_values(
-        {"01月收入", "年终奖"},
-        month_type_mapping,
-        allow_conflict=True,
-    ) == "01"
+    assert (
+        infer_month_param_from_values(
+            {"01月收入", "年终奖"},
+            month_type_mapping,
+            allow_conflict=True,
+        )
+        == "01"
+    )
 
 
 def test_prepare_merge_tasks_stats_mismatch_raises(tmp_path):

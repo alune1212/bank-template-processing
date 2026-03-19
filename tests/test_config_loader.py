@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from bank_template_processing.config_loader import ConfigError, load_config, validate_config
+from bank_template_processing.config_loader import ConfigError, build_runtime_config, load_config, validate_config
 from tests.config_factories import (
     make_basic_unit_config,
     make_config,
@@ -102,11 +102,7 @@ class TestValidateConfig:
         """测试 allowed_values 非列表触发错误"""
         config = make_config(
             unit_config=make_basic_unit_config(
-                validation_rules={
-                    "value_ranges": {
-                        "状态": {"allowed_values": "active"}
-                    }
-                }
+                validation_rules={"value_ranges": {"状态": {"allowed_values": "active"}}}
             )
         )
         with pytest.raises(ConfigError, match="allowed_values"):
@@ -158,9 +154,7 @@ class TestValidateConfig:
 
     def test_validate_valid_header_row_zero(self):
         """测试header_row为0（模板无表头，使用列标识符）"""
-        config: dict[str, Any] = make_config(
-            unit_config=make_basic_unit_config(header_row=0, start_row=1)
-        )
+        config: dict[str, Any] = make_config(unit_config=make_basic_unit_config(header_row=0, start_row=1))
         validate_config(config)
         assert config["organization_units"]["test_unit"]["start_row"] == 1
 
@@ -212,7 +206,11 @@ class TestValidateConfig:
         unit_config.pop("start_row")
         config: dict[str, Any] = make_config(unit_config=unit_config)
         validate_config(config)  # 验证不应抛出异常
-        assert config["organization_units"]["test_unit"]["start_row"] == 4
+        assert "start_row" not in config["organization_units"]["test_unit"]
+
+        runtime_config = build_runtime_config(config)
+        assert runtime_config["organization_units"]["test_unit"]["start_row"] == 4
+        assert "start_row" not in config["organization_units"]["test_unit"]
 
     def test_validate_multiple_units(self):
         """测试多个单位的配置验证"""
@@ -229,7 +227,22 @@ class TestValidateConfig:
             }
         )
         validate_config(config)  # 不应抛出异常
-        assert config["organization_units"]["unit2"]["start_row"] == 3
+        assert "start_row" not in config["organization_units"]["unit2"]
+
+        runtime_config = build_runtime_config(config)
+        assert runtime_config["organization_units"]["unit2"]["start_row"] == 3
+        assert "start_row" not in config["organization_units"]["unit2"]
+
+    def test_build_runtime_config_does_not_mutate_input(self):
+        """测试 build_runtime_config 不修改原始配置"""
+        unit_config = make_basic_unit_config(header_row=2)
+        unit_config.pop("start_row")
+        config: dict[str, Any] = make_config(unit_config=unit_config)
+
+        runtime_config = build_runtime_config(config)
+
+        assert "start_row" not in config["organization_units"]["test_unit"]
+        assert runtime_config["organization_units"]["test_unit"]["start_row"] == 3
 
     def test_validate_reader_options_valid(self):
         """测试reader_options合法配置"""

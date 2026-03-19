@@ -45,6 +45,9 @@ uv run python -m bank_template_processing input.xlsx "单位名称" 01
 
 # 或使用项目脚本入口
 uv run bank-process input.xlsx "单位名称" 01
+
+# 调试模式（输出堆栈）
+uv run python -m bank_template_processing input.xlsx "单位名称" 01 --debug
 ```
 
 月份参数支持：
@@ -266,6 +269,9 @@ uv run python -m bank_template_processing --merge-folder <folder> [options]
 ## 开发与测试
 
 ```bash
+# 同步开发依赖
+uv sync --group dev
+
 # 运行测试
 uv run pytest tests/ -v
 

@@ -1,4 +1,6 @@
-from bank_template_processing.main import generate_output_filename, _calculate_stats
+import pytest
+
+from bank_template_processing.main import ValidationError, generate_output_filename, _calculate_stats
 
 
 def test_calculate_stats():
@@ -12,10 +14,8 @@ def test_calculate_stats():
     field_mappings = {"模板金额列": {"source_column": "金额", "transform": "amount_decimal"}}
     transformations = {}
 
-    count, total_amount = _calculate_stats(data, field_mappings, transformations)
-
-    assert count == 4
-    assert total_amount == 300.50
+    with pytest.raises(ValidationError, match="金额统计字段 '金额' 的值无法解析为数值"):
+        _calculate_stats(data, field_mappings, transformations)
 
 
 def test_generate_output_filename_format():

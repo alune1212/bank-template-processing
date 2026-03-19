@@ -76,8 +76,8 @@ class ExcelReader:
             # 重新抛出ExcelError
             raise
         except Exception as e:
-            logger.error(f"读取文件失败: {file_path}, 错误: {e}")
-            raise ExcelError(f"文件格式无效: {file_path}") from e
+            logger.error(f"读取文件失败: {file_path}, 错误: {e}", exc_info=True)
+            raise ExcelError(f"读取文件失败: {file_path}: {e}") from e
 
     def _is_empty_cell(self, value: Any) -> bool:
         """判断单元格是否为空"""
@@ -181,9 +181,11 @@ class ExcelReader:
 
             return data_rows
 
+        except ExcelError:
+            raise
         except Exception as e:
-            logger.error(f"读取.xlsx文件失败: {e}")
-            raise ExcelError(f"无法读取.xlsx文件: {file_path}") from e
+            logger.error(f"读取.xlsx文件失败: {e}", exc_info=True)
+            raise ExcelError(f"无法读取.xlsx文件: {file_path}: {e}") from e
         finally:
             if workbook is not None and hasattr(workbook, "close"):
                 workbook.close()
@@ -246,6 +248,8 @@ class ExcelReader:
 
             return data_rows
 
+        except ExcelError:
+            raise
         except Exception as e:
-            logger.error(f"读取.xls文件失败: {e}")
-            raise ExcelError(f"无法读取.xls文件: {file_path}") from e
+            logger.error(f"读取.xls文件失败: {e}", exc_info=True)
+            raise ExcelError(f"无法读取.xls文件: {file_path}: {e}") from e

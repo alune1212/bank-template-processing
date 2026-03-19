@@ -6,6 +6,7 @@ import pytest
 
 from bank_template_processing.config_loader import (
     ConfigError,
+    build_runtime_config,
     _validate_clear_rows,
     _validate_legacy_unit_config,
     _validate_reader_options,
@@ -146,7 +147,7 @@ def test_validate_rule_group_config_error_paths_and_default_start_row(caplog):
         "transformations": {},
     }
     _validate_rule_group_config("单位A", "default", cfg)
-    assert cfg["start_row"] == 3
+    assert "start_row" not in cfg
     assert "使用旧格式，建议迁移" in caplog.text
 
     with pytest.raises(ConfigError, match="field_mappings 必须须是字典"):
@@ -252,3 +253,26 @@ def test_validate_clear_rows_error_paths_with_rule_name():
 
     with pytest.raises(ConfigError, match="clear_rows.start_row 不能大于 end_row"):
         _validate_clear_rows("单位A", {"end_row": 10, "start_row": 11}, rule_name="default")
+
+
+def test_build_runtime_config_adds_default_start_row_for_rule_group():
+    config = make_config(
+        version="2.0",
+        organization_units={
+            "单位A": make_multi_group_unit_config(
+                {
+                    "default": {
+                        "template_path": "a.xlsx",
+                        "header_row": 2,
+                        "field_mappings": {"姓名": {"source_column": "姓名"}},
+                        "transformations": {},
+                    }
+                }
+            )
+        },
+    )
+
+    runtime_config = build_runtime_config(config)
+
+    assert "start_row" not in config["organization_units"]["单位A"]["default"]
+    assert runtime_config["organization_units"]["单位A"]["default"]["start_row"] == 3

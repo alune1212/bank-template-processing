@@ -37,7 +37,7 @@ def test_read_xlsx_without_active_sheet_raises(tmp_path, monkeypatch):
 
     monkeypatch.setattr(excel_reader_module.openpyxl, "load_workbook", lambda *_args, **_kwargs: FakeWorkbook())
 
-    with pytest.raises(ExcelError, match="无法读取.xlsx文件"):
+    with pytest.raises(ExcelError, match="Excel文件没有工作表"):
         ExcelReader()._read_xlsx(str(file_path))
 
 
@@ -64,7 +64,7 @@ def test_read_xlsx_header_row_invalid_raises(tmp_path):
     ws.append(["姓名"])
     wb.save(file_path)
 
-    with pytest.raises(ExcelError, match="无法读取\\.xlsx文件"):
+    with pytest.raises(ExcelError, match="header_row 必须大于等于 1"):
         ExcelReader(header_row=0)._read_xlsx(str(file_path))
 
 
@@ -77,7 +77,7 @@ def test_read_xlsx_header_row_out_of_range_raises(tmp_path):
     ws.append(["姓名"])
     wb.save(file_path)
 
-    with pytest.raises(ExcelError, match="无法读取\\.xlsx文件"):
+    with pytest.raises(ExcelError, match="XLSX文件行数不足"):
         ExcelReader(header_row=5)._read_xlsx(str(file_path))
 
 
@@ -89,7 +89,7 @@ def test_read_xls_header_row_invalid_raises(tmp_path, monkeypatch):
     workbook = SimpleNamespace(sheet_by_index=lambda _idx: sheet, datemode=0)
     monkeypatch.setattr(excel_reader_module.xlrd, "open_workbook", lambda *_args, **_kwargs: workbook)
 
-    with pytest.raises(ExcelError, match="无法读取\\.xls文件"):
+    with pytest.raises(ExcelError, match="header_row 必须大于等于 1"):
         ExcelReader(header_row=0)._read_xls(str(file_path))
 
 
@@ -101,7 +101,7 @@ def test_read_xls_header_row_out_of_range_raises(tmp_path, monkeypatch):
     workbook = SimpleNamespace(sheet_by_index=lambda _idx: sheet, datemode=0)
     monkeypatch.setattr(excel_reader_module.xlrd, "open_workbook", lambda *_args, **_kwargs: workbook)
 
-    with pytest.raises(ExcelError, match="无法读取\\.xls文件"):
+    with pytest.raises(ExcelError, match="XLS文件行数不足"):
         ExcelReader(header_row=2)._read_xls(str(file_path))
 
 
@@ -126,7 +126,7 @@ def test_read_excel_wraps_unknown_error(tmp_path, monkeypatch):
 
     monkeypatch.setattr(reader, "_read_xlsx", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("oops")))
 
-    with pytest.raises(ExcelError, match="文件格式无效"):
+    with pytest.raises(ExcelError, match="读取文件失败"):
         reader.read_excel(str(file_path))
 
 

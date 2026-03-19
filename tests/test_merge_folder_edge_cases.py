@@ -321,7 +321,9 @@ def test_read_xls_rows_and_convert_number_exception_branch(monkeypatch):
         nrows=1,
         ncols=2,
         cell=lambda _row, col: (
-            SimpleNamespace(ctype=number_type, value=object()) if col == 0 else SimpleNamespace(ctype=text_type, value="x")
+            SimpleNamespace(ctype=number_type, value=object())
+            if col == 0
+            else SimpleNamespace(ctype=text_type, value="x")
         ),
     )
     workbook = SimpleNamespace(sheet_by_index=lambda _idx: sheet, datemode=0)

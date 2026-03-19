@@ -4,11 +4,12 @@
 负责从JSON文件加载配置并验证配置结构的正确性。
 """
 
+from copy import deepcopy
 import json
 import logging
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 
 from .config_types import AppConfig, RuleGroupConfig
 from .transformer import Transformer
@@ -98,6 +99,27 @@ def validate_config(config: Mapping[str, Any]) -> None:
     logger.info("配置验证成功")
 
 
+def build_runtime_config(config: Mapping[str, Any]) -> AppConfig:
+    """
+    构建运行态配置。
+
+    说明：
+    - 该函数不会修改调用方传入的配置对象
+    - 默认值补全应在这里完成，避免 validate_config() 产生副作用
+    """
+    runtime_config = cast(AppConfig, deepcopy(dict(config)))
+    org_units = runtime_config.get("organization_units")
+    if not isinstance(org_units, dict):
+        return runtime_config
+
+    for unit_name, unit_config in list(org_units.items()):
+        if not isinstance(unit_config, dict):
+            continue
+        org_units[unit_name] = _build_runtime_unit_config(unit_name, unit_config)
+
+    return runtime_config
+
+
 def get_unit_config(config: Mapping[str, Any], unit_name: str, template_key: str | None = None) -> RuleGroupConfig:
     """
     获取单位配置，支持多规则组结构
@@ -166,6 +188,23 @@ def get_unit_config(config: Mapping[str, Any], unit_name: str, template_key: str
         if template_key is not None:
             logger.warning(f"单位 '{unit_name}' 使用旧配置结构，忽略 template_key 参数")
         return unit_config
+
+
+def _build_runtime_unit_config(unit_name: str, unit_config: Mapping[str, Any]) -> dict[str, Any]:
+    """构建单个单位的运行态配置。"""
+    normalized = deepcopy(dict(unit_config))
+
+    if "default" in normalized:
+        for rule_name, rule_config in list(normalized.items()):
+            if rule_name in {"template_selector", "input_filename_routing"}:
+                continue
+            if not isinstance(rule_config, dict):
+                continue
+            _apply_runtime_rule_group_defaults(unit_name, rule_name, rule_config)
+        return normalized
+
+    _apply_runtime_legacy_unit_defaults(unit_name, normalized)
+    return normalized
 
 
 def _validate_unit_config(unit_name: str, unit_config: dict[str, Any]) -> None:
@@ -264,13 +303,9 @@ def _validate_validation_rules(
             raise ConfigError(f"{prefix} 的 validation_rules.data_types 必须是字典")
         for field_name, type_name in data_types.items():
             if not isinstance(type_name, str):
-                raise ConfigError(
-                    f"{prefix} 的 validation_rules.data_types 中 '{field_name}' 必须是字符串类型名"
-                )
+                raise ConfigError(f"{prefix} 的 validation_rules.data_types 中 '{field_name}' 必须是字符串类型名")
             if type_name.strip().lower() not in ALLOWED_DATA_TYPES:
-                raise ConfigError(
-                    f"{prefix} 的 validation_rules.data_types 中 '{field_name}' 类型不支持: {type_name}"
-                )
+                raise ConfigError(f"{prefix} 的 validation_rules.data_types 中 '{field_name}' 类型不支持: {type_name}")
 
     if "value_ranges" in validation_rules:
         value_ranges = validation_rules["value_ranges"]
@@ -278,9 +313,7 @@ def _validate_validation_rules(
             raise ConfigError(f"{prefix} 的 validation_rules.value_ranges 必须是字典")
         for field_name, rules in value_ranges.items():
             if not isinstance(rules, dict):
-                raise ConfigError(
-                    f"{prefix} 的 validation_rules.value_ranges 中 '{field_name}' 必须是字典"
-                )
+                raise ConfigError(f"{prefix} 的 validation_rules.value_ranges 中 '{field_name}' 必须是字典")
             if "allowed_values" in rules and not isinstance(rules["allowed_values"], list):
                 raise ConfigError(
                     f"{prefix} 的 validation_rules.value_ranges 中 '{field_name}'.allowed_values 必须是列表"
@@ -350,10 +383,6 @@ def _validate_legacy_unit_config(unit_name: str, unit_config: dict[str, Any]) ->
 
         if start_row <= header_row:
             raise ConfigError(f"单位 '{unit_name}' 的 start_row ({start_row}) 必须大于 header_row ({header_row})")
-    else:
-        # 设置默认值：start_row = max(1, header_row + 1)
-        unit_config["start_row"] = max(1, header_row + 1)
-        logger.debug(f"单位 '{unit_name}' 使用默认 start_row: {unit_config['start_row']}")
 
     # 验证field_mappings是字典
     if not isinstance(unit_config["field_mappings"], dict):
@@ -365,13 +394,9 @@ def _validate_legacy_unit_config(unit_name: str, unit_config: dict[str, Any]) ->
             if "source_column" not in field_config:
                 raise ConfigError(f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 缺少 source_column")
         elif isinstance(field_config, (str, int)):
-            logger.warning(
-                f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 使用旧格式，建议迁移为字典配置"
-            )
+            logger.warning(f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 使用旧格式，建议迁移为字典配置")
         else:
-            raise ConfigError(
-                f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 的配置必须是字典或字符串"
-            )
+            raise ConfigError(f"单位 '{unit_name}' 的 field_mappings 中 '{field_name}' 的配置必须是字典或字符串")
 
     # 验证transformations是字典
     if not isinstance(unit_config["transformations"], dict):
@@ -439,10 +464,6 @@ def _validate_rule_group_config(unit_name: str, rule_name: str, rule_config: dic
             raise ConfigError(
                 f"单位 '{unit_name}' 的规则组 '{rule_name}' 的 start_row ({start_row}) 必须大于 header_row ({header_row})"
             )
-    else:
-        # 设置默认值：start_row = max(1, header_row + 1)
-        rule_config["start_row"] = max(1, header_row + 1)
-        logger.debug(f"单位 '{unit_name}' 的规则组 '{rule_name}' 使用默认 start_row: {rule_config['start_row']}")
 
     # 验证field_mappings是字典
     if not isinstance(rule_config["field_mappings"], dict):
@@ -618,3 +639,32 @@ def _validate_clear_rows(
             raise ConfigError(f"{prefix} 的 clear_rows.start_row 必须是 >= 1 的整数")
         if start_row > end_row:
             raise ConfigError(f"{prefix} 的 clear_rows.start_row 不能大于 end_row")
+
+
+def _default_start_row(header_row: Any, prefix: str) -> int:
+    """根据 header_row 计算默认 start_row。"""
+    if not isinstance(header_row, int):
+        raise ConfigError(f"{prefix} 的 header_row 必须是整数")
+    if header_row < 0:
+        raise ConfigError(f"{prefix} 的 header_row 必须大于或等于 0，当前值: {header_row}")
+    return max(1, header_row + 1)
+
+
+def _apply_runtime_legacy_unit_defaults(unit_name: str, unit_config: dict[str, Any]) -> None:
+    """为旧结构单位配置补全运行态默认值。"""
+    if "start_row" in unit_config:
+        return
+
+    prefix = f"单位 '{unit_name}'"
+    unit_config["start_row"] = _default_start_row(unit_config.get("header_row"), prefix)
+    logger.debug(f"{prefix} 使用默认 start_row: {unit_config['start_row']}")
+
+
+def _apply_runtime_rule_group_defaults(unit_name: str, rule_name: str, rule_config: dict[str, Any]) -> None:
+    """为规则组配置补全运行态默认值。"""
+    if "start_row" in rule_config:
+        return
+
+    prefix = f"单位 '{unit_name}' 的规则组 '{rule_name}'"
+    rule_config["start_row"] = _default_start_row(rule_config.get("header_row"), prefix)
+    logger.debug(f"{prefix} 使用默认 start_row: {rule_config['start_row']}")
